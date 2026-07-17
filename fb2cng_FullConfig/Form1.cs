@@ -259,12 +259,14 @@ namespace fb2cng_FullConfig
         /// </summary>
         private void SwitchToTab(string tabName)
         {
+            if (_currentActiveTab == tabName && pnlContent.Controls.Count > 0) return;
             _currentActiveTab = tabName;
 
-            SuspendLayout(); // Тимчасово блокуємо розрахунок геометрії форми
+            SuspendLayout();
+
+            // 1. ОЧИЩАЄМО панель від усіх контролів (вони залишаться в кеші _tabsCache)
             pnlContent.Controls.Clear();
 
-            // Повертаємо логіку створення та отримання вкладок із кешу
             if (!_tabsCache.TryGetValue(tabName, out var tabControl))
             {
                 tabControl = tabName switch
@@ -275,20 +277,51 @@ namespace fb2cng_FullConfig
                     "footnotes:" => new FootnotesTab(),
                     "other:" => new OtherSettingsTab(),
                     "logging:" => new LoggingTab(),
-                    _ => throw new ArgumentException("Невідома вкладка конфігуратора")
+                    _ => throw new ArgumentException("Error")
                 };
-
                 tabControl.Dock = DockStyle.Fill;
                 _tabsCache[tabName] = tabControl;
+
+                // Підписуємо події ТІЛЬКИ один раз при створенні об'єкта
+                if (tabControl is DocumentTab docTab)
+                {
+                    InitializeDocumentTabEvents(docTab);
+                }
             }
 
+            // 2. ДОДАЄМО в панель тільки поточну вкладку
             pnlContent.Controls.Add(tabControl);
+            tabControl.Visible = true;
+            tabControl.BringToFront();
 
-            // Оновлюємо локалізацію та тему після повного додавання на екран
             UpdateLocalization();
-            ApplyTheme();
+            ApplyTheme(); // Фарбуємо
 
-            ResumeLayout(true); // Повертаємо розрахунок — тепер усе стане рівно
+            ResumeLayout(true);
+        }
+
+        // Додайте цей допоміжний метод у Form1.cs або Form1_Logic.cs
+        private void InitializeDocumentTabEvents(DocumentTab docTab)
+        {
+            float currentScale = docTab.CreateGraphics().DpiX / 96f;
+
+            // ПОВЕРТАЄМО ЗАОКРУГЛЕННЯ (викликаємо ваш статичний метод)
+            Form1.MakeButtonRounded(docTab.btnBrowseCss, (int)(5 * currentScale));
+            Form1.MakeButtonRounded(docTab.btnDumpConfig, (int)(6 * currentScale));
+
+            docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
+            docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
+            docTab.btnDumpConfig.Click += BtnDumpConfig_Click;
+            docTab.chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
+
+            if (docTab.cmbOutFields != null)
+            {
+                for (int i = 0; i < docTab.cmbOutFields.Length; i++)
+                {
+                    int index = i;
+                    docTab.cmbOutFields[i].SelectedIndexChanged += (s, e) => CmbOutFields_SelectedIndexChanged(index);
+                }
+            }
         }
 
 
@@ -345,6 +378,9 @@ namespace fb2cng_FullConfig
 
         internal static void MakeButtonRounded(Button btn, int radius)
         {
+            btn.FlatStyle = FlatStyle.Flat; // ОБОВ'ЯЗКОВО
+            btn.FlatAppearance.BorderSize = 0;
+
             // Крок 1. Надійний Region (Ваш оригінальний без змін)
             using (GraphicsPath path = new())
             {

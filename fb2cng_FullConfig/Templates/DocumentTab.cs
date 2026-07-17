@@ -206,7 +206,7 @@ namespace fb2cng_FullConfig.Templates
             for (int i = 0; i < 8; i++)
             {
                 int index = i;
-                cmbOutFields[index] = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+                cmbOutFields[index] = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Tag = i };
                 chkAsFolder[index] = new CheckBox { Text = "Fold", Enabled = false, Tag = "FolderCheckBox" };
                 cmbOutFields[index].Items.AddRange(["", "", "", "", "", "", "", "", ""]);
                 cmbOutFields[index].SelectedIndex = 0;
@@ -335,47 +335,6 @@ namespace fb2cng_FullConfig.Templates
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
             lblScrollAnchor.SetBounds(0, itemY + (int)(10 * currentScale), 1, 1);
             grpOutName.Controls.Add(lblScrollAnchor);
-        }
-        protected override void OnParentChanged(EventArgs e)
-        {
-            base.OnParentChanged(e);
-
-            // Якщо вкладку додали на форму і ми можемо отримати доступ до Form1
-            if (ParentForm is Form1 mainForm)
-            {
-                float currentScale = CreateGraphics().DpiX / 96f;
-
-                // 1. Закруглюємо кнопку (це безпечно робити повторно)
-                Form1.MakeButtonRounded(btnBrowseCss, (int)(5 * currentScale));
-
-                // 2. ЗАХИСТ ВІД ПОВТОРНИХ СПРАЦЮВАНЬ (.NET 10 Best Practice):
-                // Спочатку відписуємося від подій, а потім підписуємося знову.
-                // Це гарантує, що метод викликається рівно один раз при кліку.
-                langComboBox.SelectedIndexChanged -= mainForm.LangComboBox_SelectedIndexChanged;
-                langComboBox.SelectedIndexChanged += mainForm.LangComboBox_SelectedIndexChanged;
-
-                btnBrowseCss.Click -= mainForm.BtnBrowseCss_Click;
-                btnBrowseCss.Click += mainForm.BtnBrowseCss_Click;
-
-                btnDumpConfig.Click -= mainForm.BtnDumpConfig_Click;
-                btnDumpConfig.Click += mainForm.BtnDumpConfig_Click;
-
-                chkFb2Name.CheckedChanged -= mainForm.ChkFb2Name_CheckedChanged;
-                chkFb2Name.CheckedChanged += mainForm.ChkFb2Name_CheckedChanged;
-
-                // 3. Такий самий захист для всіх 8 комбобоксів структури назви
-                if (cmbOutFields != null)
-                {
-                    for (int i = 0; i < cmbOutFields.Length; i++)
-                    {
-                        int index = i;
-
-                        // Спочатку повністю очищаємо старі приховані лямбда - підписки, щоб не було дублювання
-                        // Для цього у WinForms найкраще скористатися утилітарним скиданням події
-                        cmbOutFields[index]!.SelectedIndexChanged += (s, ev) => mainForm.CmbOutFields_SelectedIndexChanged(index);
-                    }
-                }
-            }
         }
     }
 }

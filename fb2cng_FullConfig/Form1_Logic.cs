@@ -107,55 +107,42 @@ namespace fb2cng_FullConfig
             if (_isThemeApplying) return;
             _isThemeApplying = true;
 
-            // Повністю забороняємо Windows надсилати події малювання для цього вікна
+            // Вимикаємо перемалювання для плавності
             Message msgDisable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 0, 0);
             DefWndProc(ref msgDisable);
             SuspendLayout();
 
             try
             {
+                bool isDark = Config.IsDarkTheme;
                 Color darkBg = Color.FromArgb(37, 37, 38);
                 Color elementBg = Color.FromArgb(45, 45, 48);
                 Color textWhite = Color.FromArgb(245, 245, 245);
-                Color limeAccent = Color.Lime;
                 Color textGray = Color.FromArgb(140, 140, 140);
+                Color limeAccent = Color.Lime;
 
-                if (Config.IsDarkTheme)
+                // 1. Колір форми
+                BackColor = isDark ? darkBg : SystemColors.Control;
+
+                // 2. Фарбуємо Хідер та Футер
+                headerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
+                footerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
+                SetControlsTheme(headerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
+                SetControlsTheme(footerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
+
+                // 3. Фарбуємо ТІЛЬКИ АКТИВНУ вкладку, яка зараз у pnlContent
+                if (pnlContent.Controls.Count > 0)
                 {
-                    BackColor = darkBg;
-                    headerPanel.BackColor = elementBg; // Фарбуємо наш новий хідер
-                    footerPanel.BackColor = elementBg;
+                    Control activeTab = pnlContent.Controls[0];
+                    activeTab.BackColor = isDark ? darkBg : SystemColors.Control;
 
-                    // Оновлюємо колір фону для всіх завантажених вкладок в кеші
-                    foreach (var tab in _tabsCache.Values)
+                    if (activeTab is DocumentTab docTab)
                     {
-                        tab.BackColor = darkBg;
-                        if (tab is DocumentTab docTab)
-                        {
-                            docTab.scrollMenuPanel.BackColor = darkBg;
-                            docTab.grpOutName.BackColor = darkBg;
-                        }
+                        docTab.scrollMenuPanel.BackColor = isDark ? darkBg : SystemColors.Window;
+                        docTab.grpOutName.BackColor = isDark ? darkBg : SystemColors.Window;
                     }
 
-                    SetControlsTheme(this, textWhite, textGray, elementBg, limeAccent, true);
-                }
-                else
-                {
-                    BackColor = SystemColors.Control;
-                    headerPanel.BackColor = SystemColors.ControlLight; // Світлий хідер
-                    footerPanel.BackColor = SystemColors.ControlLight;
-
-                    foreach (var tab in _tabsCache.Values)
-                    {
-                        tab.BackColor = SystemColors.Control;
-                        if (tab is DocumentTab docTab)
-                        {
-                            docTab.scrollMenuPanel.BackColor = SystemColors.Window;
-                            docTab.grpOutName.BackColor = SystemColors.Window;
-                        }
-                    }
-
-                    SetControlsTheme(this, SystemColors.ControlText, SystemColors.GrayText, SystemColors.Window, SystemColors.HotTrack, false);
+                    SetControlsTheme(activeTab, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
                 }
             }
             finally
@@ -163,13 +150,9 @@ namespace fb2cng_FullConfig
                 ResumeLayout(true);
                 Message msgEnable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 1, 0);
                 DefWndProc(ref msgEnable);
-
                 Invalidate(true);
-                Update();
-                Refresh();
-
-                _isThemeApplying = false;
             }
+            _isThemeApplying = false;
         }
 
         private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
@@ -231,59 +214,36 @@ namespace fb2cng_FullConfig
 
         internal void ChkFb2Name_CheckedChanged(object? sender, EventArgs e)
         {
-            if (_isChangingStates)
-            {
-                return;
-            }
-
+            if (_isChangingStates) return;
             _isChangingStates = true;
 
-            // Звертаємося до полів усередині DocumentTab
             if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
                 try
                 {
-                    if (!Config.IsDarkTheme)
-                    {
-                        docTab.grpOutName.Enabled = !docTab.chkFb2Name.Checked;
-                    }
+                    bool isFb2Enabled = docTab.chkFb2Name.Checked;
 
-                    if (docTab.chkFb2Name.Checked)
-                    {
-                        if (docTab.cmbOutFields != null)
-                        {
-                            for (int i = 0; i < docTab.cmbOutFields.Length; i++)
-                            {
-                                docTab.cmbOutFields[i].SelectedIndex = 0;
-                                docTab.cmbOutFields[i].Enabled = false;
-                            }
-                        }
+                    // 1. САМ GroupBox ЗАЛИШАЄМО ENABLED = TRUE
+                    docTab.grpOutName.Enabled = true;
 
-                        if (docTab.chkAsFolder != null)
+                    // 2. ВИМИКАЄМО ТІЛЬКИ ЕЛЕМЕНТИ ВСЕРЕДИНІ
+                    for (int i = 0; i < 8; i++)
+                    {
+                        docTab.cmbOutFields![i].Enabled = !isFb2Enabled;
+                        docTab.chkAsFolder![i].Enabled = !isFb2Enabled;
+
+                        if (isFb2Enabled)
                         {
-                            for (int i = 0; i < docTab.chkAsFolder.Length; i++)
-                            {
-                                docTab.chkAsFolder[i].Checked = false;
-                                docTab.chkAsFolder[i].Enabled = false;
-                            }
+                            docTab.cmbOutFields[i].SelectedIndex = 0;
+                            docTab.chkAsFolder[i].Checked = false;
                         }
                     }
-                    else
-                    {
-                        if (docTab.cmbOutFields != null)
-                        {
-                            for (int i = 0; i < docTab.cmbOutFields.Length; i++)
-                            {
-                                docTab.cmbOutFields[i].Enabled = true;
-                            }
-                            docTab.cmbOutFields[0].Enabled = true;
-                        }
 
-                        CmbOutFields_SelectedIndexChanged(0);
-                    }
+                    if (!isFb2Enabled) CmbOutFields_SelectedIndexChanged(0);
                 }
                 finally { _isChangingStates = false; }
-                ApplyTheme();
+
+                ApplyTheme(); // Це викличе SetControlsTheme
             }
         }
 
@@ -300,7 +260,7 @@ namespace fb2cng_FullConfig
             Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
             Control? currentGrpOutName = docTab?.grpOutName;
 
-            bool isOutNameDisabled = isDark ? isFb2NameChecked : !isGrpOutEnabled;
+            bool isOutNameDisabled = isFb2NameChecked || !isGrpOutEnabled;
 
             foreach (Control c in parent.Controls)
             {
@@ -312,7 +272,7 @@ namespace fb2cng_FullConfig
                 if (c is GroupBox gb)
                 {
                     gb.BackColor = parent.BackColor;
-                    gb.ForeColor = isDark ? (isFb2NameChecked ? disabledColor : foreColor) : SystemColors.ControlText;
+                    gb.ForeColor = isFb2NameChecked ? disabledColor : (isDark ? foreColor : SystemColors.ControlText);
                 }
                 else if (c is Label lbl)
                 {
@@ -331,18 +291,31 @@ namespace fb2cng_FullConfig
                 }
                 else if (c is Button btn)
                 {
+                    // Щоб заокруглення працювало, стиль ЗАВЖДИ має бути Flat
+                    btn.FlatStyle = FlatStyle.Flat;
+                    btn.FlatAppearance.BorderSize = 0;
+
                     if (isDark)
                     {
-                        btn.FlatStyle = FlatStyle.Flat;
-                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
                         btn.BackColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(40, 40, 42) : backColor;
                         btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : foreColor;
+
+                        // Колір рамки для темної теми
+                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
                     }
                     else
                     {
-                        btn.FlatStyle = FlatStyle.Standard;
+                        // Налаштування для світлої теми
                         btn.BackColor = SystemColors.Control;
                         btn.ForeColor = SystemColors.ControlText;
+                        btn.FlatAppearance.BorderColor = Color.DarkGray;
+
+                        // Якщо це вимкнена кнопка CSS
+                        if (btn == currentBrowseCssBtn && !isCssChecked)
+                        {
+                            btn.ForeColor = disabledColor;
+                            btn.FlatAppearance.BorderColor = Color.LightGray;
+                        }
                     }
                 }
                 else if (c is ComboBox cb)
