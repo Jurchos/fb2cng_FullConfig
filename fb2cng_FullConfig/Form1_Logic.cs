@@ -1,10 +1,10 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
+using fb2cng_FullConfig.Templates; // Підключаємо папку з вкладками
 
 namespace fb2cng_FullConfig
 {
     [DesignerCategory("Code")]
-
     public partial class Form1
     {
         // Логічні прапорці захисту від зациклювання графічних подій
@@ -12,17 +12,22 @@ namespace fb2cng_FullConfig
         private bool _isChangingStates;
 
         // 1. Керування мовою та локалізацією
-        private void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        internal void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            Config.Settings.CurrentLanguage = langComboBox.SelectedIndex switch
+            // Оскільки langComboBox тепер лежить всередині вкладки DocumentTab, 
+            // дістаємо посилання на нього через кеш вкладок
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                1 => "Ukrainian",
-                2 => "Russian",
-                _ => "English",
-            };
-            UpdateLocalization();
-            ApplyTheme();
-            Config.SaveSettings(); // Миттєве збереження обраної мови
+                Config.Settings.CurrentLanguage = docTab.langComboBox.SelectedIndex switch
+                {
+                    1 => "Ukrainian",
+                    2 => "Russian",
+                    _ => "English",
+                };
+                UpdateLocalization();
+                ApplyTheme();
+                Config.SaveSettings(); // Миттєве збереження обраної мови
+            }
         }
 
         private void UpdateLocalization()
@@ -34,103 +39,121 @@ namespace fb2cng_FullConfig
                 return loc.TryGetValue(key, out string? value) ? value : defaultText;
             }
 
+            // Локалізація статичної (головної) форми та хідера/футера
             Text = GetText("Title", "fb2cng Configurator");
-            lblLang.Text = GetText("Language", "Language:");
-            btnDumpConfig.Text = GetText("DumpConfig", "Dump Default Config");
-            lblConfigName.Text = GetText("ConfigName", "Config Name:");
-            chkCss.Text = GetText("CssEnable", "Use Custom CSS");
-            btnBrowseCss.Text = GetText("Browse", "Browse...");
-
-            chkNotes.SetTextIfNotNull(GetText("FootnotesMode", "Footnotes Mode"));
-            chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
-
-            chkReaderSize.Text = GetText("ReaderSize", "Set Custom Display Size");
-            lblWidth.Text = GetText("Width", "W:");
-            lblHeight.Text = GetText("Height", "H:");
-            lblDpi.Text = GetText("Dpi", "DPI:");
-
-            chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
-
-            chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
-
-            chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
-            chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
-
-            lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
-
-            grpOutName.SetTextIfNotNull(GetText("OutNameTitle", "Output Structure"));
-
-            chkAsFolder.SetTextForAllIfNotNull(GetText("AsFolder", "Fold"));
-
-            string[] itemKeys = ["Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid", "Item_Short_Uuid"];
-            string[] defaultItems = ["", "Author", "Series", "Title", "Language", "Genre", "Date", "Source File", "Book UUID", "Shortened UUID"];
-
-            if (cmbOutFields != null)
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    if (cmbOutFields[i] == null)
-                    {
-                        continue;
-                    }
-
-                    cmbOutFields[i].BeginUpdate();
-
-                    int currSel = cmbOutFields[i].SelectedIndex;
-                    cmbOutFields[i].Items.Clear();
-
-                    for (int k = 0; k < itemKeys.Length; k++)
-                    {
-                        _ = cmbOutFields[i].Items.Add(GetText(itemKeys[k], defaultItems[k]));
-                    }
-                    cmbOutFields[i].SelectedIndex = currSel >= 0 ? currSel : 0;
-                    cmbOutFields[i].EndUpdate();
-                }
-            }
             btnHelp.Text = GetText("Help", "Help");
             btnTheme.Text = GetText("Theme", "Theme");
             btnOk.Text = GetText("Ok", "OK");
             btnCancel.Text = GetText("Cancel", "Cancel");
+
+            // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "document:"
+            // Звертаємося до елементів всередині DocumentTab, якщо вона створена в кеші
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            {
+                docTab.lblLang.Text = GetText("Language", "Language:");
+                docTab.btnDumpConfig.Text = GetText("DumpConfig", "Dump Default Config");
+                docTab.lblConfigName.Text = GetText("ConfigName", "Config Name:");
+                docTab.chkCss.Text = GetText("CssEnable", "Use Custom CSS");
+                docTab.btnBrowseCss.Text = GetText("Browse", "Browse...");
+
+                docTab.chkNotes.SetTextIfNotNull(GetText("FootnotesMode", "Footnotes Mode"));
+                docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
+
+                docTab.chkReaderSize.Text = GetText("ReaderSize", "Set Custom Display Size");
+                docTab.lblWidth.Text = GetText("Width", "W:");
+                docTab.lblHeight.Text = GetText("Height", "H:");
+                docTab.lblDpi.Text = GetText("Dpi", "DPI:");
+
+                docTab.chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
+                docTab.chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
+
+                docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
+                docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
+
+                docTab.lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
+                docTab.grpOutName.Text = GetText("OutNameTitle", "Output Structure");
+                docTab.chkAsFolder.SetTextForAllIfNotNull(GetText("AsFolder", "Fold"));
+
+                string[] itemKeys = ["Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid", "Item_Short_Uuid"];
+                string[] defaultItems = ["", "Author", "Series", "Title", "Language", "Genre", "Date", "Source File", "Book UUID", "Shortened UUID"];
+
+                if (docTab.cmbOutFields != null)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (docTab.cmbOutFields[i] == null) continue;
+
+                        docTab.cmbOutFields[i].BeginUpdate();
+                        int currSel = docTab.cmbOutFields[i].SelectedIndex;
+                        docTab.cmbOutFields[i].Items.Clear();
+
+                        for (int k = 0; k < itemKeys.Length; k++)
+                        {
+                            _ = docTab.cmbOutFields[i].Items.Add(GetText(itemKeys[k], defaultItems[k]));
+                        }
+                        docTab.cmbOutFields[i].SelectedIndex = currSel >= 0 ? currSel : 0;
+                        docTab.cmbOutFields[i].EndUpdate();
+                    }
+                }
+            }
+
+            // ТУТ У МАЙБУТНЬОМУ БУДЕ ЛОКАЛІЗАЦІЯ ДЛЯ ІНШИХ ВКЛАДОК:
+            // if (_tabsCache.TryGetValue("metadata:", out var meta) && meta is MetadataTab metaTab) { ... }
         }
 
         // 2. Керування візуальною темою з блокуванням мерехтіння
-        private void ApplyTheme()
+        internal void ApplyTheme()
         {
-            if (_isThemeApplying)
-            {
-                return;
-            }
-
+            if (_isThemeApplying) return;
             _isThemeApplying = true;
 
             // Повністю забороняємо Windows надсилати події малювання для цього вікна
-            Message msgDisable = Message.Create(Handle, WM_SETREDRAW, 0, 0); // 0 = false
-            DefWndProc(ref msgDisable); // Надсилаємо його безпосередньо в ОС
+            Message msgDisable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 0, 0);
+            DefWndProc(ref msgDisable);
             SuspendLayout();
 
             try
             {
+                Color darkBg = Color.FromArgb(37, 37, 38);
+                Color elementBg = Color.FromArgb(45, 45, 48);
+                Color textWhite = Color.FromArgb(245, 245, 245);
+                Color limeAccent = Color.Lime;
+                Color textGray = Color.FromArgb(140, 140, 140);
+
                 if (Config.IsDarkTheme)
                 {
-                    Color darkBg = Color.FromArgb(37, 37, 38);
-                    Color elementBg = Color.FromArgb(45, 45, 48);
-                    Color textWhite = Color.FromArgb(245, 245, 245);
-                    Color limeAccent = Color.Lime;
-                    Color textGray = Color.FromArgb(140, 140, 140);
-
                     BackColor = darkBg;
-                    scrollMenuPanel.BackColor = darkBg;
+                    headerPanel.BackColor = elementBg; // Фарбуємо наш новий хідер
                     footerPanel.BackColor = elementBg;
-                    grpOutName.BackColor = darkBg;
+
+                    // Оновлюємо колір фону для всіх завантажених вкладок в кеші
+                    foreach (var tab in _tabsCache.Values)
+                    {
+                        tab.BackColor = darkBg;
+                        if (tab is DocumentTab docTab)
+                        {
+                            docTab.scrollMenuPanel.BackColor = darkBg;
+                            docTab.grpOutName.BackColor = darkBg;
+                        }
+                    }
 
                     SetControlsTheme(this, textWhite, textGray, elementBg, limeAccent, true);
                 }
                 else
                 {
                     BackColor = SystemColors.Control;
-                    scrollMenuPanel.BackColor = SystemColors.Window;
+                    headerPanel.BackColor = SystemColors.ControlLight; // Світлий хідер
                     footerPanel.BackColor = SystemColors.ControlLight;
-                    grpOutName.BackColor = SystemColors.Window;
+
+                    foreach (var tab in _tabsCache.Values)
+                    {
+                        tab.BackColor = SystemColors.Control;
+                        if (tab is DocumentTab docTab)
+                        {
+                            docTab.scrollMenuPanel.BackColor = SystemColors.Window;
+                            docTab.grpOutName.BackColor = SystemColors.Window;
+                        }
+                    }
 
                     SetControlsTheme(this, SystemColors.ControlText, SystemColors.GrayText, SystemColors.Window, SystemColors.HotTrack, false);
                 }
@@ -138,20 +161,17 @@ namespace fb2cng_FullConfig
             finally
             {
                 ResumeLayout(true);
-                // Дозволяємо малювання назад
-                Message msgEnable = Message.Create(Handle, WM_SETREDRAW, 1, 0); // 1 = true
+                Message msgEnable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 1, 0);
                 DefWndProc(ref msgEnable);
 
-                // Примусово оновлюємо інтерфейс форми після увімкнення рендерингу
                 Invalidate(true);
                 Update();
-
-                // Примушуємо ОС перерендерити вікно та всі дочірні елементи знизу-вгору одним кадром
                 Refresh();
 
                 _isThemeApplying = false;
             }
         }
+
         private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
         {
             if (e.Index < 0 || sender is not ComboBox cb)
@@ -166,7 +186,9 @@ namespace fb2cng_FullConfig
 
             if (isControlDisabled)
             {
-                using SolidBrush bgBrush = new(Color.FromArgb(45, 45, 48));
+                // Задаємо колір фону для заблокованого стану залежно від поточної теми
+                Color bgDisabledColor = Config.IsDarkTheme ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+                using SolidBrush bgBrush = new(bgDisabledColor);
                 e.Graphics.FillRectangle(bgBrush, e.Bounds);
             }
 
@@ -185,25 +207,29 @@ namespace fb2cng_FullConfig
             }
         }
 
-        private void BtnBrowseCss_Click(object? sender, EventArgs e)
+        internal void BtnBrowseCss_Click(object? sender, EventArgs e)
         {
-            if (!chkCss.Checked)
+            // Дістаємо посилання на вкладку документа для роботи з її полями
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                return;
-            }
+                if (!docTab.chkCss.Checked)
+                {
+                    return;
+                }
 
-            using OpenFileDialog ofd = new();
-            ofd.Filter = "CSS Files (*.css)|*.css";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                string selectedFile = ofd.FileName;
-                string relativePath = Path.GetRelativePath(appPath, selectedFile); // 1. Безпечно отримуємо відносний шлях засобами .NET
-                txtCssPath.Text = relativePath.Replace('\\', '/');                 // 2. Оптимально замінюємо Windows-слеші на зворотні слеші (використовуючи char '')
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "CSS Files (*.css)|*.css";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string selectedFile = ofd.FileName;
+                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
+                    docTab.txtCssPath.Text = relativePath.Replace('\\', '/');
+                }
             }
         }
 
-        private void ChkFb2Name_CheckedChanged(object? sender, EventArgs e)
+        internal void ChkFb2Name_CheckedChanged(object? sender, EventArgs e)
         {
             if (_isChangingStates)
             {
@@ -212,55 +238,81 @@ namespace fb2cng_FullConfig
 
             _isChangingStates = true;
 
-            try
+            // Звертаємося до полів усередині DocumentTab
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                if (!Config.IsDarkTheme)
+                try
                 {
-                    grpOutName.Enabled = !chkFb2Name.Checked;
-                }
-
-                if (chkFb2Name.Checked)
-                {
-                    for (int i = 0; i < cmbOutFields!.Length; i++)
+                    if (!Config.IsDarkTheme)
                     {
-                        cmbOutFields[i].SelectedIndex = 0;
-                        cmbOutFields[i].Enabled = false;
+                        docTab.grpOutName.Enabled = !docTab.chkFb2Name.Checked;
                     }
 
-                    for (int i = 0; i < chkAsFolder!.Length; i++)
+                    if (docTab.chkFb2Name.Checked)
                     {
-                        chkAsFolder[i].Checked = false;
-                        chkAsFolder[i].Enabled = false;
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < cmbOutFields!.Length; i++)
-                    {
-                        ComboBox cmb = cmbOutFields[i];
-                        cmb.Enabled = true;
-                    }
+                        if (docTab.cmbOutFields != null)
+                        {
+                            for (int i = 0; i < docTab.cmbOutFields.Length; i++)
+                            {
+                                docTab.cmbOutFields[i].SelectedIndex = 0;
+                                docTab.cmbOutFields[i].Enabled = false;
+                            }
+                        }
 
-                    cmbOutFields[0].Enabled = true;
-                    CmbOutFields_SelectedIndexChanged(0);
+                        if (docTab.chkAsFolder != null)
+                        {
+                            for (int i = 0; i < docTab.chkAsFolder.Length; i++)
+                            {
+                                docTab.chkAsFolder[i].Checked = false;
+                                docTab.chkAsFolder[i].Enabled = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (docTab.cmbOutFields != null)
+                        {
+                            for (int i = 0; i < docTab.cmbOutFields.Length; i++)
+                            {
+                                docTab.cmbOutFields[i].Enabled = true;
+                            }
+                            docTab.cmbOutFields[0].Enabled = true;
+                        }
+
+                        CmbOutFields_SelectedIndexChanged(0);
+                    }
                 }
+                finally { _isChangingStates = false; }
+                ApplyTheme();
             }
-            finally { _isChangingStates = false; }
-            ApplyTheme();
         }
 
         private void SetControlsTheme(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark)
         {
-            bool isOutNameDisabled = isDark ? chkFb2Name.Checked : !grpOutName.Enabled;
+            // Надійно отримуємо посилання на вкладку документа для перевірки її станів
+            _tabsCache.TryGetValue("document:", out var tab);
+            var docTab = tab as DocumentTab;
+
+            // Безпечно витягуємо стани чекбоксів з урахуванням того, що вкладка може бути ще не створена (?? false)
+            bool isFb2NameChecked = docTab?.chkFb2Name.Checked ?? false;
+            bool isGrpOutEnabled = docTab?.grpOutName.Enabled ?? true;
+            bool isCssChecked = docTab?.chkCss.Checked ?? false;
+            Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
+            Control? currentGrpOutName = docTab?.grpOutName;
+
+            bool isOutNameDisabled = isDark ? isFb2NameChecked : !isGrpOutEnabled;
 
             foreach (Control c in parent.Controls)
             {
-                bool isControlDisabled = !c.Enabled || (c.Parent == grpOutName && isOutNameDisabled) || (isDark && c == btnBrowseCss && !chkCss.Checked);
+                // Перевіряємо реальну доступність контролу: якщо він сам або його прямий батько (GroupBox) вимкнені
+                bool isControlDisabled = !c.Enabled
+                    || (currentGrpOutName != null && (c.Parent == currentGrpOutName || c.Parent?.Parent == currentGrpOutName) && isOutNameDisabled)
+                    || (isDark && c == currentBrowseCssBtn && !isCssChecked);
 
                 if (c is GroupBox gb)
                 {
                     gb.BackColor = parent.BackColor;
-                    gb.ForeColor = isDark ? (chkFb2Name.Checked ? disabledColor : foreColor) : SystemColors.ControlText;
+                    gb.ForeColor = isDark ? (isFb2NameChecked ? disabledColor : foreColor) : SystemColors.ControlText;
                 }
                 else if (c is Label lbl)
                 {
@@ -282,9 +334,9 @@ namespace fb2cng_FullConfig
                     if (isDark)
                     {
                         btn.FlatStyle = FlatStyle.Flat;
-                        btn.FlatAppearance.BorderColor = (btn == btnBrowseCss && !chkCss.Checked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
-                        btn.BackColor = (btn == btnBrowseCss && !chkCss.Checked) ? Color.FromArgb(40, 40, 42) : backColor;
-                        btn.ForeColor = (btn == btnBrowseCss && !chkCss.Checked) ? disabledColor : foreColor;
+                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
+                        btn.BackColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(40, 40, 42) : backColor;
+                        btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : foreColor;
                     }
                     else
                     {
@@ -307,12 +359,14 @@ namespace fb2cng_FullConfig
                     }
                 }
 
+                // Рекурсивно заходимо всередину дочірніх елементів (панелей, групбоксів тощо)
                 if (c.HasChildren)
                 {
                     SetControlsTheme(c, foreColor, disabledColor, backColor, folderColor, isDark);
                 }
             }
         }
+
 
         public DialogResult ShowCustomMessageBox(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
         {
@@ -567,7 +621,7 @@ namespace fb2cng_FullConfig
         }
 
 
-        private void CmbOutFields_SelectedIndexChanged(int index)
+        internal void CmbOutFields_SelectedIndexChanged(int index)
         {
             bool internalCall = _isChangingStates;
             if (!internalCall)
@@ -575,77 +629,82 @@ namespace fb2cng_FullConfig
                 _isChangingStates = true;
             }
 
-            try
+            // Дістаємо посилання на вкладку документа для роботи з масивами її контролів
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                bool hasSelection = cmbOutFields![index].SelectedIndex > 0;
-                chkAsFolder![index].Enabled = hasSelection;
-                if (!hasSelection)
+                try
                 {
-                    chkAsFolder[index].Checked = false;
-                }
-
-                if (index < 7)
-                {
-                    if (hasSelection)
+                    bool hasSelection = docTab.cmbOutFields![index].SelectedIndex > 0;
+                    docTab.chkAsFolder![index].Enabled = hasSelection;
+                    if (!hasSelection)
                     {
-                        cmbOutFields[index + 1].Enabled = true;
+                        docTab.chkAsFolder[index].Checked = false;
                     }
-                    else
+
+                    if (index < 7)
                     {
-                        for (int i = index + 1; i < 8; i++)
+                        if (hasSelection)
                         {
-                            cmbOutFields[i].SelectedIndex = 0;
-                            cmbOutFields[i].Enabled = false;
-                            chkAsFolder[i].Checked = false;
-                            chkAsFolder[i].Enabled = false;
+                            docTab.cmbOutFields[index + 1].Enabled = true;
+                        }
+                        else
+                        {
+                            for (int i = index + 1; i < 8; i++)
+                            {
+                                docTab.cmbOutFields[i].SelectedIndex = 0;
+                                docTab.cmbOutFields[i].Enabled = false;
+                                docTab.chkAsFolder[i].Checked = false;
+                                docTab.chkAsFolder[i].Enabled = false;
+                            }
                         }
                     }
                 }
-            }
-            finally
-            {
+                finally
+                {
+                    if (!internalCall)
+                    {
+                        _isChangingStates = false;
+                    }
+                }
                 if (!internalCall)
                 {
-                    _isChangingStates = false;
+                    ApplyTheme();
                 }
-            }
-            if (!internalCall)
-            {
-                ApplyTheme();
             }
         }
 
-        private async void BtnDumpConfig_Click(object? sender, EventArgs e)
+        internal async void BtnDumpConfig_Click(object? sender, EventArgs e)
         {
-            // Ігноруємо bool-результат через '_ =', залишаючи лише отриманий out Dictionary<string, string>? langDict
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            if (!YamlService.IsEngineAvailable())
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                string caption = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
-                string text = langDict?.GetValueOrDefault("ErrFbc", "Error: fbc.exe not found!") ?? "Error: fbc.exe not found!";
+                if (!YamlService.IsEngineAvailable())
+                {
+                    string caption = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
+                    string text = langDict?.GetValueOrDefault("ErrFbc", "Error: fbc.exe not found!") ?? "Error: fbc.exe not found!";
 
-                // Ігноруємо DialogResult вікна через '_ ='
-                _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+                    _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
-            btnDumpConfig.Enabled = false;
-            string prevText = btnDumpConfig.Text;
-            btnDumpConfig.Text = Config.Settings.CurrentLanguage == "Ukrainian" ? "Генерація..." : "Generating...";
+                // Кнопка дампу тепер береться з об'єкта docTab
+                docTab.btnDumpConfig.Enabled = false;
+                string prevText = docTab.btnDumpConfig.Text;
+                docTab.btnDumpConfig.Text = Config.Settings.CurrentLanguage == "Ukrainian" ? "Генерація..." : "Generating...";
 
-            bool success = await Task.Run(YamlService.ExecuteSyncDumpConfig);
+                bool success = await Task.Run(YamlService.ExecuteSyncDumpConfig);
 
-            btnDumpConfig.Text = prevText;
-            btnDumpConfig.Enabled = true;
+                docTab.btnDumpConfig.Text = prevText;
+                docTab.btnDumpConfig.Enabled = true;
 
-            if (success)
-            {
-                string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
-                string msg = langDict?.GetValueOrDefault("GenSuccess", "config.yaml successfully generated!") ?? "config.yaml successfully generated!";
+                if (success)
+                {
+                    string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
+                    string msg = langDict?.GetValueOrDefault("GenSuccess", "config.yaml successfully generated!") ?? "config.yaml successfully generated!";
 
-                // Ігноруємо DialogResult вікна через '_ ='
-                _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
         }
 
@@ -654,7 +713,6 @@ namespace fb2cng_FullConfig
             var runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
             if (runningProcesses.Length > 0)
             {
-                // Беремо ПЕРШИЙ знайдений процес із масиву [0]
                 IntPtr hWnd = runningProcesses[0].MainWindowHandle;
                 if (hWnd != IntPtr.Zero)
                 {
@@ -668,84 +726,84 @@ namespace fb2cng_FullConfig
                 }
             }
 
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe"); // чи fbc.exe
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
 
-            // 1. Повертаємо залізобетонну перевірку існування файлу
             if (File.Exists(exePath))
             {
                 try
                 {
-                    // 2. Додаємо '_ =', щоб задовольнити аналізатор Visual Studio
                     _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
                 }
                 catch (Exception)
                 {
-                    // На випадок, якщо файл є, але заблокований антивірусом чи системою
                     ShowGuiMissingError();
                 }
             }
             else
             {
-                // 3. Якщо файлу фізично немає на диску — гарантовано викликаємо ваше вікно
                 ShowGuiMissingError();
             }
         }
 
         private void ShowGuiMissingError()
         {
-            // 1. Отримуємо словник для поточної мови один раз із явним визначенням типу
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            // 2. Безпечно дістаємо значення або беремо англійський дефолт
             string caption = langDict?.GetValueOrDefault("ErrTitle", "Configuration Error") ?? "Configuration Error";
             string text = langDict?.GetValueOrDefault("ErrGui", "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!") ?? "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!";
 
-            // 3. Викликаємо відцентроване кастомне вікно з іконкою помилки
             _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-
         private void SaveYamlConfiguration()
         {
-            int[] fieldIndexes = new int[8];
-            bool[] folderFlags = new bool[8];
-            for (int i = 0; i < 8; i++)
+            // Дістаємо посилання на вкладку документа для зчитування налаштувань користувача
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
             {
-                fieldIndexes[i] = cmbOutFields![i].SelectedIndex;
-                folderFlags[i] = chkAsFolder![i].Checked;
+                int[] fieldIndexes = new int[8];
+                bool[] folderFlags = new bool[8];
+
+                for (int i = 0; i < 8; i++)
+                {
+                    fieldIndexes[i] = docTab.cmbOutFields![i].SelectedIndex;
+                    folderFlags[i] = docTab.chkAsFolder![i].Checked;
+                }
+
+                // Зчитуємо дані через docTab та передаємо їх у YamlService
+                bool saved = YamlService.SaveConfiguration(
+                    docTab.txtConfigName.Text, docTab.chkCss.Checked, docTab.txtCssPath.Text, docTab.chkTranslit.Checked,
+                    docTab.chkReaderSize.Checked, docTab.txtWidth.Text, docTab.txtHeight.Text, docTab.txtDpi.Text,
+                    docTab.chkCover.Checked, docTab.cmbCoverMode.SelectedItem?.ToString()!,
+                    docTab.chkNotes.Checked, docTab.cmbNotesMode.SelectedItem?.ToString()!,
+                    docTab.chkOpenFromCover.Checked, docTab.chkFixZip.Checked, docTab.chkFb2Name.Checked,
+                    fieldIndexes, folderFlags
+                );
+
+                if (saved)
+                {
+                    Close();
+                }
             }
-
-            bool saved = YamlService.SaveConfiguration(
-                txtConfigName.Text, chkCss.Checked, txtCssPath.Text, chkTranslit.Checked,
-                chkReaderSize.Checked, txtWidth.Text, txtHeight.Text, txtDpi.Text,
-                chkCover.Checked, cmbCoverMode.SelectedItem?.ToString()!,
-                chkNotes.Checked, cmbNotesMode.SelectedItem?.ToString()!,
-                chkOpenFromCover.Checked, chkFixZip.Checked, chkFb2Name.Checked,
-                fieldIndexes, folderFlags
-            );
-
-            if (saved)
+            else
             {
+                // На випадок, якщо користувач взагалі не відкривав першу вкладку (наприклад, одразу натиснув ОК),
+                // форма просто закриється, оскільки дефолтна конфігурація вже завантажена при старті.
                 Close();
             }
         }
 
         private void ShowHelp()
         {
-            // 1. Отримуємо словник для поточної мови один раз із явним визначенням типу
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            // 2. Безпечно дістаємо локалізований заголовок вікна або беремо дефолт
             string caption = langDict?.GetValueOrDefault("Help", "Help / Довідка") ?? "Help / Довідка";
-
-            // 3. Безпечно отримуємо розширений текст довідки
             string msg = langDict?.GetValueOrDefault("HelpText", "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.") ?? "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.";
 
-            // 4. Викликаємо наше кастомне вікно повідомлення
             _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
-    public static class ControlExtensions // Розширення для перевірки null перед
+
+    public static class ControlExtensions // Розширення для перевірки null перед (залишаємо без змін)
     {
         public static void SetTextIfNotNull(this Control? control, string text)
         {
@@ -755,7 +813,7 @@ namespace fb2cng_FullConfig
             }
             control.Text = text;
         }
-        // Новий метод для масивів/списків контролів
+
         public static void SetTextForAllIfNotNull(this IEnumerable<Control?>? controls, string text)
         {
             if (controls == null)
@@ -765,7 +823,7 @@ namespace fb2cng_FullConfig
 
             foreach (Control? control in controls)
             {
-                control.SetTextIfNotNull(text); // Викликаємо існуючий метод, він сам перевірить null
+                control.SetTextIfNotNull(text);
             }
         }
     }

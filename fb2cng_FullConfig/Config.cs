@@ -82,7 +82,7 @@ namespace fb2cng_FullConfig
                                "\n2. Use the Constructor to build the folder structure and filename." +
                                "\n3. Click 'Save'." +
                                "\n\nCreated by: Jurchos & Gemini" +
-                               "\nVersion: 1.0",
+                               "\nVersion: 1.1",
                 ["GenTitle"] = "Success",
                 ["GenSuccess"] = "config.yaml successfully generated!"
             },
@@ -137,7 +137,7 @@ namespace fb2cng_FullConfig
                                "\n2. Використовуйте конструктор для створення структури папок та імені." +
                                "\n3. Натисніть 'Зберегти.'" +
                                "\n\nСтворено: Jurchos & Gemini" +
-                               "\nВерсія: 1.0",
+                               "\nВерсія: 1.1",
                 ["GenTitle"] = "Успіх",
                 ["GenSuccess"] = "config.yaml успішно згенеровано!"
             },
@@ -192,7 +192,7 @@ namespace fb2cng_FullConfig
                                "\n2. Используйте конструктор для создания структуры папок и имени." +
                                "\n3. Нажмите 'Сохранить'." +
                                "\n\nСоздано: Jurchos & Gemini" +
-                               "\nВерсия: 1.0",
+                               "\nВерсия: 1.1",
                 ["GenTitle"] = "Успех",
                 ["GenSuccess"] = "config.yaml успешно сгенерирован!"
             }
