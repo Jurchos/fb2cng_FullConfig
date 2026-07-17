@@ -101,22 +101,29 @@ namespace fb2cng_FullConfig
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
 
             // Задаємо фіксовану ідеальну ширину вікна під ваш дизайн
-            int calculatedWidth = (int)(520 * currentScale);
+            int calculatedWidth = (int)(525 * currentScale);
             ClientSize = new Size(calculatedWidth, ClientSize.Height);
 
             // ==========================================
             // КРОК 1: СТВОРЕННЯ ХІДЕРА (ВЕРХНЯ ПАНЕЛЬ)
             // ==========================================
             int rowHeight = (int)(28 * currentScale); // Висота одного ряду кнопок хідера
-            int headerHeight = (rowHeight * 2) + (int)(10 * currentScale); // Загальна висота під 2 ряди
+            int headerHeight = (rowHeight * 2) + (int)(12 * currentScale); // Загальна висота під 2 ряди
 
             headerPanel = new Panel();
             headerPanel.SetBounds(0, 0, ClientSize.Width, headerHeight);
             Controls.Add(headerPanel);
 
-            // Ширина кнопок хідера (ділимо простір порівну)
-            int tabWidthRow1 = (headerPanel.Width - (int)(32 * currentScale)) / 3;
-            int tabWidthRow2 = (headerPanel.Width - (int)(32 * currentScale)) / 3;
+            // --- НАЛАШТУВАННЯ ВІДСТУПІВ КНОПОК ХІДЕРА ---
+            int paddingLeft = (int)(13 * currentScale);   // Відступ зліва для першої кнопки (було 16)
+            int paddingRight = (int)(14 * currentScale);  // Відступ справа для третьої кнопки (було 16)
+            int betweenButtons = (int)(4 * currentScale); // Відступ між самими кнопками
+                                                          // --------------------------------------------
+
+            // Автоматичний розрахунок ширини кнопок з урахуванням нових відступів
+            int totalInterButtonSpace = betweenButtons * 2; // Два проміжки між трьома кнопками
+            int tabWidthRow1 = (headerPanel.Width - paddingLeft - paddingRight - totalInterButtonSpace) / 3;
+            int tabWidthRow2 = tabWidthRow1; // Робимо другий ряд таким самим
 
             // Ряд 1: Головна вкладка, метадані та зображення
             btnTabDocument = new Button { Text = "document:", Tag = "document:" };
@@ -128,15 +135,15 @@ namespace fb2cng_FullConfig
             btnTabOther = new Button { Text = "other:", Tag = "other:" };
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
 
-            // Координати Ряду 1
-            btnTabDocument.SetBounds((int)(16 * currentScale), (int)(5 * currentScale), tabWidthRow1, rowHeight);
-            btnTabMetadata.SetBounds(btnTabDocument.Right + (int)(4 * currentScale), btnTabDocument.Top, tabWidthRow1, rowHeight);
-            btnTabImages.SetBounds(btnTabMetadata.Right + (int)(4 * currentScale), btnTabDocument.Top, tabWidthRow1, rowHeight);
+            // Координати Ряду 1 (використовуємо змінні відступів)
+            btnTabDocument.SetBounds(paddingLeft, (int)(4 * currentScale), tabWidthRow1, rowHeight);
+            btnTabMetadata.SetBounds(btnTabDocument.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
+            btnTabImages.SetBounds(btnTabMetadata.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
 
             // Координати Ряду 2
-            btnTabFootnotes.SetBounds((int)(16 * currentScale), btnTabDocument.Bottom + (int)(4 * currentScale), tabWidthRow2, rowHeight);
-            btnTabOther.SetBounds(btnTabFootnotes.Right + (int)(4 * currentScale), btnTabFootnotes.Top, tabWidthRow2, rowHeight);
-            btnTabLogging.SetBounds(btnTabOther.Right + (int)(4 * currentScale), btnTabFootnotes.Top, tabWidthRow2, rowHeight);
+            btnTabFootnotes.SetBounds(paddingLeft, btnTabDocument.Bottom + betweenButtons, tabWidthRow2, rowHeight);
+            btnTabOther.SetBounds(btnTabFootnotes.Right + betweenButtons, btnTabFootnotes.Top, tabWidthRow2, rowHeight);
+            btnTabLogging.SetBounds(btnTabOther.Right + betweenButtons, btnTabFootnotes.Top, tabWidthRow2, rowHeight);
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
             Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabImages, btnTabFootnotes, btnTabOther, btnTabLogging];

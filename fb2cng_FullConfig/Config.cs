@@ -29,7 +29,8 @@ namespace fb2cng_FullConfig
         private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Conf_config.json");
 
         // Виправлення CA2211: Робимо внутрішнє поле приватним та readonly для безпеки
-        private static readonly Dictionary<string, Dictionary<string, string>> _localization = new()
+        // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
+        public static Dictionary<string, Dictionary<string, string>> Localization { get; } = new()
 
         {
             // 1. АНГЛІЙСЬКА ЛОКАЛІЗАЦІЯ
@@ -106,7 +107,7 @@ namespace fb2cng_FullConfig
                 ["OutNameTitle"] = "Структура назви вихідного файла",
                 ["AsFolder"] = "як папка",
                 ["Translit"] = "Транслітерувати назву вихідного файлу",
-                ["ReaderSize"] = "Розмір екрана рідера (Ш / В / DPI)",
+                ["ReaderSize"] = "Розмір екрана рідера (Ш/В/DPI)",
                 ["Width"] = "W:",
                 ["Height"] = "H:",
                 ["Dpi"] = "DPI:",
@@ -197,8 +198,6 @@ namespace fb2cng_FullConfig
                 ["GenSuccess"] = "config.yaml успешно сгенерирован!"
             }
         };
-        // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
-        public static Dictionary<string, Dictionary<string, string>> Localization => _localization;
 
         // Метод ініціалізації (викликається при старті в Program.cs)
         public static void Initialize(IConfiguration config)

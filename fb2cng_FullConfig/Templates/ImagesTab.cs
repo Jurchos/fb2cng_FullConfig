@@ -1,5 +1,5 @@
-﻿using System;
-using System.Windows.Forms;
+﻿using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 
 namespace fb2cng_FullConfig.Templates;
 
