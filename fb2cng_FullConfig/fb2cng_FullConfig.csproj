@@ -6,7 +6,11 @@
     <RootNamespace>fb2cng_FullConfig</RootNamespace>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
+	  <!-- Оце налаштування каже .NET самому керувати DPI на найвищому рівні PerMonitorV2 -->
+	<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+	  <!-- Дозволити Unsafe код у проєкті (Виправляє SYSLIB1062 та CS0227) -->
+	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	  <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>icon_yaml.ico</ApplicationIcon>
 	  <PublishSingleFile>true</PublishSingleFile>
 	  <SelfContained>false</SelfContained>

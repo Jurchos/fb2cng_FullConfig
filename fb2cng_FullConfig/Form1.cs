@@ -1,6 +1,5 @@
 ﻿using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 namespace fb2cng_FullConfig
 {
@@ -55,27 +54,8 @@ namespace fb2cng_FullConfig
         private Label lblConfigName = null!;
 
         // ХАК ДЛЯ ПОВНОГО ВИЛУЧЕННЯ РИВКІВ ТА МЕРЕХТІННЯ ПРИ ЗМІНІ ТЕМИ (Рендеринг у буфері ОС)
-        [DllImport("user32.dll")]
-        private static extern int SendMessage(IntPtr hWnd, int wMsg, bool wParam, int lParam);
         private const int WM_SETREDRAW = 0x000B;
 
-        [DllImport("user32.dll")]
-        private static extern bool HideCaret(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll")]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
-
-        [DllImport("kernel32.dll")]
-        private static extern uint GetCurrentThreadId();
-
-        [DllImport("user32.dll")]
-        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr SetActiveWindow(IntPtr hWnd);
         protected override CreateParams CreateParams
         {
 
@@ -100,15 +80,17 @@ namespace fb2cng_FullConfig
                 // Початковий стан кнопки огляду
                 btnBrowseCss.Enabled = Config.IsDarkTheme || chkCss.Checked;
 
-                if (langComboBox != null)
+                // ОБ'ЄДНУЄМО перевірку на null та switch в один рядок
+                if (langComboBox is { } cb)
                 {
-                    langComboBox.SelectedIndex = Config.Settings.CurrentLanguage switch
+                    cb.SelectedIndex = Config.Settings.CurrentLanguage switch
                     {
                         "Ukrainian" => 1,
                         "Russian" => 2,
-                        _ => 0 // значення за замовчуванням (еквівалент else)
+                        _ => 0
                     };
                 }
+
                 ApplyTheme();
             }
             catch (Exception ex)
@@ -152,9 +134,9 @@ namespace fb2cng_FullConfig
             // 2. Створення елементів верхнього блоку (додаємо у scrollMenuPanel)
             lblLang = new Label { Text = "Language:", AutoSize = true };
             langComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
-            langComboBox.Items.AddRange(new string[] { "English", "Українська", "Русский" });
+            langComboBox.Items.AddRange(["English", "Українська", "Русский"]);
             langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
-            scrollMenuPanel.Controls.AddRange(new Control[] { lblLang, langComboBox });
+            scrollMenuPanel.Controls.AddRange([lblLang, langComboBox]);
 
             btnDumpConfig = new Button();
             btnDumpConfig.Click += BtnDumpConfig_Click;
@@ -163,7 +145,7 @@ namespace fb2cng_FullConfig
 
             lblConfigName = new Label { AutoSize = true };
             txtConfigName = new TextBox { Text = "config.yaml" };
-            scrollMenuPanel.Controls.AddRange(new Control[] { lblConfigName, txtConfigName });
+            scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
             // --- НАЛАШТУВАННЯ CSS ТА КНОПКИ ОГЛЯДУ З ДИНАМІЧНОЮ ІКОНКОЮ ПАПКИ ---
             chkCss = new CheckBox { AutoSize = true };
@@ -205,22 +187,17 @@ namespace fb2cng_FullConfig
                     // Асиметричні відступи: зменшили по вертикалі (0.16), щоб папка не була затиснутою зверху/знизу
                     int paddingX = (int)(btnBrowseCss.Width * 0.24);
                     int paddingY = (int)(btnBrowseCss.Height * 0.12);
-                    Rectangle destRect = new Rectangle(paddingX, paddingY, btnBrowseCss.Width - (paddingX * 2), btnBrowseCss.Height - (paddingY * 2));
+                    Rectangle destRect = new(paddingX, paddingY, btnBrowseCss.Width - (paddingX * 2), btnBrowseCss.Height - (paddingY * 2));
 
                     // ВИПРАВЛЕНО: тепер активність залежить ТІЛЬКИ від безпосередньо стану чекбокса
                     bool isBtnActive = chkCss.Checked;
 
                     if (!isBtnActive)
                     {
-                        float[][] ptsArray = {
-                    new float[] {1, 0, 0, 0, 0},
-                    new float[] {0, 1, 0, 0, 0},
-                    new float[] {0, 0, 1, 0, 0},
-                    new float[] {0, 0, 0, 0.30f, 0}, // 30% непрозорості для вимкненого стану (ніжніше виглядає)
-                    new float[] {0, 0, 0, 0, 1}
-                };
-                        using ImageAttributes imageAttributes = new ImageAttributes();
-                        imageAttributes.SetColorMatrix(new ColorMatrix(ptsArray));
+                        // Використовуємо готову матрицю з поля класу (0 байт виділення пам'яті в циклі малювання!)
+                        using ImageAttributes imageAttributes = new();
+                        imageAttributes.SetColorMatrix(new ColorMatrix(InactiveIconMatrix));
+
                         e.Graphics.DrawImage(outFolderIcon, destRect, 0, 0, outFolderIcon.Width, outFolderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
                         return;
                     }
@@ -241,23 +218,23 @@ namespace fb2cng_FullConfig
                 ApplyTheme();
             };
             btnBrowseCss.Click += BtnBrowseCss_Click;
-            scrollMenuPanel.Controls.AddRange(new Control[] { chkCss, txtCssPath, btnBrowseCss });
+            scrollMenuPanel.Controls.AddRange([chkCss, txtCssPath, btnBrowseCss]);
 
             //поля: виноски, навігаціна ієрархія, екран читалки, чек бокси: fix_zip, відкривати з обкладинки, оригінальна назва FB2, транслітерація
 
             chkNotes = new CheckBox { AutoSize = true };
             cmbNotesMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            cmbNotesMode.Items.AddRange(new string[] { "default", "float", "floatRenumbered" });
+            cmbNotesMode.Items.AddRange(["default", "float", "floatRenumbered"]);
             cmbNotesMode.SelectedIndex = 0;
             chkNotes.CheckedChanged += (s, e) => { cmbNotesMode.Enabled = chkNotes.Checked; ApplyTheme(); };
-            scrollMenuPanel.Controls.AddRange(new Control[] { chkNotes, cmbNotesMode });
+            scrollMenuPanel.Controls.AddRange([chkNotes, cmbNotesMode]);
 
             chkCover = new CheckBox { AutoSize = true };
             cmbCoverMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            cmbCoverMode.Items.AddRange(new string[] { "normal", "old_kindle", "flat" });
+            cmbCoverMode.Items.AddRange(["normal", "old_kindle", "flat"]);
             cmbCoverMode.SelectedIndex = 0;
             chkCover.CheckedChanged += (s, e) => { cmbCoverMode.Enabled = chkCover.Checked; ApplyTheme(); };
-            scrollMenuPanel.Controls.AddRange(new Control[] { chkCover, cmbCoverMode });
+            scrollMenuPanel.Controls.AddRange([chkCover, cmbCoverMode]);
 
             // Розмір екрана читалки
             chkReaderSize = new CheckBox { AutoSize = true };
@@ -274,11 +251,11 @@ namespace fb2cng_FullConfig
                 lblWidth.Enabled = txtWidth.Enabled = lblHeight.Enabled = txtHeight.Enabled = lblDpi.Enabled = txtDpi.Enabled = en;
                 ApplyTheme();
             };
-            scrollMenuPanel.Controls.AddRange(new Control[] { chkReaderSize, lblWidth, txtWidth, lblHeight, txtHeight, lblDpi, txtDpi });
+            scrollMenuPanel.Controls.AddRange([chkReaderSize, lblWidth, txtWidth, lblHeight, txtHeight, lblDpi, txtDpi]);
 
             chkFixZip = new CheckBox { AutoSize = true };
             chkOpenFromCover = new CheckBox { AutoSize = true };
-            scrollMenuPanel.Controls.AddRange(new Control[] { chkFixZip, chkOpenFromCover });
+            scrollMenuPanel.Controls.AddRange([chkFixZip, chkOpenFromCover]);
 
             chkFb2Name = new CheckBox { AutoSize = true };
             chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
@@ -302,7 +279,7 @@ namespace fb2cng_FullConfig
                     Tag = "FolderCheckBox"
                 };
 
-                cmbOutFields[index].Items.AddRange(new string[] { "", "", "", "", "", "", "", "", "" });
+                cmbOutFields[index].Items.AddRange(["", "", "", "", "", "", "", "", ""]);
                 cmbOutFields[index].SelectedIndex = 0;
                 if (index > 0)
                 {
@@ -310,7 +287,7 @@ namespace fb2cng_FullConfig
                 }
 
                 cmbOutFields[index].SelectedIndexChanged += (s, e) => CmbOutFields_SelectedIndexChanged(index);
-                grpOutName.Controls.AddRange(new Control[] { cmbOutFields[index], chkAsFolder[index] });
+                grpOutName.Controls.AddRange([cmbOutFields[index], chkAsFolder[index]]);
             }
 
             // === КРОК 5: СТВОРЕННЯ КНОПОК ФУТЕРА З ІКОНКАМИ ===
@@ -356,7 +333,7 @@ namespace fb2cng_FullConfig
             btnCancel = new Button { Text = "Cancel" };
 
             // ДОДАЄМО btGui В МАСИВ ЕЛЕМЕНТІВ ФУТЕРА
-            footerPanel.Controls.AddRange(new Control[] { btnHelp, btnTheme, btGui, btnOk, btnCancel });
+            footerPanel.Controls.AddRange([btnHelp, btnTheme, btGui, btnOk, btnCancel]);
 
             // НАЛАШТУВАННЯ ГАРЯЧИХ КЛАВІШ 
             AcceptButton = btnOk;     // Enter тепер натискає OK
@@ -561,28 +538,57 @@ namespace fb2cng_FullConfig
             btnBrowseCss.Invalidate();
         }
 
-        private static Image? ResizeImage(Image img, int width, int height)
+        /// <summary>
+        /// Масштабує вхідне зображення до заданих розмірів з високою якістю рендерингу.
+        /// </summary>
+        /// <param name="img">Оригінальне зображення (може бути null).</param>
+        /// <param name="width">Необхідна ширина нового зображення.</param>
+        /// <param name="height">Необхідна висота нового зображення.</param>
+        /// <returns>Новий об'єкт Bitmap або null, якщо вхідне зображення відсутнє.</returns>
+        private static Bitmap? ResizeImage(Image? img, int width, int height)
         {
-            if (img == null)
-            {
-                return null;
-            }
+            // Перевірка на null за допомогою сучасного патерну 'is null'.
+            // Якщо картинку не передали, одразу виходимо, щоб не витрачати ресурси процесора.
+            if (img is null) return null;
 
-            Bitmap bmp = new Bitmap(width, height);
-            using (Graphics g = Graphics.FromImage(bmp))
+            // Створюємо порожній бітмап потрібного розміру в пам'яті.
+            // Тип визначено як Nullable (Bitmap?), щоб задовольнити сувору перевірку типів .NET 10.
+            Bitmap? bmp = new(width, height);
+
+            try
             {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.DrawImage(img, 0, 0, width, height);
+                // Створюємо об'єкт Graphics для малювання на нашому новому порожньому бітмапі.
+                // Блок 'using' гарантує автоматичне звільнення системних контекстів малювання (GDI handles).
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    // Налаштовуємо алгоритми згладжування та інтерполяції для отримання найкращої якості.
+                    g.SmoothingMode = SmoothingMode.AntiAlias;                  // Увімкнення згладжування ліній та країв
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic; // Бікубічна інтерполяція для чіткості при зміні розміру
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;            // Оптимальне зміщення пікселів для усунення розмиття
+
+                    // Малюємо оригінальну картинку (img) на нашому новому бітмапі, розтягуючи її від лівого верхнього кута (0,0) до нових меж (width, height)
+                    g.DrawImage(img, 0, 0, width, height);
+                }
+
+                // Повертаємо готовий, оброблений конкретний об'єкт Bitmap (виправлено зауваження CA1859 щодо продуктивності)
+                return bmp;
             }
-            return bmp;
+            catch
+            {
+                // Захист від витоку пам'яті (Best Practice для графіки): 
+                // Якщо під час налаштування Graphics або самого малювання DrawImage станеться будь-який збій (Exception),
+                // ми зобов'язані примусово знищити створений бітмап за допомогою .Dispose(), інакше він назавжди «зависне» в некерованій пам'яті Windows.
+                bmp?.Dispose();
+
+                // Прокидаємо помилку далі по стеку викликів, щоб програма знала про збій
+                throw;
+            }
         }
 
-        private void MakeButtonRounded(Button btn, int radius)
+        private static void MakeButtonRounded(Button btn, int radius)
         {
             // Крок 1. Надійний Region (Ваш оригінальний без змін)
-            using (GraphicsPath path = new GraphicsPath())
+            using (GraphicsPath path = new())
             {
                 float r = radius;
                 path.AddArc(0, 0, r * 2, r * 2, 180, 90);
@@ -615,7 +621,7 @@ namespace fb2cng_FullConfig
                 if (isDarkTheme)
                 {
                     // ДЛЯ ТЕМНОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new GraphicsPath();
+                    using GraphicsPath buttonFramePath = new();
                     float r = radius;
                     float startXY = 0.5f;
                     float sizeAdjustment = 1.0f;
@@ -636,13 +642,13 @@ namespace fb2cng_FullConfig
                     Color btnBorderColor = !btn.Enabled
                         ? Color.FromArgb(70, Color.Gray)
                         : activeBorderColor;
-                    using Pen pen = new Pen(btnBorderColor, 1.2F);
+                    using Pen pen = new(btnBorderColor, 1.2F);
                     ev.Graphics.DrawPath(pen, buttonFramePath);
                 }
                 else
                 {
                     // ДЛЯ СВІТЛОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new GraphicsPath();
+                    using GraphicsPath buttonFramePath = new();
                     float r = radius;
                     float startXY = 0.5f;
                     float sizeAdjustment = 1.0f;
@@ -656,12 +662,12 @@ namespace fb2cng_FullConfig
                     // Подвійна перевірка: підсвічуємо лише якщо миша НАВЕДЕНА і кнопка АКТИВНА
                     if (isHovered && btn.Enabled)
                     {
-                        using (Pen glowPen = new Pen(Color.FromArgb(60, 0, 120, 215), 2.2F))
+                        using (Pen glowPen = new(Color.FromArgb(60, 0, 120, 215), 2.2F))
                         {
                             ev.Graphics.DrawPath(glowPen, buttonFramePath);
                         }
 
-                        using Pen mainPen = new Pen(Color.FromArgb(0, 120, 215), 1.2F);
+                        using Pen mainPen = new(Color.FromArgb(0, 120, 215), 1.2F);
                         ev.Graphics.DrawPath(mainPen, buttonFramePath);
                     }
                     else
@@ -679,7 +685,7 @@ namespace fb2cng_FullConfig
                             : activeBorderColor;
 
                         // 3. Відмальовуємо
-                        using Pen pen = new Pen(btnBorderColor, 1.0F);
+                        using Pen pen = new(btnBorderColor, 1.0F);
                         ev.Graphics.DrawPath(pen, buttonFramePath);
                     }
                 }
@@ -701,7 +707,7 @@ namespace fb2cng_FullConfig
 
             // Примусово наказуємо Windows вивести це вікно на передній план 
             // та засвітити іконку на панелі завдань без перестворення дескрипторів
-            _ = SetForegroundWindow(Handle);
+            _ = Win32Api.SetForegroundWindow(Handle);
 
             // Передаємо фокус введення всередину програми
             _ = Focus();
@@ -715,5 +721,12 @@ namespace fb2cng_FullConfig
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             ResumeLayout(false);
         }
+        private static readonly float[][] InactiveIconMatrix = [
+         [1, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0],
+         [0, 0, 1, 0, 0],
+         [0, 0, 0, 0.30f, 0], // 30% непрозорості
+         [0, 0, 0, 0, 1]
+         ];
     }
 }

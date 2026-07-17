@@ -1,22 +1,15 @@
-﻿using System.Diagnostics;
-using System.ComponentModel;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 
 namespace fb2cng_FullConfig
 {
     [DesignerCategory("Code")]
+
     public partial class Form1
     {
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool IsIconic(IntPtr hWnd);
         // Логічні прапорці захисту від зациклювання графічних подій
-        private bool _isThemeApplying = false;
-        private bool _isChangingStates = false;
+        private bool _isThemeApplying;
+        private bool _isChangingStates;
 
         // 1. Керування мовою та локалізацією
         private void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -38,7 +31,7 @@ namespace fb2cng_FullConfig
 
             string GetText(string key, string defaultText)
             {
-                return loc.ContainsKey(key) ? loc[key] : defaultText;
+                return loc.TryGetValue(key, out string? value) ? value : defaultText;
             }
 
             Text = GetText("Title", "fb2cng Configurator");
@@ -48,57 +41,29 @@ namespace fb2cng_FullConfig
             chkCss.Text = GetText("CssEnable", "Use Custom CSS");
             btnBrowseCss.Text = GetText("Browse", "Browse...");
 
-            if (chkNotes != null)
-            {
-                chkNotes.Text = GetText("FootnotesMode", "Footnotes Mode");
-            }
-
-            if (chkCover != null)
-            {
-                chkCover.Text = GetText("TocType", "Cover Mode");
-            }
+            chkNotes.SetTextIfNotNull(GetText("FootnotesMode", "Footnotes Mode"));
+            chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
 
             chkReaderSize.Text = GetText("ReaderSize", "Set Custom Display Size");
             lblWidth.Text = GetText("Width", "W:");
             lblHeight.Text = GetText("Height", "H:");
             lblDpi.Text = GetText("Dpi", "DPI:");
 
-            if (chkFixZip != null)
-            {
-                chkFixZip.Text = GetText("FixZip", "Fix Broken ZIP Archives");
-            }
+            chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
 
-            if (chkOpenFromCover != null)
-            {
-                chkOpenFromCover.Text = GetText("OpenCover", "Open from Cover");
-            }
+            chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
 
             chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
             chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
 
-            if (lblOutNameTitle != null)
-            {
-                lblOutNameTitle.Text = GetText("OutNameTitle", "Output Name Template Constructor");
-            }
+            lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
 
-            if (grpOutName != null)
-            {
-                grpOutName.Text = GetText("OutNameTitle", "Output Structure");
-            }
+            grpOutName.SetTextIfNotNull(GetText("OutNameTitle", "Output Structure"));
 
-            if (chkAsFolder != null)
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    if (chkAsFolder[i] != null)
-                    {
-                        chkAsFolder[i].Text = GetText("AsFolder", "Fold");
-                    }
-                }
-            }
+            chkAsFolder.SetTextForAllIfNotNull(GetText("AsFolder", "Fold"));
 
-            string[] itemKeys = { "Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid", "Item_Short_Uuid" };
-            string[] defaultItems = { "", "Author", "Series", "Title", "Language", "Genre", "Date", "Source File", "Book UUID", "Shortened UUID" };
+            string[] itemKeys = ["Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid", "Item_Short_Uuid"];
+            string[] defaultItems = ["", "Author", "Series", "Title", "Language", "Genre", "Date", "Source File", "Book UUID", "Shortened UUID"];
 
             if (cmbOutFields != null)
             {
@@ -139,7 +104,8 @@ namespace fb2cng_FullConfig
             _isThemeApplying = true;
 
             // Повністю забороняємо Windows надсилати події малювання для цього вікна
-            _ = SendMessage(Handle, WM_SETREDRAW, false, 0);
+            Message msgDisable = Message.Create(Handle, WM_SETREDRAW, 0, 0); // 0 = false
+            DefWndProc(ref msgDisable); // Надсилаємо його безпосередньо в ОС
             SuspendLayout();
 
             try
@@ -173,7 +139,12 @@ namespace fb2cng_FullConfig
             {
                 ResumeLayout(true);
                 // Дозволяємо малювання назад
-                _ = SendMessage(Handle, WM_SETREDRAW, true, 0);
+                Message msgEnable = Message.Create(Handle, WM_SETREDRAW, 1, 0); // 1 = true
+                DefWndProc(ref msgEnable);
+
+                // Примусово оновлюємо інтерфейс форми після увімкнення рендерингу
+                Invalidate(true);
+                Update();
 
                 // Примушуємо ОС перерендерити вікно та всі дочірні елементи знизу-вгору одним кадром
                 Refresh();
@@ -183,7 +154,7 @@ namespace fb2cng_FullConfig
         }
         private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
         {
-            if (e.Index < 0 || !(sender is ComboBox cb))
+            if (e.Index < 0 || sender is not ComboBox cb)
             {
                 return;
             }
@@ -195,7 +166,7 @@ namespace fb2cng_FullConfig
 
             if (isControlDisabled)
             {
-                using SolidBrush bgBrush = new SolidBrush(Color.FromArgb(45, 45, 48));
+                using SolidBrush bgBrush = new(Color.FromArgb(45, 45, 48));
                 e.Graphics.FillRectangle(bgBrush, e.Bounds);
             }
 
@@ -221,14 +192,14 @@ namespace fb2cng_FullConfig
                 return;
             }
 
-            using OpenFileDialog ofd = new OpenFileDialog();
+            using OpenFileDialog ofd = new();
             ofd.Filter = "CSS Files (*.css)|*.css";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 string appPath = AppDomain.CurrentDomain.BaseDirectory;
                 string selectedFile = ofd.FileName;
-                string relativePath = selectedFile.StartsWith(appPath) ? selectedFile.Substring(appPath.Length) : Path.GetFileName(selectedFile);
-                txtCssPath.Text = relativePath.Replace("\\", "/");
+                string relativePath = Path.GetRelativePath(appPath, selectedFile); // 1. Безпечно отримуємо відносний шлях засобами .NET
+                txtCssPath.Text = relativePath.Replace('\\', '/');                 // 2. Оптимально замінюємо Windows-слеші на зворотні слеші (використовуючи char '')
             }
         }
 
@@ -345,11 +316,11 @@ namespace fb2cng_FullConfig
 
         public DialogResult ShowCustomMessageBox(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
         {
-            using Form msgForm = new Form();
-            // Використовуємо вашу глобальну змінну теми
+            using Form msgForm = new();
+            // Використовуємо нашу глобальну змінну теми
             bool isDark = Config.IsDarkTheme;
 
-            // Визначаємо українську мову з вашого глобального конфігу
+            // Визначаємо українську мову з нашого глобального конфігу
             bool isUa = Config.Settings.CurrentLanguage == "Ukrainian";
 
             msgForm.Text = caption;
@@ -392,33 +363,40 @@ namespace fb2cng_FullConfig
                 };
 
                 // Малюємо компактні векторні іконки
-                Bitmap bmp = new Bitmap(iconSize, iconSize);
+                Bitmap bmp = new(iconSize, iconSize);
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    if (icon == MessageBoxIcon.Error || icon == MessageBoxIcon.Hand || icon == MessageBoxIcon.Stop)
+
+                    // Спрощуємо перевірки, оскільки Hand/Stop — це те саме, що й Error
+                    if (icon == MessageBoxIcon.Error)
                     {
                         g.FillEllipse(Brushes.Crimson, 0, 0, iconSize - 1, iconSize - 1);
-                        using Pen pen = new Pen(Color.White, 2.5f);
+                        using Pen pen = new(Color.White, 2.5f);
                         int offset = iconSize / 4;
                         g.DrawLine(pen, offset, offset, iconSize - offset, iconSize - offset);
                         g.DrawLine(pen, iconSize - offset, offset, offset, iconSize - offset);
                     }
-                    else if (icon == MessageBoxIcon.Information || icon == MessageBoxIcon.Asterisk)
+                    // Asterisk — це те саме, що й Information
+                    else if (icon == MessageBoxIcon.Information)
                     {
                         Color infoColor = isDark ? Color.FromArgb(0, 140, 255) : Color.FromArgb(0, 102, 204);
-                        using (Brush infoBrush = new SolidBrush(infoColor))
-                        {
-                            g.FillEllipse(infoBrush, 0, 0, iconSize - 1, iconSize - 1);
-                        }
+                        using Brush infoBrush = new SolidBrush(infoColor);
+                        g.FillEllipse(infoBrush, 0, 0, iconSize - 1, iconSize - 1);
 
-                        g.DrawString("i", new Font("Georgia", 12F, FontStyle.Bold | FontStyle.Italic), Brushes.White, new PointF(iconSize * 0.26f, iconSize * 0.08f));
+                        // Виносимо створення шрифту в using, щоб уникнути витоку пам'яті
+                        using Font infoFont = new("Georgia", 12F, FontStyle.Bold | FontStyle.Italic);
+                        g.DrawString("i", infoFont, Brushes.White, new PointF(iconSize * 0.26f, iconSize * 0.08f));
                     }
-                    else if (icon == MessageBoxIcon.Warning || icon == MessageBoxIcon.Exclamation)
+                    // Exclamation — це те саме, що й Warning
+                    else if (icon == MessageBoxIcon.Warning)
                     {
-                        PointF[] points = { new PointF(iconSize / 2f, 0), new PointF(0, iconSize - 1), new PointF(iconSize - 1, iconSize - 1) };
+                        PointF[] points = [new(iconSize / 2f, 0), new(0, iconSize - 1), new(iconSize - 1, iconSize - 1)];
                         g.FillPolygon(Brushes.Orange, points);
-                        g.DrawString("!", new Font("Segoe UI", 11F, FontStyle.Bold), Brushes.White, new PointF(iconSize * 0.35f, iconSize * 0.18f));
+
+                        // Виносимо створення шрифту в using, щоб уникнути витоку пам'яті
+                        using Font warningFont = new("Segoe UI", 11F, FontStyle.Bold);
+                        g.DrawString("!", warningFont, Brushes.White, new PointF(iconSize * 0.35f, iconSize * 0.18f));
                     }
                 }
                 picIcon.Image = bmp;
@@ -429,7 +407,7 @@ namespace fb2cng_FullConfig
             }
 
             // Налаштування RichTextBox для тексту
-            RichTextBox rtbText = new RichTextBox
+            RichTextBox rtbText = new()
             {
                 Text = text,
                 Width = msgForm.ClientSize.Width - (int)(32 * currentScale),
@@ -447,8 +425,8 @@ namespace fb2cng_FullConfig
             rtbText.SelectionAlignment = HorizontalAlignment.Center;
             rtbText.DeselectAll();
 
-            rtbText.MouseDown += (s, e) => { _ = HideCaret(rtbText.Handle); _ = msgForm.Focus(); };
-            rtbText.GotFocus += (s, e) => { _ = HideCaret(rtbText.Handle); };
+            rtbText.MouseDown += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); _ = msgForm.Focus(); };
+            rtbText.GotFocus += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); };
 
             msgForm.Controls.Add(rtbText);
 
@@ -479,7 +457,7 @@ namespace fb2cng_FullConfig
 
             if (buttons == MessageBoxButtons.OK)
             {
-                Button btnOkCustom = new Button
+                Button btnOkCustom = new()
                 {
                     Text = "OK",
                     DialogResult = DialogResult.OK,
@@ -500,7 +478,7 @@ namespace fb2cng_FullConfig
             }
             else if (buttons == MessageBoxButtons.OKCancel)
             {
-                Button btnOkCustom = new Button
+                Button btnOkCustom = new()
                 {
                     Text = "OK",
                     DialogResult = DialogResult.OK,
@@ -513,7 +491,7 @@ namespace fb2cng_FullConfig
                 btnOkCustom.FlatAppearance.BorderSize = 0;
                 MakeButtonRounded(btnOkCustom, (int)(4 * currentScale));
 
-                Button btnCancelCustom = new Button
+                Button btnCancelCustom = new()
                 {
                     Text = isUa ? "Скасувати" : "Cancel",
                     DialogResult = DialogResult.Cancel,
@@ -533,7 +511,7 @@ namespace fb2cng_FullConfig
                 btnOkCustom.Location = new Point(startX, buttonsY);
                 btnCancelCustom.Location = new Point(startX + btnOkCustom.Width + spacing, buttonsY);
 
-                msgForm.Controls.AddRange(new Control[] { btnOkCustom, btnCancelCustom });
+                msgForm.Controls.AddRange([btnOkCustom, btnCancelCustom]);
                 msgForm.AcceptButton = btnOkCustom;
                 msgForm.CancelButton = btnCancelCustom;
                 primaryButton = btnOkCustom;
@@ -556,22 +534,22 @@ namespace fb2cng_FullConfig
                 try
                 {
                     IntPtr msgFormHandle = msgForm.Handle;
-                    IntPtr foregroundWindowHandle = GetForegroundWindow();
-                    uint foregroundThreadId = GetWindowThreadProcessId(foregroundWindowHandle, IntPtr.Zero);
-                    uint currentThreadId = GetCurrentThreadId();
+                    IntPtr foregroundWindowHandle = Win32Api.GetForegroundWindow();
+                    uint foregroundThreadId = Win32Api.GetWindowThreadProcessId(foregroundWindowHandle, IntPtr.Zero);
+                    uint currentThreadId = Win32Api.GetCurrentThreadId();
 
                     if (foregroundThreadId != currentThreadId && foregroundThreadId != 0)
                     {
-                        _ = AttachThreadInput(currentThreadId, foregroundThreadId, true);
-                        _ = SetForegroundWindow(msgFormHandle);
-                        _ = SetActiveWindow(msgFormHandle);
+                        _ = Win32Api.AttachThreadInput(currentThreadId, foregroundThreadId, true);
+                        _ = Win32Api.SetForegroundWindow(msgFormHandle);
+                        _ = Win32Api.SetActiveWindow(msgFormHandle);
                         msgForm.Activate();
-                        _ = AttachThreadInput(currentThreadId, foregroundThreadId, false);
+                        _ = Win32Api.AttachThreadInput(currentThreadId, foregroundThreadId, false);
                     }
                     else
                     {
-                        _ = SetForegroundWindow(msgFormHandle);
-                        _ = SetActiveWindow(msgFormHandle);
+                        _ = Win32Api.SetForegroundWindow(msgFormHandle);
+                        _ = Win32Api.SetActiveWindow(msgFormHandle);
                         msgForm.Activate();
                     }
                 }
@@ -582,7 +560,7 @@ namespace fb2cng_FullConfig
                     _ = primaryButton.Focus();
                 }
 
-                _ = msgForm.BeginInvoke(new Action(() => { _ = HideCaret(rtbText.Handle); }));
+                _ = msgForm.BeginInvoke(new Action(() => { _ = Win32Api.HideCaret(rtbText.Handle); }));
             };
 
             return msgForm.ShowDialog();
@@ -639,19 +617,15 @@ namespace fb2cng_FullConfig
 
         private async void BtnDumpConfig_Click(object? sender, EventArgs e)
         {
+            // Ігноруємо bool-результат через '_ =', залишаючи лише отриманий out Dictionary<string, string>? langDict
+            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
+
             if (!YamlService.IsEngineAvailable())
             {
-                // 1. Отримуємо локалізований заголовок для помилки ("Error", "Помилка" тощо)
-                string caption = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("ErrTitle")
-                    ? Config.Localization[Config.Settings.CurrentLanguage]["ErrTitle"]
-                    : "Error";
+                string caption = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
+                string text = langDict?.GetValueOrDefault("ErrFbc", "Error: fbc.exe not found!") ?? "Error: fbc.exe not found!";
 
-                // 2. Отримуємо локалізований текст про відсутність двигуна fbc.exe
-                string text = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("ErrFbc")
-                    ? Config.Localization[Config.Settings.CurrentLanguage]["ErrFbc"]
-                    : "Error: fbc.exe not found!";
-
-                // 3. Викликаємо наше кастомне вікно з іконкою помилки по центру
+                // Ігноруємо DialogResult вікна через '_ ='
                 _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -660,24 +634,17 @@ namespace fb2cng_FullConfig
             string prevText = btnDumpConfig.Text;
             btnDumpConfig.Text = Config.Settings.CurrentLanguage == "Ukrainian" ? "Генерація..." : "Generating...";
 
-            bool success = await Task.Run(() => YamlService.ExecuteSyncDumpConfig());
+            bool success = await Task.Run(YamlService.ExecuteSyncDumpConfig);
 
             btnDumpConfig.Text = prevText;
             btnDumpConfig.Enabled = true;
 
             if (success)
             {
-                // 1. Отримуємо локалізований заголовок ("Success", "Успіх" тощо)
-                string caption = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("GenTitle")
-                    ? Config.Localization[Config.Settings.CurrentLanguage]["GenTitle"]
-                    : "Success";
+                string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
+                string msg = langDict?.GetValueOrDefault("GenSuccess", "config.yaml successfully generated!") ?? "config.yaml successfully generated!";
 
-                // 2. Отримуємо локалізоване повідомлення про успішну генерацію
-                string msg = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("GenSuccess")
-                    ? Config.Localization[Config.Settings.CurrentLanguage]["GenSuccess"]
-                    : "config.yaml successfully generated!";
-
-                // 3. Виводимо наше відцентроване кастомне вікно
+                // Ігноруємо DialogResult вікна через '_ ='
                 _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -691,32 +658,47 @@ namespace fb2cng_FullConfig
                 IntPtr hWnd = runningProcesses[0].MainWindowHandle;
                 if (hWnd != IntPtr.Zero)
                 {
-                    if (IsIconic(hWnd)) ShowWindow(hWnd, 9); // SW_RESTORE
-                    SetForegroundWindow(hWnd);
+                    if (Win32Api.IsIconic(hWnd))
+                    {
+                        _ = Win32Api.ShowWindow(hWnd, 9); // SW_RESTORE
+                    }
+
+                    _ = Win32Api.SetForegroundWindow(hWnd);
                     return;
                 }
             }
 
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe"); // чи fbc.exe
+
+            // 1. Повертаємо залізобетонну перевірку існування файлу
             if (File.Exists(exePath))
             {
-                try { Process.Start(new ProcessStartInfo { FileName = exePath, UseShellExecute = true }); }
-                catch { ShowGuiMissingError(); }
+                try
+                {
+                    // 2. Додаємо '_ =', щоб задовольнити аналізатор Visual Studio
+                    _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+                }
+                catch (Exception)
+                {
+                    // На випадок, якщо файл є, але заблокований антивірусом чи системою
+                    ShowGuiMissingError();
+                }
             }
-            else { ShowGuiMissingError(); }
+            else
+            {
+                // 3. Якщо файлу фізично немає на диску — гарантовано викликаємо ваше вікно
+                ShowGuiMissingError();
+            }
         }
 
         private void ShowGuiMissingError()
         {
-            // 1. Отримуємо локалізований заголовок для помилки ("Помилка конфігурації" тощо)
-            string caption = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("ErrTitle")
-                ? Config.Localization[Config.Settings.CurrentLanguage]["ErrTitle"]
-                : "Configuration Error";
+            // 1. Отримуємо словник для поточної мови один раз із явним визначенням типу
+            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            // 2. Отримуємо локалізований текст про відсутність fb2cng_GUI.exe
-            string text = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("ErrGui")
-                ? Config.Localization[Config.Settings.CurrentLanguage]["ErrGui"]
-                : "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!";
+            // 2. Безпечно дістаємо значення або беремо англійський дефолт
+            string caption = langDict?.GetValueOrDefault("ErrTitle", "Configuration Error") ?? "Configuration Error";
+            string text = langDict?.GetValueOrDefault("ErrGui", "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!") ?? "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!";
 
             // 3. Викликаємо відцентроване кастомне вікно з іконкою помилки
             _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -750,18 +732,41 @@ namespace fb2cng_FullConfig
 
         private void ShowHelp()
         {
-            // 1. Отримуємо локалізований заголовок вікна ("Довідка", "Help" тощо)
-            string caption = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("Help")
-                ? Config.Localization[Config.Settings.CurrentLanguage]["Help"]
-                : "Help / Довідка";
+            // 1. Отримуємо словник для поточної мови один раз із явним визначенням типу
+            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            // 2. Отримуємо локалізований розширений текст довідки
-            string msg = Config.Localization.ContainsKey(Config.Settings.CurrentLanguage) && Config.Localization[Config.Settings.CurrentLanguage].ContainsKey("HelpText")
-                ? Config.Localization[Config.Settings.CurrentLanguage]["HelpText"]
-                : "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.";
+            // 2. Безпечно дістаємо локалізований заголовок вікна або беремо дефолт
+            string caption = langDict?.GetValueOrDefault("Help", "Help / Довідка") ?? "Help / Довідка";
 
-            // 3. Викликаємо наше кастомне вікно повідомлення
+            // 3. Безпечно отримуємо розширений текст довідки
+            string msg = langDict?.GetValueOrDefault("HelpText", "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.") ?? "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.";
+
+            // 4. Викликаємо наше кастомне вікно повідомлення
             _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+    public static class ControlExtensions // Розширення для перевірки null перед
+    {
+        public static void SetTextIfNotNull(this Control? control, string text)
+        {
+            if (control == null)
+            {
+                return;
+            }
+            control.Text = text;
+        }
+        // Новий метод для масивів/списків контролів
+        public static void SetTextForAllIfNotNull(this IEnumerable<Control?>? controls, string text)
+        {
+            if (controls == null)
+            {
+                return;
+            }
+
+            foreach (Control? control in controls)
+            {
+                control.SetTextIfNotNull(text); // Викликаємо існуючий метод, він сам перевірить null
+            }
         }
     }
 }

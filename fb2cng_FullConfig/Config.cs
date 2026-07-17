@@ -6,6 +6,9 @@ namespace fb2cng_FullConfig
 {
     public static class Config
     {
+        // Оптимізація CA1869: Кешуємо опції JSON на рівні класу, щоб не перестворювати їх у пам'яті
+        private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
         // 1. Посилання на сам об'єкт налаштувань (для нових фіч)
         public static AppSettings Settings { get; private set; } = new AppSettings();
 
@@ -23,32 +26,11 @@ namespace fb2cng_FullConfig
         }
 
         // Шлях до файлу конфігурації
-        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Conf_config.json");
 
-        // Метод ініціалізації (викликається при старті в Program.cs)
-        public static void Initialize(IConfiguration config)
-        {
-            // Автоматично прив'язуємо дані JSON до нашого класу
-            Settings = config.Get<AppSettings>() ?? new AppSettings();
-        }
+        // Виправлення CA2211: Робимо внутрішнє поле приватним та readonly для безпеки
+        private static readonly Dictionary<string, Dictionary<string, string>> _localization = new()
 
-        // Збереження у JSON форматі
-        public static void SaveSettings()
-        {
-            try
-            {
-                JsonSerializerOptions options = new() { WriteIndented = true };
-                string jsonString = JsonSerializer.Serialize(Settings, options);
-                File.WriteAllText(settingsFile, jsonString);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Помилка збереження: {ex.Message}");
-            }
-        }
-
-        // Твоя існуюча локалізація (залишилася без змін)
-        public static Dictionary<string, Dictionary<string, string>> Localization = new()
         {
             // 1. АНГЛІЙСЬКА ЛОКАЛІЗАЦІЯ
             ["English"] = new()
@@ -215,5 +197,29 @@ namespace fb2cng_FullConfig
                 ["GenSuccess"] = "config.yaml успешно сгенерирован!"
             }
         };
+        // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
+        public static Dictionary<string, Dictionary<string, string>> Localization => _localization;
+
+        // Метод ініціалізації (викликається при старті в Program.cs)
+        public static void Initialize(IConfiguration config)
+        {
+            Settings = config.Get<AppSettings>() ?? new AppSettings();
+        }
+
+        // Збереження у JSON форматі
+        public static void SaveSettings()
+        {
+            try
+            {
+                // Використовуємо глобальні кешовані опції замість локального new()
+                string jsonString = JsonSerializer.Serialize(Settings, JsonOptions);
+                File.WriteAllText(settingsFile, jsonString);
+            }
+            catch (Exception ex)
+            {
+                // Оптимальний запис логу для .NET 10 через AppendAllLines
+                File.AppendAllLines("errors.log", [$"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Save error: {ex.Message}"]);
+            }
+        }
     }
 }
