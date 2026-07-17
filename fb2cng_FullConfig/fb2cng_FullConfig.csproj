@@ -16,6 +16,7 @@
 	  <SelfContained>false</SelfContained>
 	  <!-- Програма використовуватиме встановлений .NET 10 на ПК, тому файл буде маленьким -->
 	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	  <AssemblyName>fb2cng_Configurator</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

@@ -416,6 +416,20 @@ namespace fb2cng_FullConfig
                 bool isFolder = folderFlags[i];
                 string chunk = "";
 
+                // ВИЗНАЧЕННЯ: Чи є цей елемент КІНЦЕВИМ у назві файлу (не папка і після нього немає інших полів)
+                bool isLastField = !isFolder;
+                if (isLastField)
+                {
+                    for (int next = i + 1; next < 8; next++)
+                    {
+                        if (fieldIndexes[next] > 0 && !folderFlags[next])
+                        {
+                            isLastField = false;
+                            break;
+                        }
+                    }
+                }
+
                 switch (selIndex)
                 {
                     case 1: // Автор
@@ -448,49 +462,52 @@ namespace fb2cng_FullConfig
                         break;
 
                     case 2: // Серія
-                            // Беремо за основу повний третій шаблон (разом із блоком {{- else -}})
+                            // Якщо серія є останньою в списку полів, ми ПОВНІСТЮ прибираємо дефіс з блоку {{- else -}}
+                        string elseBlock = isLastField ? "        {{-   printf \"\" -}}\n" : "        {{-   printf \" - \" -}}\n";
+
                         string fullTemplate = "        {{- if gt (len .Series) 0 -}}\n" +
                                               "        {{-   with first .Series -}}\n" +
                                               "        {{-     printf \" {%s} \" .Name -}}\n" +
                                               "        {{-   end -}}\n" +
                                               "        {{- else -}}\n" +
-                                              "        {{-   printf \" - \" -}}\n" +
+                                              elseBlock +
                                               "        {{- end -}}";
 
                         if (isFolder)
                         {
-                            // 1. Міняємо формат виводу на версію зі слешем
-                            // 2. Повністю видаляємо блок {{- else -}} аж до кінця
                             string updated = fullTemplate.Replace("printf \" {%s} \"", "printf \"%s/\"");
-                            chunk = updated.Replace("        {{- else -}}\n        {{-   printf \" - \" -}}\n", string.Empty);
+                            chunk = updated.Replace("        {{- else -}}\n" + elseBlock, string.Empty);
                         }
                         else if (isFirst)
                         {
-                            // 1. Міняємо формат виводу (прибираємо пробіл попереду: " {%s} " -> "{%s} ")
-                            // 2. Повністю видаляємо блок {{- else -}} аж до кінця
                             string updated = fullTemplate.Replace("printf \" {%s} \"", "printf \"{%s} \"");
-                            chunk = updated.Replace("        {{- else -}}\n        {{-   printf \" - \" -}}\n", string.Empty);
+                            chunk = updated.Replace("        {{- else -}}\n" + elseBlock, string.Empty);
                         }
                         else
                         {
-                            // Для звичайного випадку повертаємо шаблон без змін
                             chunk = fullTemplate;
                         }
                         break;
 
                     case 3: // Назва книги
-                        chunk = "        {{- if gt (len .Series) 0 -}}\n" +
+                            // Замінено regexReplaceAll на надійні послідовні заміни replace, щоб уникнути затирання тексту
+                        string cleanLogic = """
+                                        {{- $title := .Title -}}
+                                        {{- $title = replace "[litres]" "" $title -}}
+                                        {{- $title = replace "." "" $title -}}
+                                        {{- $title = replace "-" "" $title -}}
+                                        {{- $title = trim $title -}}
+                                """;
+
+                        chunk = cleanLogic + "\n" +
+                                "        {{- if gt (len .Series) 0 -}}\n" +
                                 "        {{-   with first .Series -}}\n" +
                                 "        {{-     if .Number -}}\n" +
                                 "        {{-       printf \"%02d \" .Number -}}\n" +
                                 "        {{-     end -}}\n" +
                                 "        {{-   end -}}\n" +
                                 "        {{- end -}}\n" +
-                                (isFolder ? "        {{- printf \"%s/\" .Title -}}" : "        {{- .Title -}}");
-                        break;
-
-                    case 4: // Мова
-                        chunk = isFolder ? "        {{- printf \"%s/\" .Language -}}" : "        {{- .Language -}}";
+                                (isFolder ? "        {{- printf \"%s/\" $title -}}" : "        {{- $title -}}");
                         break;
 
                     case 5: // Жанр

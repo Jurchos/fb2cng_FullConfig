@@ -89,16 +89,13 @@ namespace fb2cng_FullConfig
                     }
                 }
             }
-            if (_tabsCache.TryGetValue("images:", out UserControl? img) && img is ImagesTab imgTab) // Локалізація вкладки "images:"
+            if (_tabsCache.TryGetValue("metadata:", out UserControl? data) && data is MetadataTab dataTab) // Локалізація вкладки "metadata:"
             {
-                imgTab.chkReaderSize.Text = GetText("ReaderSize", "Screen Size");
-                imgTab.lblWidth.Text = GetText("Width", "W:");
-                imgTab.lblHeight.Text = GetText("Height", "H:");
-                imgTab.lblDpi.Text = GetText("Dpi", "DPI:");
-            }
-            if (_tabsCache.TryGetValue("footnotes:", out UserControl? foot) && foot is FootnotesTab footTab) // Локалізація вкладки "footnotes:"
-            {
-                footTab.chkNotes.Text = GetText("FootnotesMode", "Footnotes display method:");
+                dataTab.chkReaderSize.Text = GetText("ReaderSize", "Screen Size");
+                dataTab.lblWidth.Text = GetText("Width", "W:");
+                dataTab.lblHeight.Text = GetText("Height", "H:");
+                dataTab.lblDpi.Text = GetText("Dpi", "DPI:");
+                dataTab.chkNotes.Text = GetText("FootnotesMode", "Footnotes display method:");
             }
 
             // ТУТ У МАЙБУТНЬОМУ БУДЕ ЛОКАЛІЗАЦІЯ ДЛЯ ІНШИХ ВКЛАДОК:
@@ -111,9 +108,6 @@ namespace fb2cng_FullConfig
             if (_isThemeApplying) return;
             _isThemeApplying = true;
 
-            // Вимикаємо перемалювання для плавності
-            Message msgDisable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 0, 0);
-            DefWndProc(ref msgDisable);
             SuspendLayout();
 
             try
@@ -125,38 +119,36 @@ namespace fb2cng_FullConfig
                 Color textGray = Color.FromArgb(140, 140, 140);
                 Color limeAccent = Color.Lime;
 
-                // 1. Колір форми
+                // Основний фон вікна
                 BackColor = isDark ? darkBg : SystemColors.Control;
 
-                // 2. Фарбуємо Хідер та Футер
                 headerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
                 footerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
+
                 SetControlsTheme(headerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
                 SetControlsTheme(footerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
 
-                // 3. Фарбуємо ТІЛЬКИ АКТИВНУ вкладку, яка зараз у pnlContent
-                if (pnlContent.Controls.Count > 0)
+                // Фарбуємо всі закешовані вкладки
+                foreach (Control activeTab in pnlContent.Controls)
                 {
-                    Control activeTab = pnlContent.Controls[0];
-                    activeTab.BackColor = isDark ? darkBg : SystemColors.Control;
+                    // ВИПРАВЛЕННЯ: Встановлюємо фоном SystemColors.Window (Білий у світлій темі)
+                    activeTab.BackColor = isDark ? darkBg : SystemColors.Window;
 
                     if (activeTab is DocumentTab docTab)
                     {
-                        docTab.scrollMenuPanel.BackColor = isDark ? darkBg : SystemColors.Window;
-                        docTab.grpOutName.BackColor = isDark ? darkBg : SystemColors.Window;
+                        docTab.scrollMenuPanel.BackColor = activeTab.BackColor;
+                        docTab.grpOutName.BackColor = activeTab.BackColor;
                     }
 
+                    // Також перевіряємо MetadataTab, якщо потрібно (тепер він успадкує BackColor вкладки)
                     SetControlsTheme(activeTab, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
                 }
             }
             finally
             {
                 ResumeLayout(true);
-                Message msgEnable = Message.Create(Handle, Win32Api.WM_SETREDRAW, 1, 0);
-                DefWndProc(ref msgEnable);
-                Invalidate(true);
+                _isThemeApplying = false;
             }
-            _isThemeApplying = false;
         }
 
         private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
@@ -253,22 +245,24 @@ namespace fb2cng_FullConfig
 
         private void SetControlsTheme(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark)
         {
-            // Надійно отримуємо посилання на вкладку документа для перевірки її станів
             _tabsCache.TryGetValue("document:", out var tab);
             var docTab = tab as DocumentTab;
 
-            // Безпечно витягуємо стани чекбоксів з урахуванням того, що вкладка може бути ще не створена (?? false)
             bool isFb2NameChecked = docTab?.chkFb2Name.Checked ?? false;
             bool isGrpOutEnabled = docTab?.grpOutName.Enabled ?? true;
             bool isCssChecked = docTab?.chkCss.Checked ?? false;
+
+            SetControlsThemeRecursive(parent, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isFb2NameChecked, isCssChecked);
+        }
+
+        private void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark, DocumentTab? docTab, bool isFb2NameChecked, bool isCssChecked)
+        {
             Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
             Control? currentGrpOutName = docTab?.grpOutName;
-
-            bool isOutNameDisabled = isFb2NameChecked || !isGrpOutEnabled;
+            bool isOutNameDisabled = isFb2NameChecked || (docTab != null && !docTab.grpOutName.Enabled);
 
             foreach (Control c in parent.Controls)
             {
-                // Перевіряємо реальну доступність контролу: якщо він сам або його прямий батько (GroupBox) вимкнені
                 bool isControlDisabled = !c.Enabled
                     || (currentGrpOutName != null && (c.Parent == currentGrpOutName || c.Parent?.Parent == currentGrpOutName) && isOutNameDisabled)
                     || (isDark && c == currentBrowseCssBtn && !isCssChecked);
@@ -295,55 +289,35 @@ namespace fb2cng_FullConfig
                 }
                 else if (c is Button btn)
                 {
-                    // Щоб заокруглення працювало, стиль ЗАВЖДИ має бути Flat
                     btn.FlatStyle = FlatStyle.Flat;
                     btn.FlatAppearance.BorderSize = 0;
-
                     if (isDark)
                     {
                         btn.BackColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(40, 40, 42) : backColor;
                         btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : foreColor;
-
-                        // Колір рамки для темної теми
                         btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
                     }
                     else
                     {
-                        // Налаштування для світлої теми
                         btn.BackColor = SystemColors.Control;
-                        btn.ForeColor = SystemColors.ControlText;
-                        btn.FlatAppearance.BorderColor = Color.DarkGray;
-
-                        // Якщо це вимкнена кнопка CSS
-                        if (btn == currentBrowseCssBtn && !isCssChecked)
-                        {
-                            btn.ForeColor = disabledColor;
-                            btn.FlatAppearance.BorderColor = Color.LightGray;
-                        }
+                        btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : SystemColors.ControlText;
+                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.LightGray : Color.DarkGray;
                     }
                 }
                 else if (c is ComboBox cb)
                 {
                     cb.BackColor = backColor;
                     cb.ForeColor = isControlDisabled ? disabledColor : foreColor;
-                    cb.DropDownStyle = ComboBoxStyle.DropDownList;
                     cb.FlatStyle = isDark ? FlatStyle.Flat : FlatStyle.Standard;
                     cb.DrawMode = isDark ? DrawMode.OwnerDrawFixed : DrawMode.Normal;
                     cb.DrawItem -= ComboBox_DrawItem;
-                    if (isDark)
-                    {
-                        cb.DrawItem += ComboBox_DrawItem;
-                    }
+                    if (isDark) cb.DrawItem += ComboBox_DrawItem;
                 }
 
-                // Рекурсивно заходимо всередину дочірніх елементів (панелей, групбоксів тощо)
                 if (c.HasChildren)
-                {
-                    SetControlsTheme(c, foreColor, disabledColor, backColor, folderColor, isDark);
-                }
+                    SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isFb2NameChecked, isCssChecked);
             }
         }
-
 
         public DialogResult ShowCustomMessageBox(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
         {
@@ -735,12 +709,12 @@ namespace fb2cng_FullConfig
         private void SaveYamlConfiguration()
         {
             _tabsCache.TryGetValue("document:", out var doc);
-            _tabsCache.TryGetValue("images:", out var img);
-            _tabsCache.TryGetValue("footnotes:", out var foot); // Додано
+            _tabsCache.TryGetValue("metadata:", out var data);
+
 
             var docTab = doc as DocumentTab;
-            var imgTab = img as ImagesTab;
-            var footTab = foot as FootnotesTab; // Додано
+            var dataTab = data as MetadataTab;
+
 
             if (docTab != null)
             {
@@ -754,13 +728,13 @@ namespace fb2cng_FullConfig
 
                 bool saved = YamlService.SaveConfiguration(
                     docTab.txtConfigName.Text, docTab.chkCss.Checked, docTab.txtCssPath.Text, docTab.chkTranslit.Checked,
-                    imgTab?.chkReaderSize.Checked ?? false,
-                    imgTab?.txtWidth.Text ?? "1264",
-                    imgTab?.txtHeight.Text ?? "1680",
-                    imgTab?.txtDpi.Text ?? "300",
+                    dataTab?.chkReaderSize.Checked ?? false,
+                    dataTab?.txtWidth.Text ?? "1264",
+                    dataTab?.txtHeight.Text ?? "1680",
+                    dataTab?.txtDpi.Text ?? "300",
                     docTab.chkCover.Checked, docTab.cmbCoverMode.SelectedItem?.ToString()!,
-                    footTab?.chkNotes.Checked ?? false, // З вкладки Footnotes
-                    footTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // З вкладки Footnotes
+                    dataTab?.chkNotes.Checked ?? false, // Використовуємо ?? false як запасний варіант, якщо dataTab ще не ініціалізовано
+                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // Використовуємо "default" як запасний варіант, якщо cmbNotesMode ще не ініціалізовано
                     docTab.chkOpenFromCover.Checked, docTab.chkFixZip.Checked, docTab.chkFb2Name.Checked,
                     fieldIndexes, folderFlags
                 );

@@ -4,10 +4,14 @@ namespace fb2cng_FullConfig;
 
 internal static partial class Win32Api
 {
-    // Константи системних повідомлень Windows
-    public const int WM_SETREDRAW = 0x000B;
-
-    // --- Функції керування кареткою та фокусом (колишній ThemeNativeMethods) ---
+    private static float _cachedScale = 0;
+    public static float GetDpiScale()
+    {
+        if (_cachedScale > 0) return _cachedScale;
+        using var g = System.Drawing.Graphics.FromHwnd(IntPtr.Zero);
+        _cachedScale = g.DpiX / 96f;
+        return _cachedScale;
+    }
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -28,8 +32,6 @@ internal static partial class Win32Api
 
     [LibraryImport("user32.dll")]
     public static partial IntPtr SetActiveWindow(IntPtr hWnd);
-
-    // --- Функції керування станом та відображенням вікон (колишні FormNativeMethods та NativeMethods) ---
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

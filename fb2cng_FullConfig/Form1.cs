@@ -1,11 +1,5 @@
-﻿
-using System.Drawing.Imaging;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Windows.Forms;
-using fb2cng_FullConfig.Templates; // Підключаємо вашу нову папку з вкладками
+﻿using System.Drawing.Drawing2D;
+using fb2cng_FullConfig.Templates; // Підключаємо нову папку з вкладками
 
 namespace fb2cng_FullConfig
 {
@@ -16,14 +10,10 @@ namespace fb2cng_FullConfig
         private Panel footerPanel = null!;
         private Panel pnlContent = null!; // Головний центральний контейнер для вкладок
 
-        // Кнопки Хідера (Ряд 1 та Ряд 2)
+        // Кнопки Хідера 
         private Button btnTabDocument = null!;
         private Button btnTabMetadata = null!;
-        private Button btnTabImages = null!;
-        private Button btnTabFootnotes = null!;
-        private Button btnTabOther = null!;
         private Button btnTabLogging = null!;
-
         // Кнопки Футера
         private Button btnHelp = null!;
         private Button btnTheme = null!;
@@ -85,12 +75,9 @@ namespace fb2cng_FullConfig
             }
         }
 
-        /// <summary>
-        /// Створює статичний каркас інтерфейсу (Хідер із двома рядами кнопок, Контейнер та Футер)
-        /// </summary>
         private void SetupMainFramework()
         {
-            float currentScale = CreateGraphics().DpiX / 96f;
+            float currentScale = Win32Api.GetDpiScale();
             int btnRadius = (int)(6 * currentScale);
             int iconSize = (int)(17 * currentScale);
 
@@ -100,15 +87,15 @@ namespace fb2cng_FullConfig
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
 
-            // Задаємо фіксовану ідеальну ширину вікна під ваш дизайн
+            // Задаємо фіксовану ідеальну ширину вікна 
             int calculatedWidth = (int)(515 * currentScale);
             ClientSize = new Size(calculatedWidth, ClientSize.Height);
 
             // ==========================================
             // КРОК 1: СТВОРЕННЯ ХІДЕРА (ВЕРХНЯ ПАНЕЛЬ)
             // ==========================================
-            int rowHeight = (int)(28 * currentScale); // Висота одного ряду кнопок хідера
-            int headerHeight = (rowHeight * 2) + (int)(12 * currentScale); // Загальна висота під 2 ряди
+            int rowHeight = (int)(28 * currentScale); // Висота ряду кнопок хідера
+            int headerHeight = rowHeight + (int)(8 * currentScale); // Загальна висота 
 
             headerPanel = new Panel();
             headerPanel.SetBounds(0, 0, ClientSize.Width, headerHeight);
@@ -125,28 +112,18 @@ namespace fb2cng_FullConfig
             int tabWidthRow1 = (headerPanel.Width - paddingLeft - paddingRight - totalInterButtonSpace) / 3;
             int tabWidthRow2 = tabWidthRow1; // Робимо другий ряд таким самим
 
-            // Ряд 1: Головна вкладка, метадані та зображення
+            // Головна вкладка, метаынформація та логування
             btnTabDocument = new Button { Text = "document:", Tag = "document:" };
-            btnTabMetadata = new Button { Text = "metadata:", Tag = "metadata:" };
-            btnTabImages = new Button { Text = "images:", Tag = "images:" };
-
-            // Ряд 2: Виноски, інші налаштування, логування
-            btnTabFootnotes = new Button { Text = "footnotes:", Tag = "footnotes:" };
-            btnTabOther = new Button { Text = "other:", Tag = "other:" };
+            btnTabMetadata = new Button { Text = "metainformation:", Tag = "metadata:" };
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
 
-            // Координати Ряду 1 (використовуємо змінні відступів)
+             // Координати (використовуємо змінні відступів)
             btnTabDocument.SetBounds(paddingLeft, (int)(4 * currentScale), tabWidthRow1, rowHeight);
             btnTabMetadata.SetBounds(btnTabDocument.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
-            btnTabImages.SetBounds(btnTabMetadata.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
-
-            // Координати Ряду 2
-            btnTabFootnotes.SetBounds(paddingLeft, btnTabDocument.Bottom + betweenButtons, tabWidthRow2, rowHeight);
-            btnTabOther.SetBounds(btnTabFootnotes.Right + betweenButtons, btnTabFootnotes.Top, tabWidthRow2, rowHeight);
-            btnTabLogging.SetBounds(btnTabOther.Right + betweenButtons, btnTabFootnotes.Top, tabWidthRow2, rowHeight);
+            btnTabLogging.SetBounds(btnTabMetadata.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
-            Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabImages, btnTabFootnotes, btnTabOther, btnTabLogging];
+            Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabLogging];
             foreach (var btn in tabButtons)
             {
                 btn.Click += TabButton_Click;
@@ -157,7 +134,7 @@ namespace fb2cng_FullConfig
             // ==========================================
             // КРОК 2: СТВОРЕННЯ ЦЕНТРАЛЬНОГО КОНТЕНТ-КОНТЕЙНЕРА
             // ==========================================
-            // Базова фіксована висота контенту під вашу найбільшу вкладку (document + 8 рядів імені)
+            // Базова фіксована висота 
             int contentHeight = (int)(545 * currentScale);
 
             pnlContent = new Panel();
@@ -167,16 +144,29 @@ namespace fb2cng_FullConfig
             // ==========================================
             // КРОК 3: СТВОРЕННЯ СТАТИЧНОГО ФУТЕРА
             // ==========================================
-            int footerHeight = (int)(24 * currentScale) + (int)(14 * currentScale);
+            int footerHeight = (int)(24 * currentScale) + (int)(14 * currentScale);// Висота футера з урахуванням відступів
 
             footerPanel = new Panel();
-            footerPanel.SetBounds(0, pnlContent.Bottom, ClientSize.Width, footerHeight);
+            footerPanel.SetBounds(0, pnlContent.Bottom, ClientSize.Width, footerHeight);// Встановлюємо футер чітко під контентом
             Controls.Add(footerPanel);
 
             // Створення кнопок футера
-            btnHelp = new Button { Text = "Help", Image = ResizeImage(Properties.Resources.icon_info, iconSize, iconSize), ImageAlign = ContentAlignment.MiddleCenter, TextAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Padding = new Padding((int)(2 * currentScale), 0, 0, 0) };
-            btnTheme = new Button { Text = "Theme", Image = ResizeImage(Properties.Resources.day_night, iconSize, iconSize), ImageAlign = ContentAlignment.MiddleCenter, TextAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Padding = new Padding((int)(10 * currentScale), 0, 0, 0) };
-            btGui = new Button { Text = "GUI", ImageAlign = ContentAlignment.MiddleCenter, TextAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Padding = new Padding((int)(3 * currentScale), 0, 0, 0) };
+            btnHelp = new Button { Text = "Help", Image = ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
+                ImageAlign = ContentAlignment.MiddleCenter,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Padding = new Padding((int)(2 * currentScale), 0, 0, 0)
+            };
+            btnTheme = new Button { Text = "Theme", Image = ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
+                ImageAlign = ContentAlignment.MiddleCenter,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Padding = new Padding((int)(10 * currentScale), 0, 0, 0)
+            };
+            btGui = new Button { Text = "GUI", ImageAlign = ContentAlignment.MiddleCenter, TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Padding = new Padding((int)(3 * currentScale), 0, 0, 0)
+            };
             if (Properties.Resources.icon_GUI != null) btGui.Image = ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
             btnOk = new Button { Text = "OK" };
             btnCancel = new Button { Text = "Cancel" };
@@ -260,13 +250,16 @@ namespace fb2cng_FullConfig
         /// </summary>
         private void SwitchToTab(string tabName)
         {
-            if (_currentActiveTab == tabName && pnlContent.Controls.Count > 0) return;
-            _currentActiveTab = tabName;
+            if (_currentActiveTab == tabName && pnlContent.Controls.ContainsKey(tabName)) return;
 
+            _currentActiveTab = tabName;
             SuspendLayout();
 
-            // 1. ОЧИЩАЄМО панель від усіх контролів (вони залишаться в кеші _tabsCache)
-            pnlContent.Controls.Clear();
+            // Ховаємо всі існуючі вкладки, замість того щоб їх видаляти
+            foreach (Control ctrl in pnlContent.Controls)
+            {
+                ctrl.Visible = false;
+            }
 
             if (!_tabsCache.TryGetValue(tabName, out var tabControl))
             {
@@ -274,34 +267,23 @@ namespace fb2cng_FullConfig
                 {
                     "document:" => new DocumentTab(),
                     "metadata:" => new MetadataTab(),
-                    "images:" => new ImagesTab(),
-                    "footnotes:" => new FootnotesTab(),
-                    "other:" => new OtherSettingsTab(),
                     "logging:" => new LoggingTab(),
                     _ => throw new ArgumentException("Error")
                 };
+                tabControl.Name = tabName; // Для ідентифікації
                 tabControl.Dock = DockStyle.Fill;
                 _tabsCache[tabName] = tabControl;
 
-                // Підписуємо події ТІЛЬКИ один раз при створенні об'єкта
-                if (tabControl is DocumentTab docTab)
-                {
-                    InitializeDocumentTabEvents(docTab);
-                }
+                if (tabControl is DocumentTab docTab) InitializeDocumentTabEvents(docTab);
 
-                if (tabControl is ImagesTab imgTab)
-                {
-                    // Якщо потрібно підписати якісь специфічні події
-                }
+                pnlContent.Controls.Add(tabControl);
             }
 
-            // 2. ДОДАЄМО в панель тільки поточну вкладку
-            pnlContent.Controls.Add(tabControl);
             tabControl.Visible = true;
             tabControl.BringToFront();
 
             UpdateLocalization();
-            ApplyTheme(); // Фарбуємо
+            ApplyTheme();
 
             ResumeLayout(true);
         }
@@ -309,7 +291,7 @@ namespace fb2cng_FullConfig
         // Додайте цей допоміжний метод у Form1.cs або Form1_Logic.cs
         private void InitializeDocumentTabEvents(DocumentTab docTab)
         {
-            float currentScale = docTab.CreateGraphics().DpiX / 96f;
+            float currentScale = Win32Api.GetDpiScale();
 
             // ПОВЕРТАЄМО ЗАОКРУГЛЕННЯ (викликаємо ваш статичний метод)
             MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));

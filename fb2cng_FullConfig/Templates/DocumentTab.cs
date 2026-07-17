@@ -53,11 +53,7 @@ namespace fb2cng_FullConfig.Templates
 
         private void SetupInterface()
         {
-            float currentScale;
-            using (Graphics g = Graphics.FromHwnd(IntPtr.Zero))
-            {
-                currentScale = g.DpiX / 96f;
-            }
+            float currentScale = Win32Api.GetDpiScale();
 
             int blockMargin = (int)(10 * currentScale);// Відстань між блоками елементів, щоб вони не злипалися
             int labelHeight = (int)(20 * currentScale);// Висота текстових міток, щоб вони виглядали пропорційно до текстових полів
