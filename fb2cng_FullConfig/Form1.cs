@@ -101,7 +101,7 @@ namespace fb2cng_FullConfig
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
 
             // Задаємо фіксовану ідеальну ширину вікна під ваш дизайн
-            int calculatedWidth = (int)(525 * currentScale);
+            int calculatedWidth = (int)(515 * currentScale);
             ClientSize = new Size(calculatedWidth, ClientSize.Height);
 
             // ==========================================
@@ -192,16 +192,17 @@ namespace fb2cng_FullConfig
             btnOk.Click += (s, e) => SaveYamlConfiguration();
             btGui.Click += BtGui_Click;
 
-            // Rozстановка кнопок футера
+            // Roзстановка кнопок футера
             int btnWidth = (int)(90 * currentScale);
-            int guiBtnWidth = (int)(60 * currentScale);
+            int guiBtnWidth = (int)(65 * currentScale);
             int btnHeight = (int)(24 * currentScale) + (int)(4 * currentScale);
             int btnTop = (int)(5 * currentScale);
             int xLeft = (int)(16 * currentScale);
+            int btnspacing = (int)(6 * currentScale); // Відступ між кнопками
 
             btnHelp.SetBounds(xLeft, btnTop, btnWidth, btnHeight);
-            btnTheme.SetBounds(btnHelp.Right + (int)(6 * currentScale), btnTop, btnWidth, btnHeight);
-            btGui.SetBounds(btnTheme.Right + (int)(6 * currentScale), btnTop, guiBtnWidth, btnHeight);
+            btnTheme.SetBounds(btnHelp.Right + btnspacing, btnTop, btnWidth, btnHeight);
+            btGui.SetBounds(btnTheme.Right + btnspacing, btnTop, guiBtnWidth, btnHeight);
             btnCancel.SetBounds(ClientSize.Width - xLeft - btnWidth, btnTop, btnWidth, btnHeight);
             btnOk.SetBounds(btnCancel.Left - (int)(96 * currentScale), btnTop, btnWidth, btnHeight);
 
@@ -287,6 +288,11 @@ namespace fb2cng_FullConfig
                 {
                     InitializeDocumentTabEvents(docTab);
                 }
+
+                if (tabControl is ImagesTab imgTab)
+                {
+                    // Якщо потрібно підписати якісь специфічні події
+                }
             }
 
             // 2. ДОДАЄМО в панель тільки поточну вкладку
@@ -306,8 +312,8 @@ namespace fb2cng_FullConfig
             float currentScale = docTab.CreateGraphics().DpiX / 96f;
 
             // ПОВЕРТАЄМО ЗАОКРУГЛЕННЯ (викликаємо ваш статичний метод)
-            Form1.MakeButtonRounded(docTab.btnBrowseCss, (int)(5 * currentScale));
-            Form1.MakeButtonRounded(docTab.btnDumpConfig, (int)(6 * currentScale));
+            MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));
+            MakeButtonRounded(docTab.btnDumpConfig, (int)(4 * currentScale));
 
             docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
             docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
@@ -323,10 +329,6 @@ namespace fb2cng_FullConfig
                 }
             }
         }
-
-
-
-
 
 
         /// <summary>

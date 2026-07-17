@@ -56,14 +56,7 @@ namespace fb2cng_FullConfig
                 docTab.chkCss.Text = GetText("CssEnable", "Use Custom CSS");
                 docTab.btnBrowseCss.Text = GetText("Browse", "Browse...");
 
-                docTab.chkNotes.SetTextIfNotNull(GetText("FootnotesMode", "Footnotes Mode"));
                 docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
-
-                docTab.chkReaderSize.Text = GetText("ReaderSize", "Set Custom Display Size");
-                docTab.lblWidth.Text = GetText("Width", "W:");
-                docTab.lblHeight.Text = GetText("Height", "H:");
-                docTab.lblDpi.Text = GetText("Dpi", "DPI:");
-
                 docTab.chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
                 docTab.chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
 
@@ -95,6 +88,17 @@ namespace fb2cng_FullConfig
                         docTab.cmbOutFields[i].EndUpdate();
                     }
                 }
+            }
+            if (_tabsCache.TryGetValue("images:", out UserControl? img) && img is ImagesTab imgTab) // Локалізація вкладки "images:"
+            {
+                imgTab.chkReaderSize.Text = GetText("ReaderSize", "Screen Size");
+                imgTab.lblWidth.Text = GetText("Width", "W:");
+                imgTab.lblHeight.Text = GetText("Height", "H:");
+                imgTab.lblDpi.Text = GetText("Dpi", "DPI:");
+            }
+            if (_tabsCache.TryGetValue("footnotes:", out UserControl? foot) && foot is FootnotesTab footTab) // Локалізація вкладки "footnotes:"
+            {
+                footTab.chkNotes.Text = GetText("FootnotesMode", "Footnotes display method:");
             }
 
             // ТУТ У МАЙБУТНЬОМУ БУДЕ ЛОКАЛІЗАЦІЯ ДЛЯ ІНШИХ ВКЛАДОК:
@@ -730,38 +734,38 @@ namespace fb2cng_FullConfig
 
         private void SaveYamlConfiguration()
         {
-            // Дістаємо посилання на вкладку документа для зчитування налаштувань користувача
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            _tabsCache.TryGetValue("document:", out var doc);
+            _tabsCache.TryGetValue("images:", out var img);
+            _tabsCache.TryGetValue("footnotes:", out var foot); // Додано
+
+            var docTab = doc as DocumentTab;
+            var imgTab = img as ImagesTab;
+            var footTab = foot as FootnotesTab; // Додано
+
+            if (docTab != null)
             {
                 int[] fieldIndexes = new int[8];
                 bool[] folderFlags = new bool[8];
-
                 for (int i = 0; i < 8; i++)
                 {
                     fieldIndexes[i] = docTab.cmbOutFields![i].SelectedIndex;
                     folderFlags[i] = docTab.chkAsFolder![i].Checked;
                 }
 
-                // Зчитуємо дані через docTab та передаємо їх у YamlService
                 bool saved = YamlService.SaveConfiguration(
                     docTab.txtConfigName.Text, docTab.chkCss.Checked, docTab.txtCssPath.Text, docTab.chkTranslit.Checked,
-                    docTab.chkReaderSize.Checked, docTab.txtWidth.Text, docTab.txtHeight.Text, docTab.txtDpi.Text,
+                    imgTab?.chkReaderSize.Checked ?? false,
+                    imgTab?.txtWidth.Text ?? "1264",
+                    imgTab?.txtHeight.Text ?? "1680",
+                    imgTab?.txtDpi.Text ?? "300",
                     docTab.chkCover.Checked, docTab.cmbCoverMode.SelectedItem?.ToString()!,
-                    docTab.chkNotes.Checked, docTab.cmbNotesMode.SelectedItem?.ToString()!,
+                    footTab?.chkNotes.Checked ?? false, // З вкладки Footnotes
+                    footTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // З вкладки Footnotes
                     docTab.chkOpenFromCover.Checked, docTab.chkFixZip.Checked, docTab.chkFb2Name.Checked,
                     fieldIndexes, folderFlags
                 );
 
-                if (saved)
-                {
-                    Close();
-                }
-            }
-            else
-            {
-                // На випадок, якщо користувач взагалі не відкривав першу вкладку (наприклад, одразу натиснув ОК),
-                // форма просто закриється, оскільки дефолтна конфігурація вже завантажена при старті.
-                Close();
+                if (saved) Close();
             }
         }
 

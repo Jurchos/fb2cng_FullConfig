@@ -15,18 +15,8 @@ namespace fb2cng_FullConfig.Templates
         public TextBox txtCssPath = null!;
         public Button btnBrowseCss = null!;
 
-        public CheckBox chkNotes = null!;
-        public ComboBox cmbNotesMode = null!;
         public CheckBox chkCover = null!;
         public ComboBox cmbCoverMode = null!;
-
-        public CheckBox chkReaderSize = null!;
-        public Label lblWidth = null!;
-        public Label lblHeight = null!;
-        public Label lblDpi = null!;
-        public TextBox txtWidth = null!;
-        public TextBox txtHeight = null!;
-        public TextBox txtDpi = null!;
 
         public CheckBox chkOpenFromCover = null!;
         public CheckBox chkFixZip = null!;
@@ -69,11 +59,11 @@ namespace fb2cng_FullConfig.Templates
                 currentScale = g.DpiX / 96f;
             }
 
-            int blockMargin = (int)(9 * currentScale);
-            int labelHeight = (int)(20 * currentScale);
-            int fieldHeight = (int)(24 * currentScale);
-            int checkBoxHeight = (int)(22 * currentScale);
-            int sidePadding = (int)(2 * currentScale);
+            int blockMargin = (int)(10 * currentScale);// Відстань між блоками елементів, щоб вони не злипалися
+            int labelHeight = (int)(20 * currentScale);// Висота текстових міток, щоб вони виглядали пропорційно до текстових полів
+            int fieldHeight = (int)(24 * currentScale);// Висота текстових полів, щоб вони виглядали пропорційно до чекбоксів
+            int checkBoxHeight = (int)(22 * currentScale);// Висота чекбоксів, щоб вони виглядали пропорційно до текстових полів
+            int sidePadding = (int)(3 * currentScale);// Відступ зліва та справа для кнопок та текстових полів
 
             // 1. Ініціалізація чистих контейнерів
             scrollMenuPanel = new Panel { AutoScroll = true };
@@ -156,37 +146,12 @@ namespace fb2cng_FullConfig.Templates
             };
             scrollMenuPanel.Controls.AddRange([chkCss, txtCssPath, btnBrowseCss]);
 
-            // Виноски та обкладинка
-            chkNotes = new CheckBox { AutoSize = true };
-            cmbNotesMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            cmbNotesMode.Items.AddRange(["default", "float", "floatRenumbered"]);
-            cmbNotesMode.SelectedIndex = 0;
-            chkNotes.CheckedChanged += (s, e) => { cmbNotesMode.Enabled = chkNotes.Checked; (ParentForm as Form1)?.ApplyTheme(); };
-            scrollMenuPanel.Controls.AddRange([chkNotes, cmbNotesMode]);
-
-            chkCover = new CheckBox { AutoSize = true };
+            chkCover = new CheckBox { AutoSize = true }; // обкладинка
             cmbCoverMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbCoverMode.Items.AddRange(["normal", "old_kindle", "flat"]);
             cmbCoverMode.SelectedIndex = 0;
             chkCover.CheckedChanged += (s, e) => { cmbCoverMode.Enabled = chkCover.Checked; (ParentForm as Form1)?.ApplyTheme(); };
             scrollMenuPanel.Controls.AddRange([chkCover, cmbCoverMode]);
-
-            // Розмір екрана читалки
-            chkReaderSize = new CheckBox { AutoSize = true };
-            lblWidth = new Label { Text = "W:", AutoSize = true, Enabled = false };
-            txtWidth = new TextBox { Text = "1264", Enabled = false };
-            lblHeight = new Label { Text = "H:", AutoSize = true, Enabled = false };
-            txtHeight = new TextBox { Text = "1680", Enabled = false };
-            lblDpi = new Label { Text = "DPI:", AutoSize = true, Enabled = false };
-            txtDpi = new TextBox { Text = "300", Enabled = false };
-
-            chkReaderSize.CheckedChanged += (s, e) =>
-            {
-                bool en = chkReaderSize.Checked;
-                lblWidth.Enabled = txtWidth.Enabled = lblHeight.Enabled = txtHeight.Enabled = lblDpi.Enabled = txtDpi.Enabled = en;
-                (ParentForm as Form1)?.ApplyTheme();
-            };
-            scrollMenuPanel.Controls.AddRange([chkReaderSize, lblWidth, txtWidth, lblHeight, txtHeight, lblDpi, txtDpi]);
 
             chkFixZip = new CheckBox { AutoSize = true };
             chkOpenFromCover = new CheckBox { AutoSize = true };
@@ -218,33 +183,32 @@ namespace fb2cng_FullConfig.Templates
             // ========================================================
             // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ ВСЕРЕДИНІ USERCONTROL
             // ========================================================
-            int xLeft = (int)(16 * currentScale);
-            int fieldWidth = (int)(520 * currentScale) - (xLeft * 2) - (int)(6 * currentScale);
+            int xLeft = (int)(16 * currentScale);// Відступ зліва для всіх елементів
+            int fieldWidth = (int)(520 * currentScale) - (xLeft * 2) - (int)(8 * currentScale);// Враховуємо паддінг зліва та справа, а також невеликий запас для скролу
 
             // Задаємо базову висоту під центральний контент-контейнер Form1
-            Size = new Size((int)(520 * currentScale), (int)(565 * currentScale));
+            Size = new Size((int)(520 * currentScale), (int)(565 * currentScale));             // Висота UserControl, яка включає скролл-контейнер
 
-            int scrollPanelHeight = (int)(545 * currentScale);
+            int scrollPanelHeight = (int)(545 * currentScale);                                 // Висота скролл-контейнера, яка включає всі елементи всередині
             scrollMenuPanel.Dock = DockStyle.Fill;
 
             int scrollFieldWidth = fieldWidth - (int)(3 * currentScale);
             int scrollRightField = fieldWidth + xLeft - (int)(3 * currentScale);
 
-            int nextY = (int)(12 * currentScale);
-            int textLabelWidth = (int)(240 * currentScale);
-            int valueFieldWidth = scrollFieldWidth - textLabelWidth - (int)(5 * currentScale);
+            int nextY = (int)(11 * currentScale);                                               // Початкова координата Y для першого елемента
+            int textLabelWidth = (int)(240 * currentScale);                                     // Ширина текстових міток
+            int valueFieldWidth = scrollFieldWidth - textLabelWidth - (int)(4 * currentScale);  // Ширина полів значень (ComboBox, TextBox) з урахуванням відступу між міткою та полем
 
             // Позиціонування елементів
-            lblLang.SetBounds(xLeft, nextY + (int)(2 * currentScale), textLabelWidth, labelHeight);
+            lblLang.SetBounds(xLeft, nextY, textLabelWidth, labelHeight);
             langComboBox.ItemHeight = fieldHeight - 6;
             langComboBox.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
 
-            nextY = langComboBox.Bottom + blockMargin;
-            nextY = langComboBox.Bottom + blockMargin;
-            btnDumpConfig.SetBounds(xLeft + sidePadding, nextY, scrollFieldWidth - (sidePadding * 3), fieldHeight + (int)(4 * currentScale));
+            nextY = langComboBox.Bottom + blockMargin + (int)(2 * currentScale);
+            btnDumpConfig.SetBounds(xLeft + sidePadding, nextY, scrollFieldWidth - sidePadding, fieldHeight + (int)(4 * currentScale));
 
             nextY = btnDumpConfig.Bottom + blockMargin;
-            lblConfigName.SetBounds(xLeft, nextY + (int)(2 * currentScale), textLabelWidth, labelHeight);
+            lblConfigName.SetBounds(xLeft, nextY, textLabelWidth, labelHeight);
             txtConfigName.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
 
             nextY = txtConfigName.Bottom + blockMargin;
@@ -257,49 +221,11 @@ namespace fb2cng_FullConfig.Templates
             btnBrowseCss.SetBounds(scrollRightField - browseBtnWidth - sidePadding, nextY, browseBtnWidth, fieldHeight);
 
             nextY = txtCssPath.Bottom + blockMargin;
-            chkNotes.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-            cmbNotesMode.ItemHeight = fieldHeight - 6;
-            cmbNotesMode.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
-
-            nextY = cmbNotesMode.Bottom + blockMargin;
-            chkCover.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
+            chkCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
             cmbCoverMode.ItemHeight = fieldHeight - 6;
             cmbCoverMode.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
 
-            nextY = cmbCoverMode.Bottom + blockMargin; // Розмір екрана читалки
-            chkReaderSize.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-
-            // --- НАЛАШТУВАННЯ ВІДСТАНІ ---
-            int labelWidthSpace = (int)(22 * currentScale); // Збільшена ширина мітки 
-            int exactBoxWidth = (int)(44 * currentScale);
-            int betweenGroupsSpacing = (int)(10 * currentScale);
-
-            // КРИТИЧНО ВАЖЛИВО: Вимикаємо авторозмір та тиснемо текст ліворуч
-            lblWidth.AutoSize = lblHeight.AutoSize = lblDpi.AutoSize = false;
-            lblWidth.TextAlign = lblHeight.TextAlign = lblDpi.TextAlign = ContentAlignment.MiddleLeft;
-            // -----------------------------
-
-            int sizeInputX = xLeft + textLabelWidth;
-            txtWidth.Margin = txtHeight.Margin = txtDpi.Margin = new Padding(0);
-
-            // 1. Блок Width
-            int wLabelWidth = labelWidthSpace + (int)(4 * currentScale);
-            lblWidth.SetBounds(sizeInputX, nextY + (int)(2 * currentScale), wLabelWidth, labelHeight);
-            txtWidth.Multiline = true;
-            txtWidth.SetBounds(lblWidth.Right, nextY, exactBoxWidth, fieldHeight);
-
-            // 2. Блок Height
-            lblHeight.SetBounds(txtWidth.Right + betweenGroupsSpacing, nextY + (int)(2 * currentScale), labelWidthSpace, labelHeight);
-            txtHeight.Multiline = true;
-            txtHeight.SetBounds(lblHeight.Right, nextY, exactBoxWidth, fieldHeight);
-
-            // 3. Блок DPI (для DPI робимо ширше, бо "DPI" довший за "W" чи "H")
-            int dpiLabelWidth = labelWidthSpace + (int)(12 * currentScale);
-            lblDpi.SetBounds(txtHeight.Right + betweenGroupsSpacing, nextY + (int)(2 * currentScale), dpiLabelWidth, labelHeight);
-            txtDpi.Multiline = true;
-            txtDpi.SetBounds(lblDpi.Right, nextY, exactBoxWidth, fieldHeight);
-
-            nextY = chkReaderSize.Bottom + blockMargin;
+            nextY = cmbCoverMode.Bottom + blockMargin;
             chkFixZip.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
 
             nextY = chkFixZip.Bottom + blockMargin;
@@ -312,9 +238,10 @@ namespace fb2cng_FullConfig.Templates
             chkTranslit.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
 
             // Налаштування групи структури назви файлу
-            int rowHeight = fieldHeight + (int)(4 * currentScale);
-            int grpOutHeight = (rowHeight * 8) + (int)(25 * currentScale);
-            grpOutName.SetBounds(xLeft, chkTranslit.Bottom + blockMargin, fieldWidth, grpOutHeight);
+            int OutNameTopPadding = (int)(10 * currentScale);// Відступ зверху для групи структури назви файлу
+            int rowHeight = fieldHeight + (int)(5 * currentScale);// Висота одного рядка з комбо та чекбоксом
+            int grpOutHeight = (rowHeight * 8) + (int)(25 * currentScale);// Висота групи з 8 рядків + заголовок групи
+            grpOutName.SetBounds(xLeft, chkTranslit.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
 
             int comboWidth = (int)(grpOutName.Width * 0.76f);
             int checkFoldWidth = grpOutName.Width - comboWidth - (int)(15 * currentScale);
@@ -326,12 +253,12 @@ namespace fb2cng_FullConfig.Templates
                 {
                     cmbOutFields[i].ItemHeight = fieldHeight - 6;
                     cmbOutFields[i].SetBounds((int)(10 * currentScale), itemY, comboWidth, fieldHeight);
-                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + (int)(5 * currentScale), itemY + (int)(1 * currentScale), checkFoldWidth, checkBoxHeight);
+                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + (int)(15 * currentScale), itemY + (int)(1 * currentScale), checkFoldWidth, checkBoxHeight);
                     itemY += rowHeight;
                 }
             }
 
-            // ВИПРАВЛЕНО CS0747: Правильне роздільне створення об'єкта та встановлення його координат
+            // Правильне роздільне створення об'єкта та встановлення його координат
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
             lblScrollAnchor.SetBounds(0, itemY + (int)(10 * currentScale), 1, 1);
             grpOutName.Controls.Add(lblScrollAnchor);
