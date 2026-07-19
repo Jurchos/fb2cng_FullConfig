@@ -26,7 +26,7 @@ namespace fb2cng_FullConfig
         }
 
         // Шлях до файлу конфігурації
-        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Conf_config.json");
+        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conf_config.json");
 
         // Виправлення CA2211: Робимо внутрішнє поле приватним та readonly для безпеки
         // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
@@ -40,12 +40,15 @@ namespace fb2cng_FullConfig
                 ["Language"] = "Language:",
                 ["DumpConfig"] = "Load Default config.yaml",
                 ["ConfigName"] = "Name of custom template:",
+                ["CustomYamlEnable"] = "Edit user.yaml",
                 ["CssEnable"] = "Use Custom CSS Stylesheet",
                 ["Fb2Name"] = "Use the fb2 filename for the source file",
                 ["Help"] = "Help",
                 ["Theme"] = "Theme",
                 ["Ok"] = "Save",
                 ["Cancel"] = "Cancel",
+                ["Yes"] = "Yes",
+                ["No"] = "No",
                 ["ErrTitle"] = "Component Missing",
                 ["ErrFbc"] = "The GUI program for fb2cng not found: please verify that 'fbc.exe' is present in the application folder!",
                 ["ErrGui"] = "Configurator program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!",
@@ -83,7 +86,7 @@ namespace fb2cng_FullConfig
                                "\n2. Use the Constructor to build the folder structure and filename." +
                                "\n3. Click 'Save'." +
                                "\n\nCreated by: Jurchos & Gemini" +
-                               "\nVersion: 1.2",
+                               "\nVersion: 1.3",
                 ["GenTitle"] = "Success",
                 ["GenSuccess"] = "config.yaml successfully generated!"
             },
@@ -95,12 +98,15 @@ namespace fb2cng_FullConfig
                 ["Language"] = "Мова:",
                 ["DumpConfig"] = "Завантажити дефолтний config.yaml",
                 ["ConfigName"] = "Назва власного шаблона:",
+                ["CustomYamlEnable"] = "Редагувати user.yaml",
                 ["CssEnable"] = "CSS-таблиця стилів",
                 ["Fb2Name"] = "Залишити назву fb2 для вихідного файла",
                 ["Help"] = "Довідка",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Зберегти",
                 ["Cancel"] = "Скасувати",
+                ["Yes"] = "Так",
+                ["No"] = "Ні",
                 ["ErrTitle"] = "Помилка конфігурації",
                 ["ErrFbc"] = "Відсутня програма-конвертор: перевірте наявність файлу 'fbc.exe' в папці з програмою!",
                 ["ErrGui"] = "Відсутня програма-оболонка для fb2cng: перевірте наявність файлу 'fb2cng_GUI.exe' в папці з програмою!",
@@ -138,7 +144,7 @@ namespace fb2cng_FullConfig
                                "\n2. Використовуйте конструктор для створення структури папок та імені." +
                                "\n3. Натисніть 'Зберегти.'" +
                                "\n\nСтворено: Jurchos & Gemini" +
-                               "\nВерсія: 1.2",
+                               "\nВерсія: 1.3",
                 ["GenTitle"] = "Успіх",
                 ["GenSuccess"] = "config.yaml успішно згенеровано!"
             },
@@ -150,12 +156,15 @@ namespace fb2cng_FullConfig
                 ["Language"] = "Язык:",
                 ["DumpConfig"] = "Загрузить дефолтный config.yaml",
                 ["ConfigName"] = "Имя пользовательского шаблона:",
+                ["CustomYamlEnable"] = "Редактировать user.yaml",
                 ["CssEnable"] = "CSS-таблица стилей",
                 ["Fb2Name"] = "Сохранить имя fb2 для исходного файла",
                 ["Help"] = "Справка",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Сохранить",
                 ["Cancel"] = "Отмена",
+                ["Yes"] = "Да",
+                ["No"] = "Нет",
                 ["ErrTitle"] = "Ошибка конфигурации",
                 ["ErrFbc"] = "Программа-конвертер не найдена: проверьте наличие файла 'fbc.exe' в папке с программой!",
                 ["ErrGui"] = "Программа-оболочка для fb2cng не найдена: проверьте наличие файла 'fb2cng_GUI.exe' в папке с программой!",
@@ -193,7 +202,7 @@ namespace fb2cng_FullConfig
                                "\n2. Используйте конструктор для создания структуры папок и имени." +
                                "\n3. Нажмите 'Сохранить'." +
                                "\n\nСоздано: Jurchos & Gemini" +
-                               "\nВерсия: 1.2",
+                               "\nВерсия: 1.3",
                 ["GenTitle"] = "Успех",
                 ["GenSuccess"] = "config.yaml успешно сгенерирован!"
             }
@@ -210,14 +219,35 @@ namespace fb2cng_FullConfig
         {
             try
             {
-                // Використовуємо глобальні кешовані опції замість локального new()
+                // 1. Отримуємо шлях до директорії та створюємо її, якщо вона відсутня
+                string? directoryPath = Path.GetDirectoryName(settingsFile);
+                if (!string.IsNullOrEmpty(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                // 2. Використовуємо глобальні кешовані опції замість локального new()
                 string jsonString = JsonSerializer.Serialize(Settings, JsonOptions);
                 File.WriteAllText(settingsFile, jsonString);
             }
             catch (Exception ex)
             {
-                // Оптимальний запис логу для .NET 10 через AppendAllLines
-                File.AppendAllLines("errors.log", [$"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Save error: {ex.Message}"]);
+                try
+                {
+                    // 1. Створюємо окремий шлях до папки logs
+                    string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                    Directory.CreateDirectory(logsDir); // Безпечно створює папку, якщо її немає
+
+                    // 2. Поєднуємо шлях папки з назвою файлу
+                    string logFile = Path.Combine(logsDir, "Conf_errors.log");
+
+                    // Оптимальний запис логу для .NET 10 через AppendAllLines
+                    File.AppendAllLines(logFile, [$"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Save error: {ex.Message}"]);
+                }
+                catch
+                {
+                    // Поглинаємо помилку запису логу, щоб програма не впала в catch-блоці
+                }
             }
         }
     }

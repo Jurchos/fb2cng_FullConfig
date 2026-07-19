@@ -53,8 +53,10 @@ namespace fb2cng_FullConfig
                 docTab.lblLang.Text = GetText("Language", "Language:");
                 docTab.btnDumpConfig.Text = GetText("DumpConfig", "Dump Default Config");
                 docTab.lblConfigName.Text = GetText("ConfigName", "Config Name:");
+                docTab.chkCustomYaml.Text = GetText("CustomYamlEnable", "Edit custom .yaml template");
                 docTab.chkCss.Text = GetText("CssEnable", "Use Custom CSS");
-                docTab.btnBrowseCss.Text = GetText("Browse", "Browse...");
+                docTab.btnBrowseCss.Text = GetText("Browse", " ...");
+                docTab.btnBrowseCustomYaml.Text = GetText("Browse", " ...");
 
                 docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
                 docTab.chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
@@ -62,6 +64,9 @@ namespace fb2cng_FullConfig
 
                 docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
                 docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
+
+                docTab.rbFixZipYes.Text = docTab.rbOpenCoverYes.Text = docTab.rbTranslitYes.Text = GetText("Yes", "Yes");
+                docTab.rbFixZipNo.Text = docTab.rbOpenCoverNo.Text = docTab.rbTranslitNo.Text = GetText("No", "No");
 
                 docTab.lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
                 docTab.grpOutName.Text = GetText("OutNameTitle", "Output Structure");
@@ -186,6 +191,29 @@ namespace fb2cng_FullConfig
             }
         }
 
+        // Додаємо новий метод вибору YAML файлу:
+        internal void BtnBrowseCustomYaml_Click(object? sender, EventArgs e)
+        {
+            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            {
+                if (!docTab.chkCustomYaml.Checked) return;
+
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "YAML Files (*.yaml;*.yml)|*.yaml;*.yml|All Files (*.*)|*.*";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string selectedFile = ofd.FileName;
+                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
+                    // Встановлюємо шлях
+                    docTab.txtCustomYamlPath.Text = relativePath.Replace('\\', '/');
+
+                    // ЯВНО ВИКЛИКАЄМО СИНХРОНІЗАЦІЮ ТУТ
+                    SyncConfigNameWithYaml(docTab);
+                }
+            }
+        }
+
         internal void BtnBrowseCss_Click(object? sender, EventArgs e)
         {
             // Дістаємо посилання на вкладку документа для роботи з її полями
@@ -291,18 +319,27 @@ namespace fb2cng_FullConfig
                 {
                     btn.FlatStyle = FlatStyle.Flat;
                     btn.FlatAppearance.BorderSize = 0;
+
+                    bool isBrowseBtn = (btn == docTab?.btnBrowseCss) || (btn == docTab?.btnBrowseCustomYaml);
+                    bool isParentChecked = (btn == docTab?.btnBrowseCss && isCssChecked) ||
+                                           (btn == docTab?.btnBrowseCustomYaml && (docTab?.chkCustomYaml.Checked ?? false));
                     if (isDark)
                     {
-                        btn.BackColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(40, 40, 42) : backColor;
-                        btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : foreColor;
-                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
+                        btn.BackColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(40, 40, 42) : backColor;
+                        btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : foreColor;
+                        btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
                     }
                     else
                     {
                         btn.BackColor = SystemColors.Control;
-                        btn.ForeColor = (btn == currentBrowseCssBtn && !isCssChecked) ? disabledColor : SystemColors.ControlText;
-                        btn.FlatAppearance.BorderColor = (btn == currentBrowseCssBtn && !isCssChecked) ? Color.LightGray : Color.DarkGray;
+                        btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : SystemColors.ControlText;
+                        btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.LightGray : Color.DarkGray;
                     }
+                }
+                else if (c is RadioButton rb)
+                {
+                    rb.ForeColor = isControlDisabled ? disabledColor : foreColor;
+                    rb.BackColor = Color.Transparent;
                 }
                 else if (c is ComboBox cb)
                 {
@@ -659,6 +696,122 @@ namespace fb2cng_FullConfig
             }
         }
 
+private void SyncConfigNameWithYaml(DocumentTab docTab)
+{
+    if (docTab.chkCustomYaml.Checked)
+    {
+        // Якщо шлях обрано - копіюємо його
+        if (!string.IsNullOrWhiteSpace(docTab.txtCustomYamlPath.Text))
+        {
+            docTab.txtConfigName.Text = docTab.txtCustomYamlPath.Text;
+        }
+        else
+        {
+            // Якщо чекбокс увімкнено, але шлях ще не обрано - 
+            // очищуємо поле, щоб не залишався "config.yaml"
+            docTab.txtConfigName.Text = ""; 
+        }
+    }
+    else
+    {
+        // Якщо вимкнено - повертаємо стандарт
+        docTab.txtConfigName.Text = "config.yaml";
+    }
+}
+
+        private void SyncCssWithCustomYaml(DocumentTab docTab)
+        {
+            if (docTab.chkCustomYaml.Checked && docTab.chkCss.Checked)
+            {
+                // ВАЖЛИВО: Якщо користувач вже обрав файл (поле не порожнє), 
+                // ми не затираємо його автоматично при кожному кліку чекбокса.
+                if (!string.IsNullOrEmpty(docTab.txtCssPath.Text)) return;
+
+                string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
+                if (!string.IsNullOrEmpty(yamlPath))
+                {
+                    string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
+                    if (File.Exists(fullPath))
+                    {
+                        string value = YamlService.ReadYamlValue(fullPath, "stylesheet_path");
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            docTab.txtCssPath.Text = value;
+                        }
+                    }
+                }
+            }
+            if (!docTab.chkCustomYaml.Checked)
+            {
+                docTab.txtCssPath.Text = "";
+                return;
+            }
+        }
+
+        private void SyncTocTypeWithCustomYaml(DocumentTab docTab)
+        {
+            if (docTab.chkCustomYaml.Checked)
+            {
+                string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
+                if (!string.IsNullOrEmpty(yamlPath))
+                {
+                    string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
+                    if (File.Exists(fullPath))
+                    {
+                        string value = YamlService.ReadYamlValue(fullPath, "toc_type");
+
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            int index = docTab.cmbCoverMode.Items.IndexOf(value);
+                            if (index >= 0)
+                            {
+                                docTab.cmbCoverMode.SelectedIndex = index;
+                                return; // Виходимо, якщо значення успішно знайдено і встановлено
+                            }
+                        }
+                    }
+                }
+            }
+
+            // СКИНУТИ до значення за замовчуванням ("normal"), якщо галочка знята або файл не знайдено
+            if (docTab.cmbCoverMode.Items.Count > 0)
+            {
+                docTab.cmbCoverMode.SelectedIndex = 0; // Перший пункт зазвичай "normal"
+            }
+        }
+
+        private void SyncBinarySettingsWithYaml(DocumentTab docTab)
+        {
+            if (docTab.chkCustomYaml.Checked)
+            {
+                string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
+                if (!string.IsNullOrEmpty(yamlPath))
+                {
+                    string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
+                    if (File.Exists(fullPath))
+                    {
+                        string fixZip = YamlService.ReadYamlValue(fullPath, "fix_zip").ToLower();
+                        string openCover = YamlService.ReadYamlValue(fullPath, "open_from_cover").ToLower();
+                        string translit = YamlService.ReadYamlValue(fullPath, "file_name_transliterate").ToLower();
+
+                        docTab.rbFixZipYes.Checked = (fixZip == "true");
+                        docTab.rbFixZipNo.Checked = (fixZip != "true"); // за замовчуванням false
+
+                        docTab.rbOpenCoverYes.Checked = (openCover == "true");
+                        docTab.rbOpenCoverNo.Checked = (openCover != "true");
+
+                        docTab.rbTranslitYes.Checked = (translit == "true");
+                        docTab.rbTranslitNo.Checked = (translit != "true");
+                        return;
+                    }
+                }
+            }
+            // СКИНУТИ, якщо галочка "Редагувати..." знята
+            docTab.rbFixZipNo.Checked = true;
+            docTab.rbOpenCoverNo.Checked = true;
+            docTab.rbTranslitNo.Checked = true;
+        }
+
         private void BtGui_Click(object? sender, EventArgs e)
         {
             var runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
@@ -711,32 +864,47 @@ namespace fb2cng_FullConfig
             _tabsCache.TryGetValue("document:", out var doc);
             _tabsCache.TryGetValue("metadata:", out var data);
 
-
             var docTab = doc as DocumentTab;
             var dataTab = data as MetadataTab;
 
-
             if (docTab != null)
             {
+                // 1. Готуємо масиви для конструктора назви
                 int[] fieldIndexes = new int[8];
                 bool[] folderFlags = new bool[8];
-                for (int i = 0; i < 8; i++)
+                if (docTab.cmbOutFields != null && docTab.chkAsFolder != null)
                 {
-                    fieldIndexes[i] = docTab.cmbOutFields![i].SelectedIndex;
-                    folderFlags[i] = docTab.chkAsFolder![i].Checked;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        fieldIndexes[i] = docTab.cmbOutFields[i].SelectedIndex;
+                        folderFlags[i] = docTab.chkAsFolder[i].Checked;
+                    }
                 }
 
+                // 2. Виклик сервісу з ПРАВИЛЬНИМ ПОРЯДКОМ АРГУМЕНТІВ
                 bool saved = YamlService.SaveConfiguration(
-                    docTab.txtConfigName.Text, docTab.chkCss.Checked, docTab.txtCssPath.Text, docTab.chkTranslit.Checked,
-                    dataTab?.chkReaderSize.Checked ?? false,
-                    dataTab?.txtWidth.Text ?? "1264",
-                    dataTab?.txtHeight.Text ?? "1680",
-                    dataTab?.txtDpi.Text ?? "300",
-                    docTab.chkCover.Checked, docTab.cmbCoverMode.SelectedItem?.ToString()!,
-                    dataTab?.chkNotes.Checked ?? false, // Використовуємо ?? false як запасний варіант, якщо dataTab ще не ініціалізовано
-                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // Використовуємо "default" як запасний варіант, якщо cmbNotesMode ще не ініціалізовано
-                    docTab.chkOpenFromCover.Checked, docTab.chkFixZip.Checked, docTab.chkFb2Name.Checked,
-                    fieldIndexes, folderFlags
+                    docTab.txtConfigName.Text,             // configName
+                    docTab.chkCustomYaml.Checked,          // useCustomYaml
+                    docTab.txtCustomYamlPath.Text,         // customYamlPath
+                    docTab.chkCss.Checked,                 // useCss
+                    docTab.txtCssPath.Text,                // cssPath
+                    dataTab?.chkReaderSize.Checked ?? false, // customSize
+                    dataTab?.txtWidth.Text ?? "1264",      // width
+                    dataTab?.txtHeight.Text ?? "1680",     // height
+                    dataTab?.txtDpi.Text ?? "300",         // dpi
+                    docTab.chkCover.Checked,               // useCoverMode
+                    docTab.cmbCoverMode.SelectedItem?.ToString() ?? "normal", // coverMode
+                    dataTab?.chkNotes.Checked ?? false,    // useNotesMode
+                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // notesMode
+                    docTab.chkTranslit.Checked,            // saveTranslit
+                    docTab.rbTranslitYes.Checked,          // translitVal
+                    docTab.chkOpenFromCover.Checked,       // saveOpenCover
+                    docTab.rbOpenCoverYes.Checked,         // openCoverVal
+                    docTab.chkFixZip.Checked,              // saveFixZip
+                    docTab.rbFixZipYes.Checked,            // fixZipVal
+                    docTab.chkFb2Name.Checked,             // useFb2Name
+                    fieldIndexes,                          // fieldIndexes
+                    folderFlags                            // folderFlags
                 );
 
                 if (saved) Close();

@@ -39,7 +39,7 @@ namespace fb2cng_FullConfig
                 // 3. ІНІЦІАЛІЗАЦІЯ СИСТЕМИ КОНФІГУРАЦІЇ
                 IConfigurationBuilder builder = new ConfigurationBuilder()
                     .SetBasePath(AppContext.BaseDirectory)
-                    .AddJsonFile("Conf_config.json", optional: true, reloadOnChange: true);
+                    .AddJsonFile(Path.Combine("Data", "Conf_config.json"), optional: true, reloadOnChange: true);
 
                 IConfiguration configuration = builder.Build();
                 Config.Initialize(configuration);
@@ -137,134 +137,218 @@ namespace fb2cng_FullConfig
             }
         }
 
+        public static string ReadYamlValue(string filePath, string key)
+        {
+            if (!File.Exists(filePath)) return string.Empty;
+            string targetKey = $"{key}:";
+            try
+            {
+                foreach (string line in File.ReadLines(filePath))
+                {
+                    ReadOnlySpan<char> span = line.AsSpan().TrimStart();
+                    // Шукаємо розкоментований ключ
+                    if (span.StartsWith(targetKey, StringComparison.Ordinal))
+                    {
+                        string value = span[targetKey.Length..].Trim().ToString();
+                        return value.Trim('"').Trim('\''); // Видаляємо лапки
+                    }
+                }
+            }
+            catch { }
+            return string.Empty;
+        }
+
+        // ОНОВЛЕНИЙ ReplaceYamlValueLine для підтримки закоментування
+        private static string[]? ReplaceYamlValueLine(string[] lines, string key, string newValue, bool commentIfEmpty = false)
+        {
+            bool found = false;
+            string targetKey = $"{key}:";
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                ReadOnlySpan<char> lineSpan = lines[i];
+                ReadOnlySpan<char> trimmed = lineSpan.TrimStart();
+                int indentSize = lineSpan.Length - trimmed.Length;
+                string padding = lineSpan[..indentSize].ToString();
+
+                // Перевіряємо, чи ми хочемо закоментувати (якщо newValue порожній і прапорець активний)
+                if (commentIfEmpty && string.IsNullOrWhiteSpace(newValue))
+                {
+                    if (trimmed.StartsWith(targetKey, StringComparison.Ordinal))
+                    {
+                        lines[i] = $"{padding}# {key}: \"mystyle.css\""; // Дефолтне значення
+                        found = true;
+                        break;
+                    }
+                    else if (trimmed.StartsWith("#") && trimmed[1..].TrimStart().StartsWith(targetKey, StringComparison.Ordinal))
+                    {
+                        // Вже закоментовано - нічого не робимо
+                        found = true;
+                        break;
+                    }
+                }
+                else // Стандартний запис значення
+                {
+                    if (trimmed.StartsWith("#") && trimmed[1..].TrimStart().StartsWith(targetKey, StringComparison.Ordinal))
+                    {
+                        lines[i] = $"{padding}{key}: {newValue}";
+                        found = true;
+                        break;
+                    }
+                    else if (trimmed.StartsWith(targetKey, StringComparison.Ordinal))
+                    {
+                        lines[i] = $"{padding}{key}: {newValue}";
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found && !commentIfEmpty) // Помилка лише якщо не знайшли і не коментуємо
+            {
+                ShowYamlError(key);
+                return null;
+            }
+            return lines;
+        }
+
         public static bool SaveConfiguration(
-            string configName, bool useCss, string cssPath, bool translit,
+            string configName, bool useCustomYaml, string customYamlPath,
+            bool useCss, string cssPath,
             bool customSize, string width, string height, string dpi,
-            bool useCoverMode, string coverMode, bool useNotesMode, string notesMode,
-            bool openFromCover, bool fixZip, bool useFb2Name,
+            bool useCoverMode, string coverMode,
+            bool useNotesMode, string notesMode,
+            bool saveTranslit, bool translitVal,
+            bool saveOpenCover, bool openCoverVal,
+            bool saveFixZip, bool fixZipVal,
+            bool useFb2Name,
             int[] fieldIndexes, bool[] folderFlags)
         {
-            string targetFileName = configName?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(targetFileName))
+            // 1. Визначаємо шлях до джерела
+            string activeSourcePath = sourcePath;
+            if (useCustomYaml && !string.IsNullOrWhiteSpace(customYamlPath))
             {
-                targetFileName = "config.yaml";
+                string fullCustomPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, customYamlPath);
+                if (File.Exists(fullCustomPath)) activeSourcePath = fullCustomPath;
             }
 
-            if (!targetFileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
-            {
-                targetFileName += ".yaml";
-            }
-
+            // 2. Назва цільового файлу
+            string targetFileName = string.IsNullOrWhiteSpace(configName) ? "config.yaml" : configName.Trim();
+            if (!targetFileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)) targetFileName += ".yaml";
             string targetPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, targetFileName);
 
-            if (!File.Exists(sourcePath))
+            if (!File.Exists(activeSourcePath))
             {
-                bool generated = ExecuteSyncDumpConfig();
-                if (!generated || !File.Exists(sourcePath))
-                {
-                    return false;
-                }
+                if (!ExecuteSyncDumpConfig() || !File.Exists(activeSourcePath)) return false;
             }
 
             try
             {
-                string[]? lines = File.ReadAllLines(sourcePath, Encoding.UTF8);
+                string[]? lines = File.ReadAllLines(activeSourcePath, Encoding.UTF8);
 
-                if (useCss)
+                // --- НОВІ ПАРАМЕТРИ (РАДІОБАТОНИ) ---
+                if (saveTranslit)
                 {
-                    lines = ReplaceYamlValueLine(lines, "stylesheet_path", $"\"{cssPath}\"");
+                    lines = ReplaceYamlValueLine(lines, "file_name_transliterate", translitVal ? "true" : "false");
                     if (lines == null)
                     {
                         return false;
                     }
                 }
 
-                string newTranslitValue = translit ? "true" : "false";
-                lines = ReplaceYamlValueLine(lines, "file_name_transliterate", newTranslitValue);
-                if (lines == null)
+                if (saveOpenCover)
                 {
-                    return false;
+                    lines = ReplaceYamlValueLine(lines, "open_from_cover", openCoverVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
+                if (saveFixZip)
+                {
+                    lines = ReplaceYamlValueLine(lines, "fix_zip", fixZipVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                // Обробка CSS
+                if (useCss)
+                {
+                    lines = ReplaceYamlValueLine(lines, "stylesheet_path", string.IsNullOrWhiteSpace(cssPath) ? "" : $"\"{cssPath}\"", true);
+                    if (lines == null) return false;
+                }
+
+                // Обробка розмірів екрану
                 if (customSize)
                 {
-                    lines = ReplaceYamlValueLine(lines, "width", width); if (lines == null)
-                    {
-                        return false;
-                    }
+                    lines = ReplaceYamlValueLine(lines, "width", width);
+                    if (lines == null) return false; // Захист від null
 
-                    lines = ReplaceYamlValueLine(lines, "height", height); if (lines == null)
-                    {
-                        return false;
-                    }
+                    lines = ReplaceYamlValueLine(lines, "height", height);
+                    if (lines == null) return false;
 
-                    lines = ReplaceYamlValueLine(lines, "dpi", dpi); if (lines == null)
-                    {
-                        return false;
-                    }
+                    lines = ReplaceYamlValueLine(lines, "dpi", dpi);
+                    if (lines == null) return false;
+                }
+                if (saveOpenCover)
+                {
+                    lines = ReplaceYamlValueLine(lines, "open_from_cover", openCoverVal ? "true" : "false");
+                    if (lines == null) return false;
                 }
 
+                if (saveFixZip)
+                {
+                    lines = ReplaceYamlValueLine(lines, "fix_zip", fixZipVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (saveTranslit)
+                {
+                    lines = ReplaceYamlValueLine(lines, "file_name_transliterate", translitVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                // Обробка обкладинки/навігації
                 if (useCoverMode)
                 {
-                    lines = ReplaceYamlValueLine(lines, "toc_type", $"\"{coverMode}\""); if (lines == null)
-                    {
-                        return false;
-                    }
+                    lines = ReplaceYamlValueLine(lines, "toc_type", $"\"{coverMode}\"");
+                    if (lines == null) return false;
                 }
+
+                // Обробка виносок
                 if (useNotesMode)
                 {
-                    lines = ReplaceYamlValueLine(lines, "mode", $"\"{notesMode}\""); if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-                if (openFromCover)
-                {
-                    lines = ReplaceYamlValueLine(lines, "open_from_cover", "true"); if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-                if (fixZip)
-                {
-                    lines = ReplaceYamlValueLine(lines, "fix_zip", "true"); if (lines == null)
+                    lines = ReplaceYamlValueLine(lines, "mode", $"\"{notesMode}\"");
+                    if (lines == null)
                     {
                         return false;
                     }
                 }
 
+                // Шаблон назви
                 string templateBlock = useFb2Name ? "        {{- .OriginalFileName -}}" : BuildGoTemplateFromUI(fieldIndexes, folderFlags);
-
                 if (!string.IsNullOrEmpty(templateBlock))
                 {
                     lines = ReplaceOutputTemplateBlockSafely(lines, templateBlock);
-                    if (lines == null)
-                    {
-                        return false;
-                    }
+                    if (lines == null) return false;
                 }
 
                 File.WriteAllLines(targetPath, lines, Encoding.UTF8);
                 Config.SaveSettings();
 
-                // Викликаємо вікна через тимчасову форму (Варіант 1)
-                using Form1 tempForm = new(); // Сучасний using без фігурних дужок
-
-                Dictionary<string, string> loc = Config.Localization[Config.Settings.CurrentLanguage];
-
-                // Використовуємо GetValueOrDefault: якщо ключа немає, поверне "Success" за один крок
-                string successCaption = loc.GetValueOrDefault("SaveSuccessTitle", "Success");
-
-                // Якщо локалізація містить шаблон, підставляємо ім'я файлу
-                string message = loc.TryGetValue("SaveSuccess", out string? template)
-                    ? string.Format(template, targetFileName)
-                    : $"Saved to {targetFileName}";
-
-                _ = tempForm.ShowCustomMessageBox(message, successCaption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Повідомлення про успіх
+                using Form1 tempForm = new();
+                var loc = Config.Localization[Config.Settings.CurrentLanguage];
+                string cap = loc.GetValueOrDefault("SaveSuccessTitle", "Success");
+                string msg = loc.TryGetValue("SaveSuccess", out string? t) ? string.Format(t, targetFileName) : $"Saved to {targetFileName}";
+                tempForm.ShowCustomMessageBox(msg, cap, MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 return true;
             }
-            catch (UnauthorizedAccessException) // ПЕРЕХОПЛЮЄМО САМЕ ПОМИЛКУ ДОСТУПУ
+            catch (UnauthorizedAccessException)
             {
                 using Form1 tempForm = new(); // 1. Сучасний using та спрощений конструктор
 

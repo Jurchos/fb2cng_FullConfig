@@ -112,7 +112,7 @@ namespace fb2cng_FullConfig
             int tabWidthRow1 = (headerPanel.Width - paddingLeft - paddingRight - totalInterButtonSpace) / 3;
             int tabWidthRow2 = tabWidthRow1; // Робимо другий ряд таким самим
 
-            // Головна вкладка, метаынформація та логування
+            // Головна вкладка, метаінформація та логування
             btnTabDocument = new Button { Text = "document:", Tag = "document:" };
             btnTabMetadata = new Button { Text = "metainformation:", Tag = "metadata:" };
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
@@ -135,7 +135,7 @@ namespace fb2cng_FullConfig
             // КРОК 2: СТВОРЕННЯ ЦЕНТРАЛЬНОГО КОНТЕНТ-КОНТЕЙНЕРА
             // ==========================================
             // Базова фіксована висота 
-            int contentHeight = (int)(545 * currentScale);
+            int contentHeight = (int)(565 * currentScale);
 
             pnlContent = new Panel();
             pnlContent.SetBounds(0, headerPanel.Bottom, ClientSize.Width, contentHeight);
@@ -293,14 +293,44 @@ namespace fb2cng_FullConfig
         {
             float currentScale = Win32Api.GetDpiScale();
 
-            // ПОВЕРТАЄМО ЗАОКРУГЛЕННЯ (викликаємо ваш статичний метод)
+            // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ ТРЬОХ КНОПОК
             MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));
             MakeButtonRounded(docTab.btnDumpConfig, (int)(4 * currentScale));
+            MakeButtonRounded(docTab.btnBrowseCustomYaml, (int)(4 * currentScale));
 
-            docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
+            // 2. ПРИВ'ЯЗКА КЛІКІВ
             docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
+            docTab.btnBrowseCustomYaml.Click += BtnBrowseCustomYaml_Click;
             docTab.btnDumpConfig.Click += BtnDumpConfig_Click;
+
+            // 3. РЕШТА ПОДІЙ
+            docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
             docTab.chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
+
+            // Синхронізація при активації CSS
+            docTab.chkCss.CheckedChanged += (s, e) =>
+            {
+                if (docTab.chkCss.Checked) SyncCssWithCustomYaml(docTab);
+            };
+            // Синхронізація імені конфігу при зміні стану чекбокса
+            docTab.chkCustomYaml.CheckedChanged += (s, e) =>
+            {
+                SyncConfigNameWithYaml(docTab);
+                SyncCssWithCustomYaml(docTab);
+                SyncTocTypeWithCustomYaml(docTab);
+                SyncBinarySettingsWithYaml(docTab);
+                // Також викликаємо оновлення теми, бо зміна стану чекбокса впливає на візуал
+                ApplyTheme();
+            };
+
+            // Додаємо обробник для зміни шляху YAML (якщо змінили файл, оновлюємо CSS)
+            docTab.txtCustomYamlPath.TextChanged += (s, e) => 
+            {
+                SyncConfigNameWithYaml(docTab);
+                SyncCssWithCustomYaml(docTab); // Можна теж додати про всяк випадок
+                SyncTocTypeWithCustomYaml(docTab);
+                SyncBinarySettingsWithYaml(docTab);
+            };
 
             if (docTab.cmbOutFields != null)
             {
@@ -310,6 +340,22 @@ namespace fb2cng_FullConfig
                     docTab.cmbOutFields[i].SelectedIndexChanged += (s, e) => CmbOutFields_SelectedIndexChanged(index);
                 }
             }
+            // fix_zip
+            docTab.chkFixZip.CheckedChanged += (s, e) => {
+                if (docTab.rbFixZipYes?.Parent != null)
+                    docTab.rbFixZipYes.Parent.Enabled = docTab.chkFixZip.Checked;
+                ApplyTheme();
+            };
+            docTab.chkOpenFromCover.CheckedChanged += (s, e) => {
+                if (docTab.rbOpenCoverYes?.Parent != null)
+                    docTab.rbOpenCoverYes.Parent.Enabled = docTab.chkOpenFromCover.Checked;
+                ApplyTheme();
+            };
+            docTab.chkTranslit.CheckedChanged += (s, e) => {
+                if (docTab.rbTranslitYes?.Parent != null)
+                    docTab.rbTranslitYes.Parent.Enabled = docTab.chkTranslit.Checked;
+                ApplyTheme();
+            };
         }
 
 
@@ -383,8 +429,8 @@ namespace fb2cng_FullConfig
 
             // Додаємо змінні для світлої теми з перевіркою Enabled (захист від багу при старті)
             bool isHovered = false;
-            btn.MouseEnter += (s, e) => { if (!Config.IsDarkTheme && btn.Enabled) { isHovered = true; btn.Invalidate(); } };
-            btn.MouseLeave += (s, e) => { if (!Config.IsDarkTheme) { isHovered = false; btn.Invalidate(); } };
+            btn.MouseEnter += (s, e) => { if (btn.Enabled) { isHovered = true; btn.Invalidate(); } };
+            btn.MouseLeave += (s, e) => { isHovered = false; btn.Invalidate(); };
 
             // Якщо під час зміни Enabled кнопка була під мишкою, скидаємо стан підсвічування
             btn.EnabledChanged += (s, e) => { if (!btn.Enabled) { isHovered = false; btn.Invalidate(); } };

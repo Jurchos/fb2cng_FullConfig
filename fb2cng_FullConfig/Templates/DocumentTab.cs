@@ -6,11 +6,16 @@ namespace fb2cng_FullConfig.Templates
 
     public partial class DocumentTab : UserControl
     {
-        // Елементи інтерфейсу цієї вкладки (перенесені з Form1)
+        // Елементи інтерфейсу цієї вкладки 
         public Panel scrollMenuPanel = null!;
         public ComboBox langComboBox = null!;
         public Button btnDumpConfig = null!;
         public TextBox txtConfigName = null!;
+
+        public CheckBox chkCustomYaml = null!;
+        public TextBox txtCustomYamlPath = null!;
+        public Button btnBrowseCustomYaml = null!;
+
         public CheckBox chkCss = null!;
         public TextBox txtCssPath = null!;
         public Button btnBrowseCss = null!;
@@ -18,10 +23,11 @@ namespace fb2cng_FullConfig.Templates
         public CheckBox chkCover = null!;
         public ComboBox cmbCoverMode = null!;
 
-        public CheckBox chkOpenFromCover = null!;
-        public CheckBox chkFixZip = null!;
+        public CheckBox chkFixZip = null!, chkOpenFromCover = null!, chkTranslit = null!;
+        public RadioButton rbFixZipYes = null!, rbFixZipNo = null!;
+        public RadioButton rbOpenCoverYes = null!, rbOpenCoverNo = null!;
+        public RadioButton rbTranslitYes = null!, rbTranslitNo = null!;
         public CheckBox chkFb2Name = null!;
-        public CheckBox chkTranslit = null!;
 
         public GroupBox grpOutName = null!;
         public ComboBox[]? cmbOutFields;
@@ -31,6 +37,8 @@ namespace fb2cng_FullConfig.Templates
         public Label lblConfigName = null!;
         public Label lblOutNameTitle = null!;
 
+        private bool isCustomYamlHovered;
+        private bool isOutFolderHovered;
         // Статична матриця для вимкненої іконки папки
         private static readonly float[][] InactiveIconMatrix = [
         [1, 0, 0, 0, 0],
@@ -61,6 +69,15 @@ namespace fb2cng_FullConfig.Templates
             int checkBoxHeight = (int)(22 * currentScale);// Висота чекбоксів, щоб вони виглядали пропорційно до текстових полів
             int sidePadding = (int)(3 * currentScale);// Відступ зліва та справа для кнопок та текстових полів
 
+            static Panel CreateRadioGroup(out RadioButton yes, out RadioButton no, float scale)
+            {
+                Panel p = new() { AutoSize = true, Enabled = false }; // Вимкнені за замовчуванням
+                yes = new RadioButton { AutoSize = true, Location = new Point(0, 0), Text = "Yes" };
+                no = new RadioButton { AutoSize = true, Location = new Point((int)(65 * scale), 0), Text = "No" };
+                p.Controls.AddRange([yes, no]);
+                return p;
+            }
+
             // 1. Ініціалізація чистих контейнерів
             scrollMenuPanel = new Panel { AutoScroll = true };
             scrollMenuPanel.HorizontalScroll.Enabled = false; // ЗАБОРОНЯЄМО ГОРИЗОНТАЛЬНИЙ СКРОЛ
@@ -84,35 +101,99 @@ namespace fb2cng_FullConfig.Templates
             txtConfigName = new TextBox { Text = "config.yaml" };
             scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
+            // --- ДОДАЄМО БЛОК КАСТОМНОГО YAML ---
+            chkCustomYaml = new CheckBox { AutoSize = true };
+            txtCustomYamlPath = new TextBox { Enabled = false };
+            btnBrowseCustomYaml = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            btnBrowseCustomYaml.FlatAppearance.BorderSize = 0;
+            btnBrowseCustomYaml.EnabledChanged += (s, e) => {
+                if (!btnBrowseCustomYaml.Enabled)
+                {
+                    isCustomYamlHovered = false;
+                    btnBrowseCustomYaml.Invalidate();
+                }
+            };
+
+            isCustomYamlHovered = false;
+            btnBrowseCustomYaml.MouseEnter += (s, e) => { if (btnBrowseCustomYaml.Enabled) isCustomYamlHovered = true; btnBrowseCustomYaml.Invalidate(); };
+            btnBrowseCustomYaml.MouseLeave += (s, e) => { isCustomYamlHovered = false; btnBrowseCustomYaml.Invalidate(); };
+            Image folderIcon = Properties.Resources.folder;
+
+            // Використовуємо аналогічний Paint для іконки папки, як у CSS
+            btnBrowseCustomYaml.Paint += (s, e) =>
+            {
+                // Малюємо фон при наведенні
+                if (isCustomYamlHovered && btnBrowseCustomYaml.Enabled)
+                {
+                    Color baseBgColor = btnBrowseCustomYaml.BackColor;
+                    bool isDark = baseBgColor.R < 128;
+                    Color drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+
+                    using Brush backBrush = new SolidBrush(drawBgColor);
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnBrowseCustomYaml.Width, btnBrowseCustomYaml.Height);
+                }
+
+                if (folderIcon != null)
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    int paddingX = (int)(btnBrowseCustomYaml.Width * 0.24);
+                    int paddingY = (int)(btnBrowseCustomYaml.Height * 0.12);
+                    Rectangle destRect = new(paddingX, paddingY, btnBrowseCustomYaml.Width - (paddingX * 2), btnBrowseCustomYaml.Height - (paddingY * 2));
+
+                    if (!chkCustomYaml.Checked)
+                    {
+                        using ImageAttributes imageAttributes = new();
+                        imageAttributes.SetColorMatrix(new ColorMatrix(InactiveIconMatrix));
+                        e.Graphics.DrawImage(folderIcon, destRect, 0, 0, folderIcon.Width, folderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
+                        return;
+                    }
+                    e.Graphics.DrawImage(folderIcon, destRect);
+                }
+            };
+
+            chkCustomYaml.CheckedChanged += (s, e) =>
+            {
+                txtCustomYamlPath.Enabled = chkCustomYaml.Checked;
+                btnBrowseCustomYaml.Enabled = chkCustomYaml.Checked;
+                btnBrowseCustomYaml.Invalidate();
+            };
+            scrollMenuPanel.Controls.AddRange([chkCustomYaml, txtCustomYamlPath, btnBrowseCustomYaml]);
+
+
             // Налаштування CSS та кнопки з малюванням іконки
             chkCss = new CheckBox { AutoSize = true };
             txtCssPath = new TextBox { Enabled = false };
-            btnBrowseCss = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat };
-            btnBrowseCss.FlatAppearance.BorderSize = 0;
+            btnBrowseCss = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            btnBrowseCss.FlatAppearance.BorderSize = 0; btnBrowseCss.EnabledChanged += (s, e) => {
+                if (!btnBrowseCss.Enabled)
+                {
+                    isOutFolderHovered = false;
+                    btnBrowseCss.Invalidate();
+                }
+            };
 
-            bool isOutFolderHovered = false;
-            btnBrowseCss.MouseEnter += (s, e) => { isOutFolderHovered = true; btnBrowseCss.Invalidate(); };
+            isOutFolderHovered = false;
+            btnBrowseCss.MouseEnter += (s, e) => { if (btnBrowseCss.Enabled) isOutFolderHovered = true; btnBrowseCss.Invalidate(); };
             btnBrowseCss.MouseLeave += (s, e) => { isOutFolderHovered = false; btnBrowseCss.Invalidate(); };
             Image outFolderIcon = Properties.Resources.folder;
 
             btnBrowseCss.Paint += (s, e) =>
             {
-                Color baseBgColor = btnBrowseCss.BackColor;
-                Color drawBgColor = baseBgColor;
-
                 if (isOutFolderHovered && btnBrowseCss.Enabled)
                 {
+                    Color baseBgColor = btnBrowseCss.BackColor;
                     bool isDark = baseBgColor.R < 128;
-                    drawBgColor = isDark
+                    Color drawBgColor = isDark
                         ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
                         : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
-                }
-
-                using (Brush backBrush = new SolidBrush(drawBgColor))
-                {
+                    using Brush backBrush = new SolidBrush(drawBgColor);
                     e.Graphics.FillRectangle(backBrush, 0, 0, btnBrowseCss.Width, btnBrowseCss.Height);
                 }
-
                 if (outFolderIcon != null)
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -149,17 +230,23 @@ namespace fb2cng_FullConfig.Templates
             chkCover.CheckedChanged += (s, e) => { cmbCoverMode.Enabled = chkCover.Checked; (ParentForm as Form1)?.ApplyTheme(); };
             scrollMenuPanel.Controls.AddRange([chkCover, cmbCoverMode]);
 
+            // Fix ZIP, Open From Cover, Translit (радіо-кнопки)
             chkFixZip = new CheckBox { AutoSize = true };
-            chkOpenFromCover = new CheckBox { AutoSize = true };
-            scrollMenuPanel.Controls.AddRange([chkFixZip, chkOpenFromCover]);
+            Panel pnlFixZip = CreateRadioGroup(out rbFixZipYes, out rbFixZipNo, currentScale);
 
-            chkFb2Name = new CheckBox { AutoSize = true };
-            scrollMenuPanel.Controls.Add(chkFb2Name);
+            chkOpenFromCover = new CheckBox { AutoSize = true };
+            Panel pnlOpenCover = CreateRadioGroup(out rbOpenCoverYes, out rbOpenCoverNo, currentScale);
 
             chkTranslit = new CheckBox { AutoSize = true };
-            scrollMenuPanel.Controls.Add(chkTranslit);
-            lblOutNameTitle = new Label();
+            Panel pnlTranslit = CreateRadioGroup(out rbTranslitYes, out rbTranslitNo, currentScale);
 
+            // Fb2Name 
+            chkFb2Name = new CheckBox { AutoSize = true };
+
+            // Додаємо всі створені елементи на панель
+            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover, chkTranslit, pnlTranslit, chkFb2Name]);
+
+            lblOutNameTitle = new Label();
             // Конструктор структури назви (8 елементів)
             cmbOutFields = new ComboBox[8];
             chkAsFolder = new CheckBox[8];
@@ -194,7 +281,7 @@ namespace fb2cng_FullConfig.Templates
             int nextY = (int)(11 * currentScale);                                               // Початкова координата Y для першого елемента
             int textLabelWidth = (int)(240 * currentScale);                                     // Ширина текстових міток
             int valueFieldWidth = scrollFieldWidth - textLabelWidth - (int)(4 * currentScale);  // Ширина полів значень (ComboBox, TextBox) з урахуванням відступу між міткою та полем
-
+            int radioX = xLeft + textLabelWidth + (int)(5 * currentScale);
             // Позиціонування елементів
             lblLang.SetBounds(xLeft, nextY, textLabelWidth, labelHeight);
             langComboBox.ItemHeight = fieldHeight - 6;
@@ -208,9 +295,19 @@ namespace fb2cng_FullConfig.Templates
             txtConfigName.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
 
             nextY = txtConfigName.Bottom + blockMargin;
+
+            // 1. Блок Custom YAML (новий)
+            chkCustomYaml.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
+            int browseBtnWidth = (int)(55 * currentScale);
+            int yamlTxtWidth = valueFieldWidth - browseBtnWidth - (int)(5 * currentScale) - sidePadding;
+            txtCustomYamlPath.Multiline = true;
+            txtCustomYamlPath.SetBounds(xLeft + textLabelWidth, nextY, yamlTxtWidth, fieldHeight);
+            btnBrowseCustomYaml.SetBounds(scrollRightField - browseBtnWidth - sidePadding, nextY, browseBtnWidth, fieldHeight);
+
+            // 2. Блок CSS (зсувається нижче)
+            nextY = txtCustomYamlPath.Bottom + blockMargin;
             chkCss.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
 
-            int browseBtnWidth = (int)(55 * currentScale);
             int cssTxtWidth = valueFieldWidth - browseBtnWidth - (int)(5 * currentScale) - sidePadding;
             txtCssPath.Multiline = true;
             txtCssPath.SetBounds(xLeft + textLabelWidth, nextY, cssTxtWidth, fieldHeight);
@@ -222,22 +319,32 @@ namespace fb2cng_FullConfig.Templates
             cmbCoverMode.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
 
             nextY = cmbCoverMode.Bottom + blockMargin;
-            chkFixZip.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+            // Позиціонуємо FixZip
+            chkFixZip.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
+            pnlFixZip.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(150 * currentScale), fieldHeight);
 
             nextY = chkFixZip.Bottom + blockMargin;
-            chkOpenFromCover.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+
+            // Позиціонуємо OpenFromCover
+            chkOpenFromCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
+            pnlOpenCover.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(150 * currentScale), fieldHeight);
 
             nextY = chkOpenFromCover.Bottom + blockMargin;
-            chkFb2Name.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
 
-            nextY = chkFb2Name.Bottom + blockMargin;
-            chkTranslit.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+            // Позиціонуємо Translit
+            chkTranslit.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
+            pnlTranslit.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(140 * currentScale), fieldHeight);
+
+
+            nextY = chkTranslit.Bottom + blockMargin;
+            // Позиціонуємо Fb2Name (Він займає всю ширину, бо не має радіобатонів)
+            chkFb2Name.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
 
             // Налаштування групи структури назви файлу
             int OutNameTopPadding = (int)(10 * currentScale);// Відступ зверху для групи структури назви файлу
             int rowHeight = fieldHeight + (int)(5 * currentScale);// Висота одного рядка з комбо та чекбоксом
             int grpOutHeight = (rowHeight * 8) + (int)(25 * currentScale);// Висота групи з 8 рядків + заголовок групи
-            grpOutName.SetBounds(xLeft, chkTranslit.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
+            grpOutName.SetBounds(xLeft, chkFb2Name.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
 
             int comboWidth = (int)(grpOutName.Width * 0.76f);
             int checkFoldWidth = grpOutName.Width - comboWidth - (int)(15 * currentScale);
