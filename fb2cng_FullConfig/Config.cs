@@ -42,7 +42,8 @@ namespace fb2cng_FullConfig
                 ["ConfigName"] = "Name of custom template:",
                 ["CustomYamlEnable"] = "Edit user.yaml",
                 ["CssEnable"] = "Use Custom CSS Stylesheet",
-                ["Fb2Name"] = "Use the fb2 filename for the source file",
+                ["Fb2Name"] = "Use the fb2 filename for the output file",
+                ["DefaultName"] = "Reference output filename",
                 ["Help"] = "Help",
                 ["Theme"] = "Theme",
                 ["Ok"] = "Save",
@@ -52,7 +53,7 @@ namespace fb2cng_FullConfig
                 ["ErrTitle"] = "Component Missing",
                 ["ErrFbc"] = "The GUI program for fb2cng not found: please verify that 'fbc.exe' is present in the application folder!",
                 ["ErrGui"] = "Configurator program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!",
-                ["OutNameTitle"] = "Output File Name Structure",
+                ["OutNameTitle"] = "Output file name structure",
                 ["AsFolder"] = "as a folder",
                 ["Translit"] = "Transliterate output filename",
                 ["ReaderSize"] = "Reader screen size (W / H / DPI)",
@@ -62,13 +63,13 @@ namespace fb2cng_FullConfig
                 ["Item_Empty"] = "[Not selected]",
                 ["Item_Author"] = "Author (.Authors)",
                 ["Item_Series"] = "Series (.Series)",
-                ["Item_Title"] = "Book Title (.Title)",
+                ["Item_Title"] = "Book Title (xx.Title)",
+                ["Item_Title_Pure"] = "Pure Title (.Title)",
                 ["Item_Lang"] = "Language (.Language)",
                 ["Item_Genre"] = "Genre (.Genres)",
                 ["Item_Date"] = "Date (.Date)",
                 ["Item_Source"] = "Source File (.SourceFile)",
                 ["Item_Uuid"] = "Book UUID (.BookID)",
-                ["Item_Short_Uuid"] = "Shortened ID (_xx), for duplicates",
                 ["FootnotesMode"] = "Footnotes display method:",
                 ["TocType"] = "Navigation hierarchy type:",
                 ["OpenCover"] = "Open book from the cover page",
@@ -88,7 +89,19 @@ namespace fb2cng_FullConfig
                                "\n\nCreated by: Jurchos & Gemini" +
                                "\nVersion: 1.3",
                 ["GenTitle"] = "Success",
-                ["GenSuccess"] = "config.yaml successfully generated!"
+                ["GenSuccess"] = "config.yaml successfully generated!",
+                ["LogLevel"] = "Logging level:",
+                ["LogName"] = "Log name pattern:",
+                ["LogPanicName"] = "Panic log pattern:",
+                ["LogMode"] = "Logging mode:",
+                ["LogFolder"] = "Write to 'logs' folder",
+                ["LogOpt_Default"] = "default",
+                ["LogOpt_NameFormat"] = "name + format",
+                ["LogOpt_TimeName"] = "time + name",
+                ["LogOpt_NameTag"] = "name + tag",
+                ["LogMode_OnlyNew"] = "Replace",
+                ["LogMode_OldNew"] = "Append"
+
             },
 
             // 2. УКРАЇНСЬКА ЛОКАЛІЗАЦІЯ
@@ -101,6 +114,7 @@ namespace fb2cng_FullConfig
                 ["CustomYamlEnable"] = "Редагувати user.yaml",
                 ["CssEnable"] = "CSS-таблиця стилів",
                 ["Fb2Name"] = "Залишити назву fb2 для вихідного файла",
+                ["DefaultName"] = "Еталонна назва вихідного файла",
                 ["Help"] = "Довідка",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Зберегти",
@@ -120,13 +134,13 @@ namespace fb2cng_FullConfig
                 ["Item_Empty"] = "[Не вибрано]",
                 ["Item_Author"] = "Автор (.Authors)",
                 ["Item_Series"] = "Серія (.Series)",
-                ["Item_Title"] = "Назва книги (.Title)",
+                ["Item_Title"] = "Назва книги (xx.Title)",
+                ["Item_Title_Pure"] = "Назва без серії (.Title)",
                 ["Item_Lang"] = "Мова (.Language)",
                 ["Item_Genre"] = "Жанр (.Genres)",
                 ["Item_Date"] = "Дата (.Date)",
                 ["Item_Source"] = "Базова назва файла (.SourceFile)",
                 ["Item_Uuid"] = "UUID книги (.BookID)",
-                ["Item_Short_Uuid"] = "Скорочений ID (_xx), для дублів",
                 ["FootnotesMode"] = "Спосіб відображення виносок:",
                 ["TocType"] = "Тип навігаційної ієрархії:",
                 ["OpenCover"] = "Відкриття книги з титульної сторінки",
@@ -146,7 +160,19 @@ namespace fb2cng_FullConfig
                                "\n\nСтворено: Jurchos & Gemini" +
                                "\nВерсія: 1.3",
                 ["GenTitle"] = "Успіх",
-                ["GenSuccess"] = "config.yaml успішно згенеровано!"
+                ["GenSuccess"] = "config.yaml успішно згенеровано!",
+                ["LogLevel"] = "Рівень логування:",
+                ["LogName"] = "Шаблон назви логу:",
+                ["LogPanicName"] = "Шаблон панік-логу:",
+                ["LogMode"] = "Режим логування:",
+                ["LogFolder"] = "Запис у папку 'logs'",
+                ["LogOpt_Default"] = "за замовчуванням",
+                ["LogOpt_NameFormat"] = "назва + формат",
+                ["LogOpt_TimeName"] = "час + назва",
+                ["LogOpt_NameTag"] = "назва + мітка",
+                ["LogMode_OnlyNew"] = "Заміна",
+                ["LogMode_OldNew"] = "Дозапис"
+
             },
 
             // 3. РОСІЙСЬКА ЛОКАЛІЗАЦІЯ
@@ -158,7 +184,8 @@ namespace fb2cng_FullConfig
                 ["ConfigName"] = "Имя пользовательского шаблона:",
                 ["CustomYamlEnable"] = "Редактировать user.yaml",
                 ["CssEnable"] = "CSS-таблица стилей",
-                ["Fb2Name"] = "Сохранить имя fb2 для исходного файла",
+                ["Fb2Name"] = "Сохранить имя fb2 для выходного файла",
+                ["DefaultName"] = "Эталонное имя выходного файла",
                 ["Help"] = "Справка",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Сохранить",
@@ -178,13 +205,13 @@ namespace fb2cng_FullConfig
                 ["Item_Empty"] = "[Не выбрано]",
                 ["Item_Author"] = "Автор (.Authors)",
                 ["Item_Series"] = "Серия (.Series)",
-                ["Item_Title"] = "Название книги (.Title)",
+                ["Item_Title"] = "Название книги (xx.Title)",
+                ["Item_Title_Pure"] = "Название без серии (.Title)",
                 ["Item_Lang"] = "Язык (.Language)",
                 ["Item_Genre"] = "Жанр (.Genres)",
                 ["Item_Date"] = "Дата (.Date)",
                 ["Item_Source"] = "Базовое имя файла (.SourceFile)",
                 ["Item_Uuid"] = "UUID книги (.BookID)",
-                ["Item_Short_Uuid"] = "Сокращенный ID (_xx), для дублей",
                 ["FootnotesMode"] = "Способ отображения сносок:",
                 ["TocType"] = "Тип навигационной иерархии:",
                 ["OpenCover"] = "Открытие книги с титульной страницы",
@@ -204,7 +231,19 @@ namespace fb2cng_FullConfig
                                "\n\nСоздано: Jurchos & Gemini" +
                                "\nВерсия: 1.3",
                 ["GenTitle"] = "Успех",
-                ["GenSuccess"] = "config.yaml успешно сгенерирован!"
+                ["GenSuccess"] = "config.yaml успешно сгенерирован!",
+                ["LogLevel"] = "Уровень логирования:",
+                ["LogName"] = "Шаблон имени лога:",
+                ["LogPanicName"] = "Шаблон паник-лога:",
+                ["LogMode"] = "Режим логирования:",
+                ["LogFolder"] = "Запись в папку 'logs'",
+                ["LogOpt_Default"] = "по умолчанию",
+                ["LogOpt_NameFormat"] = "имя + формат",
+                ["LogOpt_TimeName"] = "время + имя",
+                ["LogOpt_NameTag"] = "имя + метка",
+                ["LogMode_OnlyNew"] = "Замена",
+                ["LogMode_OldNew"] = "Дозапись"
+
             }
         };
 

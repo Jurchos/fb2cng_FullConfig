@@ -28,6 +28,7 @@ namespace fb2cng_FullConfig.Templates
         public RadioButton rbOpenCoverYes = null!, rbOpenCoverNo = null!;
         public RadioButton rbTranslitYes = null!, rbTranslitNo = null!;
         public CheckBox chkFb2Name = null!;
+        public CheckBox chkDefaultName = null!;
 
         public GroupBox grpOutName = null!;
         public ComboBox[]? cmbOutFields;
@@ -242,16 +243,17 @@ namespace fb2cng_FullConfig.Templates
 
             // Fb2Name 
             chkFb2Name = new CheckBox { AutoSize = true };
+            chkDefaultName = new CheckBox { AutoSize = true };
 
             // Додаємо всі створені елементи на панель
-            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover, chkTranslit, pnlTranslit, chkFb2Name]);
+            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover, chkTranslit, pnlTranslit, chkFb2Name, chkDefaultName]);
 
             lblOutNameTitle = new Label();
-            // Конструктор структури назви (8 елементів)
-            cmbOutFields = new ComboBox[8];
-            chkAsFolder = new CheckBox[8];
+            // Конструктор структури назви (7 елементів)
+            cmbOutFields = new ComboBox[7];
+            chkAsFolder = new CheckBox[7];
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 7; i++)
             {
                 int index = i;
                 cmbOutFields[index] = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Tag = i };
@@ -340,17 +342,20 @@ namespace fb2cng_FullConfig.Templates
             // Позиціонуємо Fb2Name (Він займає всю ширину, бо не має радіобатонів)
             chkFb2Name.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
 
+            nextY = chkFb2Name.Bottom + blockMargin;
+            chkDefaultName.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+
             // Налаштування групи структури назви файлу
             int OutNameTopPadding = (int)(10 * currentScale);// Відступ зверху для групи структури назви файлу
             int rowHeight = fieldHeight + (int)(5 * currentScale);// Висота одного рядка з комбо та чекбоксом
-            int grpOutHeight = (rowHeight * 8) + (int)(25 * currentScale);// Висота групи з 8 рядків + заголовок групи
-            grpOutName.SetBounds(xLeft, chkFb2Name.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
+            int grpOutHeight = (rowHeight * 7) + (int)(25 * currentScale);// Висота групи з 8 рядків + заголовок групи
+            grpOutName.SetBounds(xLeft, chkDefaultName.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
 
             int comboWidth = (int)(grpOutName.Width * 0.76f);
             int checkFoldWidth = grpOutName.Width - comboWidth - (int)(15 * currentScale);
             int itemY = (int)(20 * currentScale);
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 7; i++)
             {
                 if (cmbOutFields != null && chkAsFolder != null)
                 {

@@ -16,7 +16,7 @@ namespace fb2cng_FullConfig
         {
             // Оскільки langComboBox тепер лежить всередині вкладки DocumentTab, 
             // дістаємо посилання на нього через кеш вкладок
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 Config.Settings.CurrentLanguage = docTab.langComboBox.SelectedIndex switch
                 {
@@ -48,7 +48,7 @@ namespace fb2cng_FullConfig
 
             // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "document:"
             // Звертаємося до елементів всередині DocumentTab, якщо вона створена в кеші
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 docTab.lblLang.Text = GetText("Language", "Language:");
                 docTab.btnDumpConfig.Text = GetText("DumpConfig", "Dump Default Config");
@@ -60,24 +60,25 @@ namespace fb2cng_FullConfig
 
                 docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
                 docTab.chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
-                docTab.chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
-
-                docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
-                docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
-
                 docTab.rbFixZipYes.Text = docTab.rbOpenCoverYes.Text = docTab.rbTranslitYes.Text = GetText("Yes", "Yes");
                 docTab.rbFixZipNo.Text = docTab.rbOpenCoverNo.Text = docTab.rbTranslitNo.Text = GetText("No", "No");
+
+                docTab.chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
+                                docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
+
+                docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
+                docTab.chkDefaultName.Text = GetText("DefaultName", "Default Filename");
 
                 docTab.lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
                 docTab.grpOutName.Text = GetText("OutNameTitle", "Output Structure");
                 docTab.chkAsFolder.SetTextForAllIfNotNull(GetText("AsFolder", "Fold"));
 
-                string[] itemKeys = ["Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid", "Item_Short_Uuid"];
-                string[] defaultItems = ["", "Author", "Series", "Title", "Language", "Genre", "Date", "Source File", "Book UUID", "Shortened UUID"];
+                string[] itemKeys = ["Item_Empty", "Item_Author", "Item_Series", "Item_Title", "Item_Title_Pure", "Item_Lang", "Item_Genre", "Item_Date", "Item_Source", "Item_Uuid"];
+                string[] defaultItems = ["", "Author", "Series", "Title", "Pure Title", "Language", "Genre", "Date", "Source File", "Book UUID"];
 
                 if (docTab.cmbOutFields != null)
                 {
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < 7; i++)
                     {
                         if (docTab.cmbOutFields[i] == null) continue;
 
@@ -103,8 +104,42 @@ namespace fb2cng_FullConfig
                 dataTab.chkNotes.Text = GetText("FootnotesMode", "Footnotes display method:");
             }
 
-            // ТУТ У МАЙБУТНЬОМУ БУДЕ ЛОКАЛІЗАЦІЯ ДЛЯ ІНШИХ ВКЛАДОК:
-            // if (_tabsCache.TryGetValue("metadata:", out var meta) && meta is MetadataTab metaTab) { ... }
+            // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "logging:"
+            if (_tabsCache.TryGetValue("logging:", out UserControl? log) && log is LoggingTab logTab)
+            {
+                logTab.chkLogLevel.Text = GetText("LogLevel", "Logging level:");
+                logTab.chkLogName.Text = GetText("LogName", "Log file name:");
+                logTab.chkPanicLogName.Text = GetText("LogPanicName", "Panic log file name:");
+                logTab.chkLogMode.Text = GetText("LogMode", "Logging mode:");
+                logTab.chkLogFolder.Text = GetText("LogFolder", "Logs folder:");
+
+                logTab.rbLogModeOnlyNew.Text = GetText("LogMode_OnlyNew", "only_new");
+                logTab.rbLogModeOldNew.Text = GetText("LogMode_OldNew", "old+new");
+                logTab.rbLogFolderYes.Text = GetText("Yes", "Yes");
+                logTab.rbLogFolderNo.Text = GetText("No", "No");
+
+                string[] logOptions = [
+                    GetText("LogOpt_Default", "default"),
+                    GetText("LogOpt_NameFormat", "name + format"),
+                    GetText("LogOpt_TimeName", "time + name"),
+                    GetText("LogOpt_NameTag", "name + tag")
+                ];
+
+                int selLog = logTab.cmbLogName.SelectedIndex;
+                int selPanic = logTab.cmbPanicLogName.SelectedIndex;
+
+                logTab.cmbLogName.BeginUpdate();
+                logTab.cmbLogName.Items.Clear();
+                logTab.cmbLogName.Items.AddRange(logOptions);
+                logTab.cmbLogName.SelectedIndex = selLog >= 0 ? selLog : 0;
+                logTab.cmbLogName.EndUpdate();
+
+                logTab.cmbPanicLogName.BeginUpdate();
+                logTab.cmbPanicLogName.Items.Clear();
+                logTab.cmbPanicLogName.Items.AddRange(logOptions);
+                logTab.cmbPanicLogName.SelectedIndex = selPanic >= 0 ? selPanic : 0;
+                logTab.cmbPanicLogName.EndUpdate();
+            }
         }
 
         // 2. Керування візуальною темою з блокуванням мерехтіння
@@ -194,7 +229,7 @@ namespace fb2cng_FullConfig
         // Додаємо новий метод вибору YAML файлу:
         internal void BtnBrowseCustomYaml_Click(object? sender, EventArgs e)
         {
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 if (!docTab.chkCustomYaml.Checked) return;
 
@@ -217,7 +252,7 @@ namespace fb2cng_FullConfig
         internal void BtnBrowseCss_Click(object? sender, EventArgs e)
         {
             // Дістаємо посилання на вкладку документа для роботи з її полями
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 if (!docTab.chkCss.Checked)
                 {
@@ -241,17 +276,19 @@ namespace fb2cng_FullConfig
             if (_isChangingStates) return;
             _isChangingStates = true;
 
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 try
                 {
                     bool isFb2Enabled = docTab.chkFb2Name.Checked;
+                    // 1. Блокуємо чекбокс "Назва за замовчуванням"
+                    docTab.chkDefaultName.Enabled = !isFb2Enabled;
 
-                    // 1. САМ GroupBox ЗАЛИШАЄМО ENABLED = TRUE
+                    // GroupBox ЗАЛИШАЄМО ENABLED = TRUE
                     docTab.grpOutName.Enabled = true;
 
                     // 2. ВИМИКАЄМО ТІЛЬКИ ЕЛЕМЕНТИ ВСЕРЕДИНІ
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < 7; i++)
                     {
                         docTab.cmbOutFields![i].Enabled = !isFb2Enabled;
                         docTab.chkAsFolder![i].Enabled = !isFb2Enabled;
@@ -271,34 +308,78 @@ namespace fb2cng_FullConfig
             }
         }
 
+        internal void ChkDefaultName_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (_isChangingStates) return;
+            _isChangingStates = true;
+
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
+            {
+                try
+                {
+                    bool isDefaultEnabled = docTab.chkDefaultName.Checked;
+
+                    // Блокуємо чекбокс FB2 Name
+                    docTab.chkFb2Name.Enabled = !isDefaultEnabled;
+
+                    // 1. САМ GroupBox ЗАЛИШАЄМО ENABLED = TRUE
+                    docTab.grpOutName.Enabled = true;
+
+                    for (int i = 0; i < 7; i++)
+                    {
+                        docTab.cmbOutFields![i].Enabled = !isDefaultEnabled;
+                        docTab.chkAsFolder![i].Enabled = !isDefaultEnabled;
+
+
+                        if (isDefaultEnabled)
+                        {
+                            docTab.cmbOutFields[i].SelectedIndex = 0;
+                            docTab.chkAsFolder[i].Checked = false;
+                        }
+                    }
+                    if (!isDefaultEnabled)
+                    {
+                        CmbOutFields_SelectedIndexChanged(0);
+                    }
+                }
+                finally { _isChangingStates = false; }
+                ApplyTheme();
+            }
+        }
         private void SetControlsTheme(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark)
         {
-            _tabsCache.TryGetValue("document:", out var tab);
-            var docTab = tab as DocumentTab;
+            DocumentTab? docTab = _tabsCache.TryGetValue("document:", out UserControl? tab) ? tab as DocumentTab : null;
 
+            // Додаємо перевірку обох чекбоксів
             bool isFb2NameChecked = docTab?.chkFb2Name.Checked ?? false;
-            bool isGrpOutEnabled = docTab?.grpOutName.Enabled ?? true;
+            bool isDefaultNameChecked = docTab?.chkDefaultName.Checked ?? false;
+
+            // Якщо хоча б один з них увімкнений — назва заблокована
+            bool isNamingLocked = isFb2NameChecked || isDefaultNameChecked;
+
             bool isCssChecked = docTab?.chkCss.Checked ?? false;
 
-            SetControlsThemeRecursive(parent, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isFb2NameChecked, isCssChecked);
+            SetControlsThemeRecursive(parent, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
         }
 
-        private void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark, DocumentTab? docTab, bool isFb2NameChecked, bool isCssChecked)
+        private void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark, DocumentTab? docTab, bool isNamingLocked, bool isCssChecked)
         {
             Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
             Control? currentGrpOutName = docTab?.grpOutName;
-            bool isOutNameDisabled = isFb2NameChecked || (docTab != null && !docTab.grpOutName.Enabled);
+            bool isOutNameDisabled = isNamingLocked || (docTab != null && !docTab.grpOutName.Enabled);
 
             foreach (Control c in parent.Controls)
             {
+                // Логіка визначення, чи вимкнено контроль (для кольору тексту)
                 bool isControlDisabled = !c.Enabled
                     || (currentGrpOutName != null && (c.Parent == currentGrpOutName || c.Parent?.Parent == currentGrpOutName) && isOutNameDisabled)
                     || (isDark && c == currentBrowseCssBtn && !isCssChecked);
 
                 if (c is GroupBox gb)
                 {
+                    // Колір заголовка групи
                     gb.BackColor = parent.BackColor;
-                    gb.ForeColor = isFb2NameChecked ? disabledColor : (isDark ? foreColor : SystemColors.ControlText);
+                    gb.ForeColor = isNamingLocked ? disabledColor : (isDark ? foreColor : SystemColors.ControlText);
                 }
                 else if (c is Label lbl)
                 {
@@ -307,6 +388,7 @@ namespace fb2cng_FullConfig
                 }
                 else if (c is CheckBox chk)
                 {
+                    // Спеціальний колір для "Fold", якщо він не заблокований
                     chk.ForeColor = !isControlDisabled && chk.Tag?.ToString() == "FolderCheckBox" ? folderColor : (isControlDisabled ? disabledColor : foreColor);
                     chk.BackColor = Color.Transparent;
                 }
@@ -352,7 +434,7 @@ namespace fb2cng_FullConfig
                 }
 
                 if (c.HasChildren)
-                    SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isFb2NameChecked, isCssChecked);
+                    SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
             }
         }
 
@@ -618,7 +700,7 @@ namespace fb2cng_FullConfig
             }
 
             // Дістаємо посилання на вкладку документа для роботи з масивами її контролів
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 try
                 {
@@ -629,7 +711,7 @@ namespace fb2cng_FullConfig
                         docTab.chkAsFolder[index].Checked = false;
                     }
 
-                    if (index < 7)
+                    if (index < 6)
                     {
                         if (hasSelection)
                         {
@@ -637,7 +719,7 @@ namespace fb2cng_FullConfig
                         }
                         else
                         {
-                            for (int i = index + 1; i < 8; i++)
+                            for (int i = index + 1; i < 7; i++)
                             {
                                 docTab.cmbOutFields[i].SelectedIndex = 0;
                                 docTab.cmbOutFields[i].Enabled = false;
@@ -665,7 +747,7 @@ namespace fb2cng_FullConfig
         {
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
                 if (!YamlService.IsEngineAvailable())
                 {
@@ -696,30 +778,30 @@ namespace fb2cng_FullConfig
             }
         }
 
-private void SyncConfigNameWithYaml(DocumentTab docTab)
-{
-    if (docTab.chkCustomYaml.Checked)
-    {
-        // Якщо шлях обрано - копіюємо його
-        if (!string.IsNullOrWhiteSpace(docTab.txtCustomYamlPath.Text))
+        private static void SyncConfigNameWithYaml(DocumentTab docTab)
         {
-            docTab.txtConfigName.Text = docTab.txtCustomYamlPath.Text;
+            if (docTab.chkCustomYaml.Checked)
+            {
+                // Якщо шлях обрано - копіюємо його
+                if (!string.IsNullOrWhiteSpace(docTab.txtCustomYamlPath.Text))
+                {
+                    docTab.txtConfigName.Text = docTab.txtCustomYamlPath.Text;
+                }
+                else
+                {
+                    // Якщо чекбокс увімкнено, але шлях ще не обрано - 
+                    // очищуємо поле, щоб не залишався "config.yaml"
+                    docTab.txtConfigName.Text = "";
+                }
+            }
+            else
+            {
+                // Якщо вимкнено - повертаємо стандарт
+                docTab.txtConfigName.Text = "config.yaml";
+            }
         }
-        else
-        {
-            // Якщо чекбокс увімкнено, але шлях ще не обрано - 
-            // очищуємо поле, щоб не залишався "config.yaml"
-            docTab.txtConfigName.Text = ""; 
-        }
-    }
-    else
-    {
-        // Якщо вимкнено - повертаємо стандарт
-        docTab.txtConfigName.Text = "config.yaml";
-    }
-}
 
-        private void SyncCssWithCustomYaml(DocumentTab docTab)
+        private static void SyncCssWithCustomYaml(DocumentTab docTab)
         {
             if (docTab.chkCustomYaml.Checked && docTab.chkCss.Checked)
             {
@@ -748,7 +830,7 @@ private void SyncConfigNameWithYaml(DocumentTab docTab)
             }
         }
 
-        private void SyncTocTypeWithCustomYaml(DocumentTab docTab)
+        private static void SyncTocTypeWithCustomYaml(DocumentTab docTab)
         {
             if (docTab.chkCustomYaml.Checked)
             {
@@ -780,7 +862,7 @@ private void SyncConfigNameWithYaml(DocumentTab docTab)
             }
         }
 
-        private void SyncBinarySettingsWithYaml(DocumentTab docTab)
+        private static void SyncBinarySettingsWithYaml(DocumentTab docTab)
         {
             if (docTab.chkCustomYaml.Checked)
             {
@@ -811,6 +893,85 @@ private void SyncConfigNameWithYaml(DocumentTab docTab)
             docTab.rbOpenCoverNo.Checked = true;
             docTab.rbTranslitNo.Checked = true;
         }
+
+        // ========================================================
+        // СИНХРОНІЗАЦІЯ LOGGING З YAML
+        // ========================================================
+        private void SyncLoggingSettingsWithYaml(DocumentTab docTab)
+        {
+            // Отримуємо посилання на вкладку логів
+            if (!_tabsCache.TryGetValue("logging:", out UserControl? tab) || tab is not LoggingTab logTab)
+            {
+                return;
+            }
+
+            if (docTab.chkCustomYaml.Checked)
+            {
+                string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
+                if (!string.IsNullOrEmpty(yamlPath))
+                {
+                    string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
+                    if (File.Exists(fullPath))
+                    {
+                        string[] fileSec = ["logging:", "file:"];
+
+                        // 1. Level (тільки вибір значення, без активації чекбокса)
+                        string level = YamlService.ReadYamlSectionValue(fullPath, fileSec, "level").ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(level))
+                        {
+                            int idx = logTab.cmbLogLevel.Items.IndexOf(level);
+                            if (idx >= 0)
+                            {
+                                logTab.cmbLogLevel.SelectedIndex = idx;
+                            }
+                        }
+
+                        // 2. Mode
+                        string mode = YamlService.ReadYamlSectionValue(fullPath, fileSec, "mode").ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(mode))
+                        {
+                            logTab.rbLogModeOldNew.Checked = mode == "append";
+                            logTab.rbLogModeOnlyNew.Checked = mode != "append";
+                        }
+
+                        // 3. ШАБЛОН ІМЕНІ (тепер через GetTemplateIndex)
+                        string dest = YamlService.ReadYamlSectionValue(fullPath, fileSec, "destination_template");
+                        if (!string.IsNullOrEmpty(dest))
+                        {
+                            bool hasF = dest.StartsWith("logs/");
+                            logTab.rbLogFolderYes.Checked = hasF;
+                            logTab.rbLogFolderNo.Checked = !hasF;
+
+                            string cleanRead = hasF ? dest[5..] : dest;
+                            // Виклик логіки з Program.cs
+                            int idx = YamlService.GetTemplateIndex(cleanRead, YamlService.LogNameValues);
+                            if (idx >= 0) logTab.cmbLogName.SelectedIndex = idx;
+                        }
+
+                        // 4. PANIC ШАБЛОН (тепер через GetTemplateIndex)
+                        string panic = YamlService.ReadYamlSectionValue(fullPath, fileSec, "panic_destination_template");
+                        if (!string.IsNullOrEmpty(panic))
+                        {
+                            string cleanPRead = panic.StartsWith("logs/") ? panic[5..] : panic;
+                            // Виклик логіки з Program.cs
+                            int pIdx = YamlService.GetTemplateIndex(cleanPRead, YamlService.PanicLogNameValues);
+                            if (pIdx >= 0)
+                            {
+                                logTab.cmbPanicLogName.SelectedIndex = pIdx;
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+            // Якщо файл не вибрано — просто ставимо дефолти у поля
+            logTab.cmbLogLevel.SelectedIndex = 2;
+            logTab.cmbLogName.SelectedIndex = 0;
+            logTab.cmbPanicLogName.SelectedIndex = 0;
+            logTab.rbLogModeOnlyNew.Checked = true;
+            logTab.rbLogFolderNo.Checked = true;
+        }
+
 
         private void BtGui_Click(object? sender, EventArgs e)
         {
@@ -861,25 +1022,33 @@ private void SyncConfigNameWithYaml(DocumentTab docTab)
 
         private void SaveYamlConfiguration()
         {
-            _tabsCache.TryGetValue("document:", out var doc);
-            _tabsCache.TryGetValue("metadata:", out var data);
-
-            var docTab = doc as DocumentTab;
-            var dataTab = data as MetadataTab;
-
-            if (docTab != null)
+            // Одразу витягуємо з кешу та перевіряємо, чи є перший таб документом
+            if (_tabsCache.TryGetValue("document:", out UserControl? doc) && doc is DocumentTab docTab)
             {
-                // 1. Готуємо масиви для конструктора назви
-                int[] fieldIndexes = new int[8];
-                bool[] folderFlags = new bool[8];
+                // ініціалізація фіксованих масивів у .NET 10 за допомогою Inline Arrays або реплікації
+                int[] fieldIndexes = new int[7];
+                bool[] folderFlags = new bool[7];
+
                 if (docTab.cmbOutFields != null && docTab.chkAsFolder != null)
                 {
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < 7; i++)
                     {
                         fieldIndexes[i] = docTab.cmbOutFields[i].SelectedIndex;
                         folderFlags[i] = docTab.chkAsFolder[i].Checked;
                     }
                 }
+
+                // Безпечно дістаємо інші таби з кешу (якщо їх немає, змінні будуть null, що коректно обробляється через `?.`)
+                MetadataTab? dataTab = _tabsCache.TryGetValue("metadata:", out UserControl? data) ? data as MetadataTab : null;
+                LoggingTab? logTab = _tabsCache.TryGetValue("logging:", out UserControl? log) ? log as LoggingTab : null;
+
+
+                // Визначаємо вибрані шаблони назв логів
+                int logIdx = logTab?.cmbLogName.SelectedIndex ?? 0;
+                string logTmpl = (logIdx >= 0 && logIdx < YamlService.LogNameValues.Length) ? YamlService.LogNameValues[logIdx] : YamlService.LogNameValues[0];
+
+                int panicIdx = logTab?.cmbPanicLogName.SelectedIndex ?? 0;
+                string panicLogTmpl = (panicIdx >= 0 && panicIdx < YamlService.PanicLogNameValues.Length) ? YamlService.PanicLogNameValues[panicIdx] : YamlService.PanicLogNameValues[0];
 
                 // 2. Виклик сервісу з ПРАВИЛЬНИМ ПОРЯДКОМ АРГУМЕНТІВ
                 bool saved = YamlService.SaveConfiguration(
@@ -888,23 +1057,35 @@ private void SyncConfigNameWithYaml(DocumentTab docTab)
                     docTab.txtCustomYamlPath.Text,         // customYamlPath
                     docTab.chkCss.Checked,                 // useCss
                     docTab.txtCssPath.Text,                // cssPath
+                    docTab.chkCover.Checked,               // useCoverMode
+                    docTab.cmbCoverMode.SelectedItem?.ToString() ?? "normal", // coverMode
+                    docTab.chkFixZip.Checked,              // saveFixZip
+                    docTab.rbFixZipYes.Checked,            // fixZipVal
+                    docTab.chkOpenFromCover.Checked,       // saveOpenCover
+                    docTab.rbOpenCoverYes.Checked,         // openCoverVal
+                    docTab.chkTranslit.Checked,            // saveTranslit
+                    docTab.rbTranslitYes.Checked,          // translitVal
+                    docTab.chkFb2Name.Checked,             // useFb2Name
+                    docTab.chkDefaultName.Checked,         // useDefaultName
+                    fieldIndexes,                          // fieldIndexes
+                    folderFlags,                            // folderFlags
                     dataTab?.chkReaderSize.Checked ?? false, // customSize
                     dataTab?.txtWidth.Text ?? "1264",      // width
                     dataTab?.txtHeight.Text ?? "1680",     // height
                     dataTab?.txtDpi.Text ?? "300",         // dpi
-                    docTab.chkCover.Checked,               // useCoverMode
-                    docTab.cmbCoverMode.SelectedItem?.ToString() ?? "normal", // coverMode
                     dataTab?.chkNotes.Checked ?? false,    // useNotesMode
                     dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // notesMode
-                    docTab.chkTranslit.Checked,            // saveTranslit
-                    docTab.rbTranslitYes.Checked,          // translitVal
-                    docTab.chkOpenFromCover.Checked,       // saveOpenCover
-                    docTab.rbOpenCoverYes.Checked,         // openCoverVal
-                    docTab.chkFixZip.Checked,              // saveFixZip
-                    docTab.rbFixZipYes.Checked,            // fixZipVal
-                    docTab.chkFb2Name.Checked,             // useFb2Name
-                    fieldIndexes,                          // fieldIndexes
-                    folderFlags                            // folderFlags
+                // Параметри Logging
+                    logTab?.chkLogLevel.Checked ?? false,
+                    logTab?.cmbLogLevel.SelectedItem?.ToString() ?? "debug",
+                    logTab?.chkLogName.Checked ?? false,
+                    logTmpl,
+                    logTab?.chkPanicLogName.Checked ?? false,
+                    panicLogTmpl,
+                    logTab?.chkLogMode.Checked ?? false,
+                    (logTab?.rbLogModeOldNew.Checked ?? false) ? "append" : "overwrite",
+                    logTab?.chkLogFolder.Checked ?? false,
+                    logTab?.rbLogFolderYes.Checked ?? false
                 );
 
                 if (saved) Close();

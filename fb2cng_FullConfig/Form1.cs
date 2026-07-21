@@ -8,7 +8,7 @@ namespace fb2cng_FullConfig
         // Статичні елементи каркасу програми
         private Panel headerPanel = null!;
         private Panel footerPanel = null!;
-        private Panel pnlContent = null!; // Головний центральний контейнер для вкладок
+        private Panel pnlContent = null!; // Центральний контейнер для вкладок
 
         // Кнопки Хідера 
         private Button btnTabDocument = null!;
@@ -55,8 +55,8 @@ namespace fb2cng_FullConfig
                 SwitchToTab("document:"); // 2. Завантажуємо вкладку в пам'ять
                 UpdateLocalization();     // 3. Наповнюємо текстами
 
-                // ПЕРЕНЕСЕНО СЮДИ: Встановлюємо мову ТІЛЬКИ після того, як комбобокс локалізовано!
-                if (_tabsCache.TryGetValue("document:", out var tab) && tab is DocumentTab docTab)
+                // Встановлюємо мову ТІЛЬКИ після того, як комбобокс локалізовано!
+                if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
                 {
                     docTab.langComboBox.SelectedIndex = Config.Settings.CurrentLanguage switch
                     {
@@ -70,7 +70,7 @@ namespace fb2cng_FullConfig
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Критичний збій ініціалізації вікна:\n\n{ex.Message}",
+                _ = MessageBox.Show($"Критичний збій ініціалізації вікна:\n\n{ex.Message}",
                                 "Startup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -78,7 +78,7 @@ namespace fb2cng_FullConfig
         private void SetupMainFramework()
         {
             float currentScale = Win32Api.GetDpiScale();
-            int btnRadius = (int)(6 * currentScale);
+            int btnRadius = (int)(4 * currentScale);
             int iconSize = (int)(17 * currentScale);
 
             // Базові налаштування вікна
@@ -105,7 +105,6 @@ namespace fb2cng_FullConfig
             int paddingLeft = (int)(13 * currentScale);   // Відступ зліва для першої кнопки (було 16)
             int paddingRight = (int)(14 * currentScale);  // Відступ справа для третьої кнопки (було 16)
             int betweenButtons = (int)(4 * currentScale); // Відступ між самими кнопками
-                                                          // --------------------------------------------
 
             // Автоматичний розрахунок ширини кнопок з урахуванням нових відступів
             int totalInterButtonSpace = betweenButtons * 2; // Два проміжки між трьома кнопками
@@ -124,7 +123,7 @@ namespace fb2cng_FullConfig
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
             Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabLogging];
-            foreach (var btn in tabButtons)
+            foreach (Button btn in tabButtons)
             {
                 btn.Click += TabButton_Click;
                 MakeButtonRounded(btn, (int)(4 * currentScale)); // Ніжне заокруглення для вкладок
@@ -151,23 +150,37 @@ namespace fb2cng_FullConfig
             Controls.Add(footerPanel);
 
             // Створення кнопок футера
-            btnHelp = new Button { Text = "Help", Image = ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
+            btnHelp = new Button
+            {
+                Text = "Help",
+                Image = ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Padding = new Padding((int)(2 * currentScale), 0, 0, 0)
             };
-            btnTheme = new Button { Text = "Theme", Image = ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
+            btnTheme = new Button
+            {
+                Text = "Theme",
+                Image = ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Padding = new Padding((int)(10 * currentScale), 0, 0, 0)
             };
-            btGui = new Button { Text = "GUI", ImageAlign = ContentAlignment.MiddleCenter, TextAlign = ContentAlignment.MiddleCenter,
+            btGui = new Button
+            {
+                Text = "GUI",
+                ImageAlign = ContentAlignment.MiddleCenter,
+                TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Padding = new Padding((int)(3 * currentScale), 0, 0, 0)
             };
-            if (Properties.Resources.icon_GUI != null) btGui.Image = ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
+            if (Properties.Resources.icon_GUI != null)
+            {
+                btGui.Image = ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
+            }
+
             btnOk = new Button { Text = "OK" };
             btnCancel = new Button { Text = "Cancel" };
 
@@ -230,12 +243,9 @@ namespace fb2cng_FullConfig
                 Screen.PrimaryScreen.WorkingArea.Left + ((Screen.PrimaryScreen.WorkingArea.Width - Width) / 2),
                 Screen.PrimaryScreen.WorkingArea.Top + ((Screen.PrimaryScreen.WorkingArea.Height - Height) / 2)
             );
-
         }
 
-        /// <summary>
         /// Обробник події кліку по кнопках Хідера. Визначає, яку саме вкладку викликав користувач.
-        /// </summary>
         private void TabButton_Click(object? sender, EventArgs e)
         {
             if (sender is Button tabButton && tabButton.Tag is string tabName)
@@ -245,23 +255,23 @@ namespace fb2cng_FullConfig
             }
         }
 
-        /// <summary>
         /// Динамічно замінює вміст центральної панелі на обрану вкладку з використанням кешування.
-        /// </summary>
         private void SwitchToTab(string tabName)
         {
-            if (_currentActiveTab == tabName && pnlContent.Controls.ContainsKey(tabName)) return;
+            if (_currentActiveTab == tabName && pnlContent.Controls.ContainsKey(tabName))
+            {
+                return;
+            }
 
             _currentActiveTab = tabName;
             SuspendLayout();
 
-            // Ховаємо всі існуючі вкладки, замість того щоб їх видаляти
             foreach (Control ctrl in pnlContent.Controls)
             {
                 ctrl.Visible = false;
             }
 
-            if (!_tabsCache.TryGetValue(tabName, out var tabControl))
+            if (!_tabsCache.TryGetValue(tabName, out UserControl? tabControl))
             {
                 tabControl = tabName switch
                 {
@@ -270,25 +280,31 @@ namespace fb2cng_FullConfig
                     "logging:" => new LoggingTab(),
                     _ => throw new ArgumentException("Error")
                 };
-                tabControl.Name = tabName; // Для ідентифікації
+                tabControl.Name = tabName;
                 tabControl.Dock = DockStyle.Fill;
                 _tabsCache[tabName] = tabControl;
 
-                if (tabControl is DocumentTab docTab) InitializeDocumentTabEvents(docTab);
+                if (tabControl is DocumentTab docTab)
+                {
+                    InitializeDocumentTabEvents(docTab);
+                }
 
                 pnlContent.Controls.Add(tabControl);
             }
 
+            // Якщо ми перемикаємось на логи — оновлюємо дані з YAML
+            if (tabName == "logging:" && _tabsCache.TryGetValue("document:", out UserControl? d) && d is DocumentTab documentTab)
+            {
+                SyncLoggingSettingsWithYaml(documentTab);
+            }
+
             tabControl.Visible = true;
             tabControl.BringToFront();
-
             UpdateLocalization();
             ApplyTheme();
-
             ResumeLayout(true);
         }
 
-        // Додайте цей допоміжний метод у Form1.cs або Form1_Logic.cs
         private void InitializeDocumentTabEvents(DocumentTab docTab)
         {
             float currentScale = Win32Api.GetDpiScale();
@@ -306,11 +322,15 @@ namespace fb2cng_FullConfig
             // 3. РЕШТА ПОДІЙ
             docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
             docTab.chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
+            docTab.chkDefaultName.CheckedChanged += ChkDefaultName_CheckedChanged;
 
             // Синхронізація при активації CSS
             docTab.chkCss.CheckedChanged += (s, e) =>
             {
-                if (docTab.chkCss.Checked) SyncCssWithCustomYaml(docTab);
+                if (docTab.chkCss.Checked)
+                {
+                    SyncCssWithCustomYaml(docTab);
+                }
             };
             // Синхронізація імені конфігу при зміні стану чекбокса
             docTab.chkCustomYaml.CheckedChanged += (s, e) =>
@@ -319,17 +339,19 @@ namespace fb2cng_FullConfig
                 SyncCssWithCustomYaml(docTab);
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
+                SyncLoggingSettingsWithYaml(docTab);
                 // Також викликаємо оновлення теми, бо зміна стану чекбокса впливає на візуал
                 ApplyTheme();
             };
 
             // Додаємо обробник для зміни шляху YAML (якщо змінили файл, оновлюємо CSS)
-            docTab.txtCustomYamlPath.TextChanged += (s, e) => 
+            docTab.txtCustomYamlPath.TextChanged += (s, e) =>
             {
                 SyncConfigNameWithYaml(docTab);
                 SyncCssWithCustomYaml(docTab); // Можна теж додати про всяк випадок
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
+                SyncLoggingSettingsWithYaml(docTab);
             };
 
             if (docTab.cmbOutFields != null)
@@ -341,27 +363,36 @@ namespace fb2cng_FullConfig
                 }
             }
             // fix_zip
-            docTab.chkFixZip.CheckedChanged += (s, e) => {
+            docTab.chkFixZip.CheckedChanged += (s, e) =>
+            {
                 if (docTab.rbFixZipYes?.Parent != null)
+                {
                     docTab.rbFixZipYes.Parent.Enabled = docTab.chkFixZip.Checked;
+                }
+
                 ApplyTheme();
             };
-            docTab.chkOpenFromCover.CheckedChanged += (s, e) => {
+            docTab.chkOpenFromCover.CheckedChanged += (s, e) =>
+            {
                 if (docTab.rbOpenCoverYes?.Parent != null)
+                {
                     docTab.rbOpenCoverYes.Parent.Enabled = docTab.chkOpenFromCover.Checked;
+                }
+
                 ApplyTheme();
             };
-            docTab.chkTranslit.CheckedChanged += (s, e) => {
+            docTab.chkTranslit.CheckedChanged += (s, e) =>
+            {
                 if (docTab.rbTranslitYes?.Parent != null)
+                {
                     docTab.rbTranslitYes.Parent.Enabled = docTab.chkTranslit.Checked;
+                }
+
                 ApplyTheme();
             };
         }
 
-
-        /// <summary>
         /// Масштабує вхідне зображення до заданих розмірів з високою якістю рендерингу.
-        /// </summary>
         /// <param name="img">Оригінальне зображення (може бути null).</param>
         /// <param name="width">Необхідна ширина нового зображення.</param>
         /// <param name="height">Необхідна висота нового зображення.</param>
@@ -370,7 +401,10 @@ namespace fb2cng_FullConfig
         {
             // Перевірка на null за допомогою сучасного патерну 'is null'.
             // Якщо картинку не передали, одразу виходимо, щоб не витрачати ресурси процесора.
-            if (img is null) return null;
+            if (img is null)
+            {
+                return null;
+            }
 
             // Створюємо порожній бітмап потрібного розміру в пам'яті.
             // Тип визначено як Nullable (Bitmap?), щоб задовольнити сувору перевірку типів .NET 10.
@@ -411,7 +445,7 @@ namespace fb2cng_FullConfig
             btn.FlatStyle = FlatStyle.Flat; // ОБОВ'ЯЗКОВО
             btn.FlatAppearance.BorderSize = 0;
 
-            // Крок 1. Надійний Region (Ваш оригінальний без змін)
+            // Крок 1. Надійний Region
             using (GraphicsPath path = new())
             {
                 float r = radius;
