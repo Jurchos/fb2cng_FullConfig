@@ -1,5 +1,5 @@
 ﻿using System.Drawing.Drawing2D;
-using fb2cng_FullConfig.Templates; // Підключаємо нову папку з вкладками
+using fb2cng_FullConfig.Templates;
 
 namespace fb2cng_FullConfig
 {
@@ -24,15 +24,6 @@ namespace fb2cng_FullConfig
         // Кеш для збереження вкладок (щоб при перемиканні назад дані користувача не стиралися)
         private readonly Dictionary<string, UserControl> _tabsCache = [];
         private string _currentActiveTab = "document:";
-
-        // Матриця прозорості іконок футера
-        private static readonly float[][] InactiveIconMatrix = [
-         [1, 0, 0, 0, 0],
-         [0, 1, 0, 0, 0],
-         [0, 0, 1, 0, 0],
-         [0, 0, 0, 0.30f, 0],
-         [0, 0, 0, 0, 1]
-        ];
 
         protected override CreateParams CreateParams
         {
@@ -126,13 +117,13 @@ namespace fb2cng_FullConfig
             foreach (Button btn in tabButtons)
             {
                 btn.Click += TabButton_Click;
-                MakeButtonRounded(btn, (int)(4 * currentScale)); // Ніжне заокруглення для вкладок
+                UiStyles.MakeButtonRounded(btn, (int)(4 * currentScale)); // Заокруглення для вкладок
                 headerPanel.Controls.Add(btn);
             }
 
-            // ==========================================
+            // ==================================================
             // КРОК 2: СТВОРЕННЯ ЦЕНТРАЛЬНОГО КОНТЕНТ-КОНТЕЙНЕРА
-            // ==========================================
+            // ==================================================
             // Базова фіксована висота 
             int contentHeight = (int)(565 * currentScale);
 
@@ -149,11 +140,14 @@ namespace fb2cng_FullConfig
             footerPanel.SetBounds(0, pnlContent.Bottom, ClientSize.Width, footerHeight);// Встановлюємо футер чітко під контентом
             Controls.Add(footerPanel);
 
+            string guiPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
+            bool guiExists = File.Exists(guiPath);
+
             // Створення кнопок футера
             btnHelp = new Button
             {
                 Text = "Help",
-                Image = ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
+                Image = UiStyles.ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
@@ -162,59 +156,79 @@ namespace fb2cng_FullConfig
             btnTheme = new Button
             {
                 Text = "Theme",
-                Image = ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
+                Image = UiStyles.ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Padding = new Padding((int)(10 * currentScale), 0, 0, 0)
             };
-            btGui = new Button
+            // 3. Створюємо кнопку GUI ТІЛЬКИ якщо файл існує
+            if (guiExists)
             {
-                Text = "GUI",
-                ImageAlign = ContentAlignment.MiddleCenter,
-                TextAlign = ContentAlignment.MiddleCenter,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding((int)(3 * currentScale), 0, 0, 0)
-            };
-            if (Properties.Resources.icon_GUI != null)
-            {
-                btGui.Image = ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
+                btGui = new Button
+                {
+                    Text = "GUI",
+                    ImageAlign = ContentAlignment.MiddleCenter,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    TextImageRelation = TextImageRelation.ImageBeforeText,
+                    Padding = new Padding((int)(3 * currentScale), 0, 0, 0)
+                };
+                if (Properties.Resources.icon_GUI != null)
+                {
+                    btGui.Image = UiStyles.ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
+                }
+                // Прив'язуємо подію відразу тут, де ми впевнені, що кнопка не null
+                btGui.Click += BtGui_Click;
             }
 
             btnOk = new Button { Text = "OK" };
             btnCancel = new Button { Text = "Cancel" };
 
-            footerPanel.Controls.AddRange([btnHelp, btnTheme, btGui, btnOk, btnCancel]);
+            // 4. БЕЗПЕЧНЕ ДОДАВАННЯ КОНТРОЛІВ (замість AddRange з масивом)
+            footerPanel.Controls.Add(btnHelp);
+            footerPanel.Controls.Add(btnTheme);
+            if (guiExists && btGui != null)
+            {
+                footerPanel.Controls.Add(btGui);
+            }
+            footerPanel.Controls.Add(btnOk);
+            footerPanel.Controls.Add(btnCancel);
 
-            // Прив'язка гарячих клавіш та подій футера
-            AcceptButton = btnOk;
-            CancelButton = btnCancel;
+            // 5. Прив'язка подій для статичних кнопок
             btnTheme.Click += (s, e) => { Config.IsDarkTheme = !Config.IsDarkTheme; ApplyTheme(); Config.SaveSettings(); };
             btnCancel.Click += (s, e) => Close();
             btnHelp.Click += (s, e) => ShowHelp();
             btnOk.Click += (s, e) => SaveYamlConfiguration();
-            btGui.Click += BtGui_Click;
 
-            // Roзстановка кнопок футера
+            // 6. РОЗСТАНОВКА (SetBounds) з перевіркою
             int btnWidth = (int)(90 * currentScale);
             int guiBtnWidth = (int)(65 * currentScale);
             int btnHeight = (int)(24 * currentScale) + (int)(4 * currentScale);
             int btnTop = (int)(5 * currentScale);
             int xLeft = (int)(16 * currentScale);
-            int btnspacing = (int)(6 * currentScale); // Відступ між кнопками
+            int btnspacing = (int)(6 * currentScale);
 
             btnHelp.SetBounds(xLeft, btnTop, btnWidth, btnHeight);
             btnTheme.SetBounds(btnHelp.Right + btnspacing, btnTop, btnWidth, btnHeight);
-            btGui.SetBounds(btnTheme.Right + btnspacing, btnTop, guiBtnWidth, btnHeight);
+
+            // Кнопка GUI позиціонується лише якщо вона є
+            if (guiExists && btGui != null)
+            {
+                btGui.SetBounds(btnTheme.Right + btnspacing, btnTop, guiBtnWidth, btnHeight);
+            }
+
             btnCancel.SetBounds(ClientSize.Width - xLeft - btnWidth, btnTop, btnWidth, btnHeight);
             btnOk.SetBounds(btnCancel.Left - (int)(96 * currentScale), btnTop, btnWidth, btnHeight);
 
-            // Заокруглення кнопок футера
-            MakeButtonRounded(btnHelp, btnRadius);
-            MakeButtonRounded(btnTheme, btnRadius);
-            MakeButtonRounded(btGui, btnRadius);
-            MakeButtonRounded(btnOk, btnRadius);
-            MakeButtonRounded(btnCancel, btnRadius);
+            // 7. ЗАОКРУГЛЕННЯ ТІЛЬКИ ІСНУЮЧИХ КНОПОК
+            UiStyles.MakeButtonRounded(btnHelp, btnRadius);
+            UiStyles.MakeButtonRounded(btnTheme, btnRadius);
+            if (guiExists && btGui != null)
+            {
+                UiStyles.MakeButtonRounded(btGui, btnRadius);
+            }
+            UiStyles.MakeButtonRounded(btnOk, btnRadius);
+            UiStyles.MakeButtonRounded(btnCancel, btnRadius);
 
             // --- АДАПТАЦІЯ ГЕОМЕТРІЇ ПРИ ВЕЛИКОМУ МАСШТАБІ (200-225%) ---
             int finalHeight = footerPanel.Bottom + (int)(8 * currentScale);
@@ -245,7 +259,7 @@ namespace fb2cng_FullConfig
             );
         }
 
-        /// Обробник події кліку по кнопках Хідера. Визначає, яку саме вкладку викликав користувач.
+        // Обробник події кліку по кнопках Хідера. Визначає, яку саме вкладку викликав користувач.
         private void TabButton_Click(object? sender, EventArgs e)
         {
             if (sender is Button tabButton && tabButton.Tag is string tabName)
@@ -255,7 +269,7 @@ namespace fb2cng_FullConfig
             }
         }
 
-        /// Динамічно замінює вміст центральної панелі на обрану вкладку з використанням кешування.
+        // Динамічно замінює вміст центральної панелі на обрану вкладку з використанням кешування.
         private void SwitchToTab(string tabName)
         {
             if (_currentActiveTab == tabName && pnlContent.Controls.ContainsKey(tabName))
@@ -266,11 +280,13 @@ namespace fb2cng_FullConfig
             _currentActiveTab = tabName;
             SuspendLayout();
 
+            // 1. Сховати всі наявні вкладки
             foreach (Control ctrl in pnlContent.Controls)
             {
                 ctrl.Visible = false;
             }
 
+            // 2. Отримати або створити цільову вкладку
             if (!_tabsCache.TryGetValue(tabName, out UserControl? tabControl))
             {
                 tabControl = tabName switch
@@ -288,16 +304,30 @@ namespace fb2cng_FullConfig
                 {
                     InitializeDocumentTabEvents(docTab);
                 }
+                if (tabControl is MetadataTab dataTab)
+                {
+                    InitializeMetadataTabEvents(dataTab);
+                }
 
                 pnlContent.Controls.Add(tabControl);
             }
 
-            // Якщо ми перемикаємось на логи — оновлюємо дані з YAML
-            if (tabName == "logging:" && _tabsCache.TryGetValue("document:", out UserControl? d) && d is DocumentTab documentTab)
+            // 3. СИНХРОНІЗАЦІЯ 
+            // Отримуємо посилання на DocumentTab один раз для всіх перевірок
+            if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab activeDocTab)
             {
-                SyncLoggingSettingsWithYaml(documentTab);
+                if (tabName == "metadata:")
+                {
+
+                    SyncMetadataWithYaml(activeDocTab);
+                }
+                else if (tabName == "logging:")
+                {
+                    SyncLoggingSettingsWithYaml(activeDocTab);
+                }
             }
 
+            // 4. Відображення
             tabControl.Visible = true;
             tabControl.BringToFront();
             UpdateLocalization();
@@ -310,9 +340,9 @@ namespace fb2cng_FullConfig
             float currentScale = Win32Api.GetDpiScale();
 
             // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ ТРЬОХ КНОПОК
-            MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));
-            MakeButtonRounded(docTab.btnDumpConfig, (int)(4 * currentScale));
-            MakeButtonRounded(docTab.btnBrowseCustomYaml, (int)(4 * currentScale));
+            UiStyles.MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));
+            UiStyles.MakeButtonRounded(docTab.btnDumpConfig, (int)(4 * currentScale));
+            UiStyles.MakeButtonRounded(docTab.btnBrowseCustomYaml, (int)(4 * currentScale));
 
             // 2. ПРИВ'ЯЗКА КЛІКІВ
             docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
@@ -392,151 +422,33 @@ namespace fb2cng_FullConfig
             };
         }
 
-        /// Масштабує вхідне зображення до заданих розмірів з високою якістю рендерингу.
-        /// <param name="img">Оригінальне зображення (може бути null).</param>
-        /// <param name="width">Необхідна ширина нового зображення.</param>
-        /// <param name="height">Необхідна висота нового зображення.</param>
-        /// <returns>Новий об'єкт Bitmap або null, якщо вхідне зображення відсутнє.</returns>
-        private static Bitmap? ResizeImage(Image? img, int width, int height)
+        private void InitializeMetadataTabEvents(MetadataTab dataTab)
         {
-            // Перевірка на null за допомогою сучасного патерну 'is null'.
-            // Якщо картинку не передали, одразу виходимо, щоб не витрачати ресурси процесора.
-            if (img is null)
+            float currentScale = Win32Api.GetDpiScale();
+            UiStyles.MakeButtonRounded(dataTab.btnBrowseCover, (int)(4 * currentScale));
+            dataTab.btnBrowseCover.Click += BtnBrowseCover_Click;
+
+            // ВИКЛИК ApplyTheme ДО УСІХ ЧЕКБОКСІВ МЕТАДАНИХ
+            CheckBox[] metaChecks = [
+                dataTab.chkReaderSize, dataTab.chkNotes,
+                dataTab.chkSoftHyphen, dataTab.chkRemoveTransp,
+                dataTab.chkJpegQuality, dataTab.chkGenerateCover,
+                dataTab.chkResizeCover, dataTab.chkAnnEnable,
+                dataTab.chkAnnInToc, dataTab.chkTocPlacement, dataTab.chkDropcaps
+            ];
+
+            foreach (CheckBox chk in metaChecks)
             {
-                return null;
+                chk.CheckedChanged += (s, e) => ApplyTheme();
             }
 
-            // Створюємо порожній бітмап потрібного розміру в пам'яті.
-            // Тип визначено як Nullable (Bitmap?), щоб задовольнити сувору перевірку типів .NET 10.
-            Bitmap? bmp = new(width, height);
-
-            try
-            {
-                // Створюємо об'єкт Graphics для малювання на нашому новому порожньому бітмапі.
-                // Блок 'using' гарантує автоматичне звільнення системних контекстів малювання (GDI handles).
-                using (Graphics g = Graphics.FromImage(bmp))
-                {
-                    // Налаштовуємо алгоритми згладжування та інтерполяції для отримання найкращої якості.
-                    g.SmoothingMode = SmoothingMode.AntiAlias;                  // Увімкнення згладжування ліній та країв
-                    g.InterpolationMode = InterpolationMode.HighQualityBicubic; // Бікубічна інтерполяція для чіткості при зміні розміру
-                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;            // Оптимальне зміщення пікселів для усунення розмиття
-
-                    // Малюємо оригінальну картинку (img) на нашому новому бітмапі, розтягуючи її від лівого верхнього кута (0,0) до нових меж (width, height)
-                    g.DrawImage(img, 0, 0, width, height);
-                }
-
-                // Повертаємо готовий, оброблений конкретний об'єкт Bitmap (виправлено зауваження CA1859 щодо продуктивності)
-                return bmp;
-            }
-            catch
-            {
-                // Захист від витоку пам'яті (Best Practice для графіки): 
-                // Якщо під час налаштування Graphics або самого малювання DrawImage станеться будь-який збій (Exception),
-                // ми зобов'язані примусово знищити створений бітмап за допомогою .Dispose(), інакше він назавжди «зависне» в некерованій пам'яті Windows.
-                bmp?.Dispose();
-
-                // Прокидаємо помилку далі по стеку викликів, щоб програма знала про збій
-                throw;
-            }
-        }
-
-        internal static void MakeButtonRounded(Button btn, int radius)
-        {
-            btn.FlatStyle = FlatStyle.Flat; // ОБОВ'ЯЗКОВО
-            btn.FlatAppearance.BorderSize = 0;
-
-            // Крок 1. Надійний Region
-            using (GraphicsPath path = new())
-            {
-                float r = radius;
-                path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-                path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
-                path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
-                path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
-                path.CloseAllFigures();
-
-                btn.Region = new Region(path);
-            }
-
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-
-            // Додаємо змінні для світлої теми з перевіркою Enabled (захист від багу при старті)
-            bool isHovered = false;
-            btn.MouseEnter += (s, e) => { if (btn.Enabled) { isHovered = true; btn.Invalidate(); } };
-            btn.MouseLeave += (s, e) => { isHovered = false; btn.Invalidate(); };
-
-            // Якщо під час зміни Enabled кнопка була під мишкою, скидаємо стан підсвічування
-            btn.EnabledChanged += (s, e) => { if (!btn.Enabled) { isHovered = false; btn.Invalidate(); } };
-
-            // Крок 2. Малювання рамки
-            btn.Paint += (s, ev) =>
-            {
-                ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                bool isDarkTheme = Config.IsDarkTheme;
-
-                if (isDarkTheme)
-                {
-                    // ДЛЯ ТЕМНОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new();
-                    float r = radius;
-                    float startXY = 0.5f;
-                    float sizeAdjustment = 1.0f;
-
-                    buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
-                    buttonFramePath.AddArc(0, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
-                    buttonFramePath.CloseAllFigures();
-
-                    // Якщо кнопка вимкнена в темній темі, робимо рамку тьмяною
-                    // 1. Спочатку визначаємо стандартний колір рамки для активної кнопки
-                    Color activeBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                        ? btn.FlatAppearance.BorderColor
-                        : btn.ForeColor;
-
-                    // 2. Тепер легко і читабельно робимо вибір залежно від стану кнопки
-                    Color btnBorderColor = !btn.Enabled
-                        ? Color.FromArgb(70, Color.Gray)
-                        : activeBorderColor;
-                    using Pen pen = new(btnBorderColor, 1.2F);
-                    ev.Graphics.DrawPath(pen, buttonFramePath);
-                }
-                else
-                {
-                    // ДЛЯ СВІТЛОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new();
-                    float r = radius;
-                    float startXY = 0.5f;
-                    float sizeAdjustment = 1.0f;
-
-                    buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
-                    buttonFramePath.AddArc(0, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
-                    buttonFramePath.CloseAllFigures();
-
-                    Color btnBorderColor;
-                    if (!btn.Enabled)
-                    {
-                        btnBorderColor = Color.LightGray;
-                    }
-                    else if (isHovered)
-                    {
-                        btnBorderColor = Color.FromArgb(0, 120, 215); // Підсвічування при наведенні
-                    }
-                    else
-                    {
-                        btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                            ? btn.FlatAppearance.BorderColor
-                            : Color.DarkGray;
-                    }
-
-                    using Pen pen = new(btnBorderColor, 1.0F);
-                    ev.Graphics.DrawPath(pen, buttonFramePath);
-                }
-            };
+            // спільний метод малювання! Оскільки матриця InactiveIconMatrix лежить у UiStyles, передаємо її через клас
+            UiStyles.SetupIconButtonDrawing(
+                dataTab.btnBrowseCover,
+                Properties.Resources.folder,
+                dataTab.chkGenerateCover,
+                UiStyles.InactiveIconMatrix
+            );
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)

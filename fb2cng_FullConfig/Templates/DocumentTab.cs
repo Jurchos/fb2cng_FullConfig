@@ -6,7 +6,7 @@ namespace fb2cng_FullConfig.Templates
 
     public partial class DocumentTab : UserControl
     {
-        // Елементи інтерфейсу цієї вкладки 
+        // Елементи інтерфейсу вкладки 
         public Panel scrollMenuPanel = null!;
         public ComboBox langComboBox = null!;
         public Button btnDumpConfig = null!;
@@ -38,17 +38,6 @@ namespace fb2cng_FullConfig.Templates
         public Label lblConfigName = null!;
         public Label lblOutNameTitle = null!;
 
-        private bool isCustomYamlHovered;
-        private bool isOutFolderHovered;
-        // Статична матриця для вимкненої іконки папки
-        private static readonly float[][] InactiveIconMatrix = [
-        [1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 0.30f, 0],
-        [0, 0, 0, 0, 1]
-        ];
-
         public DocumentTab()
         {
             DoubleBuffered = true;
@@ -60,6 +49,34 @@ namespace fb2cng_FullConfig.Templates
             SetupInterface();
         }
 
+        public class ControlGroup
+        {
+            public required CheckBox CheckBox { get; set; }
+            public required TextBox TextBox { get; set; }
+            public required Button Button { get; set; }
+        }
+
+        private static ControlGroup SetupToggleGroup(Image icon, Panel parentPanel)
+        {
+            var chk = new CheckBox { AutoSize = true };
+            var txt = new TextBox { Enabled = false };
+            var btn = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            btn.FlatAppearance.BorderSize = 0;
+
+            // Викликаємо наш новий єдиний метод малювання (якщо він у Form1, додайте Form1. перед назвою)
+            UiStyles.SetupIconButtonDrawing(btn, icon, chk, UiStyles.InactiveIconMatrix);
+
+            // Зв'язуємо стан доступності тексту та кнопки із чекбоксом
+            chk.CheckedChanged += (s, e) =>
+            {
+                txt.Enabled = chk.Checked;
+                btn.Enabled = chk.Checked;
+            };
+
+            parentPanel.Controls.AddRange([chk, txt, btn]);
+
+            return new ControlGroup { CheckBox = chk, TextBox = txt, Button = btn };
+        }
         private void SetupInterface()
         {
             float currentScale = Win32Api.GetDpiScale();
@@ -92,7 +109,6 @@ namespace fb2cng_FullConfig.Templates
             lblLang = new Label { Text = "Language:", AutoSize = true };
             langComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
             langComboBox.Items.AddRange(["English", "Українська", "Русский"]);
-            // Зверніть увагу: оскільки метод кліку мови лежить у Form1_Logic, подія прив'яжеться звідти, або через метод форми
             scrollMenuPanel.Controls.AddRange([lblLang, langComboBox]);
 
             btnDumpConfig = new Button();
@@ -102,127 +118,12 @@ namespace fb2cng_FullConfig.Templates
             txtConfigName = new TextBox { Text = "config.yaml" };
             scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
-            // --- ДОДАЄМО БЛОК КАСТОМНОГО YAML ---
-            chkCustomYaml = new CheckBox { AutoSize = true };
-            txtCustomYamlPath = new TextBox { Enabled = false };
-            btnBrowseCustomYaml = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
-            btnBrowseCustomYaml.FlatAppearance.BorderSize = 0;
-            btnBrowseCustomYaml.EnabledChanged += (s, e) => {
-                if (!btnBrowseCustomYaml.Enabled)
-                {
-                    isCustomYamlHovered = false;
-                    btnBrowseCustomYaml.Invalidate();
-                }
-            };
-
-            isCustomYamlHovered = false;
-            btnBrowseCustomYaml.MouseEnter += (s, e) => { if (btnBrowseCustomYaml.Enabled) isCustomYamlHovered = true; btnBrowseCustomYaml.Invalidate(); };
-            btnBrowseCustomYaml.MouseLeave += (s, e) => { isCustomYamlHovered = false; btnBrowseCustomYaml.Invalidate(); };
-            Image folderIcon = Properties.Resources.folder;
-
-            // Використовуємо аналогічний Paint для іконки папки, як у CSS
-            btnBrowseCustomYaml.Paint += (s, e) =>
-            {
-                // Малюємо фон при наведенні
-                if (isCustomYamlHovered && btnBrowseCustomYaml.Enabled)
-                {
-                    Color baseBgColor = btnBrowseCustomYaml.BackColor;
-                    bool isDark = baseBgColor.R < 128;
-                    Color drawBgColor = isDark
-                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
-                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
-
-                    using Brush backBrush = new SolidBrush(drawBgColor);
-                    e.Graphics.FillRectangle(backBrush, 0, 0, btnBrowseCustomYaml.Width, btnBrowseCustomYaml.Height);
-                }
-
-                if (folderIcon != null)
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                    int paddingX = (int)(btnBrowseCustomYaml.Width * 0.24);
-                    int paddingY = (int)(btnBrowseCustomYaml.Height * 0.12);
-                    Rectangle destRect = new(paddingX, paddingY, btnBrowseCustomYaml.Width - (paddingX * 2), btnBrowseCustomYaml.Height - (paddingY * 2));
-
-                    if (!chkCustomYaml.Checked)
-                    {
-                        using ImageAttributes imageAttributes = new();
-                        imageAttributes.SetColorMatrix(new ColorMatrix(InactiveIconMatrix));
-                        e.Graphics.DrawImage(folderIcon, destRect, 0, 0, folderIcon.Width, folderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
-                        return;
-                    }
-                    e.Graphics.DrawImage(folderIcon, destRect);
-                }
-            };
-
-            chkCustomYaml.CheckedChanged += (s, e) =>
-            {
-                txtCustomYamlPath.Enabled = chkCustomYaml.Checked;
-                btnBrowseCustomYaml.Enabled = chkCustomYaml.Checked;
-                btnBrowseCustomYaml.Invalidate();
-            };
-            scrollMenuPanel.Controls.AddRange([chkCustomYaml, txtCustomYamlPath, btnBrowseCustomYaml]);
-
+            var yamlGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
+            chkCustomYaml = yamlGroup.CheckBox; txtCustomYamlPath = yamlGroup.TextBox; btnBrowseCustomYaml = yamlGroup.Button;
 
             // Налаштування CSS та кнопки з малюванням іконки
-            chkCss = new CheckBox { AutoSize = true };
-            txtCssPath = new TextBox { Enabled = false };
-            btnBrowseCss = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
-            btnBrowseCss.FlatAppearance.BorderSize = 0; btnBrowseCss.EnabledChanged += (s, e) => {
-                if (!btnBrowseCss.Enabled)
-                {
-                    isOutFolderHovered = false;
-                    btnBrowseCss.Invalidate();
-                }
-            };
-
-            isOutFolderHovered = false;
-            btnBrowseCss.MouseEnter += (s, e) => { if (btnBrowseCss.Enabled) isOutFolderHovered = true; btnBrowseCss.Invalidate(); };
-            btnBrowseCss.MouseLeave += (s, e) => { isOutFolderHovered = false; btnBrowseCss.Invalidate(); };
-            Image outFolderIcon = Properties.Resources.folder;
-
-            btnBrowseCss.Paint += (s, e) =>
-            {
-                if (isOutFolderHovered && btnBrowseCss.Enabled)
-                {
-                    Color baseBgColor = btnBrowseCss.BackColor;
-                    bool isDark = baseBgColor.R < 128;
-                    Color drawBgColor = isDark
-                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
-                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
-                    using Brush backBrush = new SolidBrush(drawBgColor);
-                    e.Graphics.FillRectangle(backBrush, 0, 0, btnBrowseCss.Width, btnBrowseCss.Height);
-                }
-                if (outFolderIcon != null)
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                    int paddingX = (int)(btnBrowseCss.Width * 0.24);
-                    int paddingY = (int)(btnBrowseCss.Height * 0.12);
-                    Rectangle destRect = new(paddingX, paddingY, btnBrowseCss.Width - (paddingX * 2), btnBrowseCss.Height - (paddingY * 2));
-
-                    if (!chkCss.Checked)
-                    {
-                        using ImageAttributes imageAttributes = new();
-                        imageAttributes.SetColorMatrix(new ColorMatrix(InactiveIconMatrix));
-                        e.Graphics.DrawImage(outFolderIcon, destRect, 0, 0, outFolderIcon.Width, outFolderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
-                        return;
-                    }
-                    e.Graphics.DrawImage(outFolderIcon, destRect);
-                }
-            };
-
-            chkCss.CheckedChanged += (s, e) =>
-            {
-                txtCssPath.Enabled = chkCss.Checked;
-                btnBrowseCss.Enabled = chkCss.Checked;
-                btnBrowseCss.Invalidate();
-            };
-            scrollMenuPanel.Controls.AddRange([chkCss, txtCssPath, btnBrowseCss]);
+            var cssGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
+            chkCss = cssGroup.CheckBox; txtCssPath = cssGroup.TextBox; btnBrowseCss = cssGroup.Button;
 
             chkCover = new CheckBox { AutoSize = true }; // обкладинка
             cmbCoverMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };

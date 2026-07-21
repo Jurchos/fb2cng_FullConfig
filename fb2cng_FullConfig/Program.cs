@@ -515,6 +515,52 @@ namespace fb2cng_FullConfig
             return -1;
         }
 
+        private static string[]? HandleCoverPathLogic(string[] lines, string coverPath)
+        {
+            List<string> result = new();
+            string targetKey = "default_image_path:";
+            bool foundSection = false;
+            bool alreadyHandled = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                ReadOnlySpan<char> trimmed = line.AsSpan().TrimStart();
+
+                // 1. Шукаємо секцію cover
+                if (trimmed.StartsWith("cover:", StringComparison.Ordinal)) foundSection = true;
+
+                // 2. Якщо ми в секції cover і знайшли старий default_image_path (НЕ коментар), видаляємо його
+                if (foundSection && trimmed.StartsWith(targetKey, StringComparison.Ordinal))
+                {
+                    continue; // Пропускаємо цей рядок (видаляємо старий запис)
+                }
+
+                result.Add(line);
+
+                // 3. Якщо знайшли generate: ..., вставляємо після нього наш новий шлях (якщо він не пустий)
+                if (foundSection && !alreadyHandled && trimmed.StartsWith("generate:", StringComparison.Ordinal))
+                {
+                    if (!string.IsNullOrWhiteSpace(coverPath))
+                    {
+                        int indent = line.Length - trimmed.Length;
+                        string padding = new string(' ', indent);
+                        result.Add($"{padding}default_image_path: \"{coverPath}\"");
+                    }
+                    alreadyHandled = true;
+                }
+
+                // Якщо вийшли з секції (відступ зменшився)
+                if (foundSection && i + 1 < lines.Length)
+                {
+                    int currentIndent = line.Length - trimmed.Length;
+                    int nextIndent = lines[i + 1].Length - lines[i + 1].AsSpan().TrimStart().Length;
+                    if (nextIndent < currentIndent && !lines[i + 1].AsSpan().TrimStart().IsEmpty) foundSection = false;
+                }
+            }
+            return result.ToArray();
+        }
+
         public static bool SaveConfiguration(
           string configName, bool useCustomYaml, string customYamlPath,
           bool useCss, string cssPath,
@@ -527,6 +573,15 @@ namespace fb2cng_FullConfig
           int[] fieldIndexes, bool[] folderFlags,
           bool customSize, string width, string height, string dpi,
           bool useNotesMode, string notesMode,
+          bool useSoftHyphen, bool softHyphenVal,
+          bool useRemoveTransp, bool removeTranspVal,
+          bool useJpegQuality, string jpegQuality,
+          bool useGenCover, bool genCoverVal, string coverPath,
+          bool useResizeCover, string resizeCover,
+          bool useAnnEnable, bool annEnableVal,
+          bool useAnnInToc, bool annInTocVal,
+          bool useTocPlacement, string tocPlacement,
+          bool useDropcaps, bool dropcapsVal,
           bool useLogLevel, string logLevel,
           bool useLogName, string logNameTmpl,
           bool usePanicLogName, string panicLogNameTmpl,
@@ -604,19 +659,48 @@ namespace fb2cng_FullConfig
                 //metainformation:
                 if (customSize)
                 {
-                    lines = ReplaceYamlValueLine(lines, "width", width); if (lines == null) return false;
-                    lines = ReplaceYamlValueLine(lines, "height", height); if (lines == null) return false;
-                    lines = ReplaceYamlValueLine(lines, "dpi", dpi); if (lines == null) return false;
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "width", width);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "height", height);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "dpi", dpi);
                 }
-                if (useNotesMode) lines = ReplaceYamlSectionValueLine(lines, ["footnotes:"], "mode", $"\"{notesMode}\"");
+                if (useNotesMode) lines = ReplaceYamlSectionValueLine(lines!, ["footnotes:"], "mode", $"\"{notesMode}\"");
                 if (lines == null) return false;
+                if (useSoftHyphen) lines = ReplaceYamlValueLine(lines, "insert_soft_hyphen", softHyphenVal ? "true" : "false");
+
+                if (useRemoveTransp)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "remove_transparency", removeTranspVal ? "true" : "false");
+                }
+
+                if (useJpegQuality) lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "jpeg_quality_level", jpegQuality);
+
+                if (useGenCover)
+                {
+                    // 1. Спочатку оновлюємо статус generate
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "generate", genCoverVal ? "true" : "false");
+                    if (lines == null) return false;
+
+                    // 2. Викликаємо нову логіку для шляху до картинки
+                    lines = HandleCoverPathLogic(lines, coverPath);
+                    if (lines == null) return false;
+                }
+
+                if (useResizeCover) lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "resize", $"\"{resizeCover}\"");
+
+                if (useAnnEnable) lines = ReplaceYamlSectionValueLine(lines!, ["annotation:"], "enable", annEnableVal ? "true" : "false");
+
+                if (useAnnInToc) lines = ReplaceYamlSectionValueLine(lines!, ["annotation:"], "in_toc", annInTocVal ? "true" : "false");
+
+                if (useTocPlacement) lines = ReplaceYamlSectionValueLine(lines!, ["toc_page:"], "placement", $"\"{tocPlacement}\"");
+
+                if (useDropcaps) lines = ReplaceYamlSectionValueLine(lines!, ["dropcaps:"], "enable", dropcapsVal ? "true" : "false");
 
                 //===============
                 // logging:
                 string[] fileSec = ["logging:", "file:"];
-                if (useLogLevel) lines = ReplaceYamlSectionValueLine(lines, fileSec, "level", logLevel);
+                if (useLogLevel) lines = ReplaceYamlSectionValueLine(lines!, fileSec, "level", logLevel);
                 if (lines == null) return false;
-                if (useLogMode) lines = ReplaceYamlSectionValueLine(lines, fileSec, "mode", logMode);
+                if (useLogMode) lines = ReplaceYamlSectionValueLine(lines!, fileSec, "mode", logMode);
                 if (lines == null) return false;
 
                 // визначення префікса папки logs/ для шаблонів логів, якщо чекбокс активний

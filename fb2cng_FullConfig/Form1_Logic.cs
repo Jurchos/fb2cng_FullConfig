@@ -45,7 +45,10 @@ namespace fb2cng_FullConfig
             btnTheme.Text = GetText("Theme", "Theme");
             btnOk.Text = GetText("Ok", "OK");
             btnCancel.Text = GetText("Cancel", "Cancel");
-
+            if (btGui != null)
+            {
+                btGui.Text = GetText("Gui", "GUI");
+            }
             // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "document:"
             // Звертаємося до елементів всередині DocumentTab, якщо вона створена в кеші
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
@@ -102,6 +105,22 @@ namespace fb2cng_FullConfig
                 dataTab.lblHeight.Text = GetText("Height", "H:");
                 dataTab.lblDpi.Text = GetText("Dpi", "DPI:");
                 dataTab.chkNotes.Text = GetText("FootnotesMode", "Footnotes display method:");
+                dataTab.chkSoftHyphen.Text = GetText("SoftHyphen", "Soft Hyphen");
+                dataTab.chkRemoveTransp.Text = GetText("RemoveTransp", "Transparency");
+                dataTab.chkJpegQuality.Text = GetText("JpegQuality", "JPEG Quality");
+                dataTab.chkGenerateCover.Text = GetText("GenCover", "Cover Gen");
+                dataTab.chkResizeCover.Text = GetText("ResizeCover", "Resize Mode");
+                dataTab.btnBrowseCover.Text = GetText("Browse", " ...");
+                dataTab.chkAnnEnable.Text = GetText("AnnEnable", "Annotation");
+                dataTab.chkAnnInToc.Text = GetText("AnnInToc", "Ann in TOC");
+                dataTab.chkTocPlacement.Text = GetText("TocPlacement", "TOC Page");
+                dataTab.chkDropcaps.Text = GetText("Dropcaps", "Dropcaps");
+
+                dataTab.rbSoftHyphenYes.Text = dataTab.rbRemoveTranspYes.Text = dataTab.rbGenCoverYes.Text =
+                dataTab.rbAnnEnableYes.Text = dataTab.rbAnnInTocYes.Text = dataTab.rbDropcapsYes.Text = GetText("Yes", "Yes");
+
+                dataTab.rbSoftHyphenNo.Text = dataTab.rbRemoveTranspNo.Text = dataTab.rbGenCoverNo.Text =
+                dataTab.rbAnnEnableNo.Text = dataTab.rbAnnInTocNo.Text = dataTab.rbDropcapsNo.Text = GetText("No", "No");
             }
 
             // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "logging:"
@@ -592,7 +611,7 @@ namespace fb2cng_FullConfig
                     TabIndex = 0
                 };
                 btnOkCustom.FlatAppearance.BorderSize = 0;
-                MakeButtonRounded(btnOkCustom, (int)(4 * currentScale)); // Використовуємо ваш покращений метод
+                UiStyles.MakeButtonRounded(btnOkCustom, (int)(4 * currentScale)); // Використовуємо ваш покращений метод
 
                 btnOkCustom.Location = new Point((msgForm.ClientSize.Width - btnOkCustom.Width) / 2, buttonsY);
 
@@ -613,7 +632,7 @@ namespace fb2cng_FullConfig
                     TabIndex = 0
                 };
                 btnOkCustom.FlatAppearance.BorderSize = 0;
-                MakeButtonRounded(btnOkCustom, (int)(4 * currentScale));
+                UiStyles.MakeButtonRounded(btnOkCustom, (int)(4 * currentScale));
 
                 Button btnCancelCustom = new()
                 {
@@ -626,7 +645,7 @@ namespace fb2cng_FullConfig
                     TabIndex = 1
                 };
                 btnCancelCustom.FlatAppearance.BorderColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(200, 200, 200);
-                MakeButtonRounded(btnCancelCustom, (int)(4 * currentScale));
+                UiStyles.MakeButtonRounded(btnCancelCustom, (int)(4 * currentScale));
 
                 int spacing = (int)(15 * currentScale);
                 int totalButtonsWidth = btnOkCustom.Width + spacing + btnCancelCustom.Width;
@@ -894,6 +913,82 @@ namespace fb2cng_FullConfig
             docTab.rbTranslitNo.Checked = true;
         }
 
+        private void SyncMetadataWithYaml(DocumentTab docTab)
+        {
+            if (!_tabsCache.TryGetValue("metadata:", out UserControl? m) || m is not MetadataTab dataTab) return;
+
+            if (docTab.chkCustomYaml.Checked)
+            {
+                string yamlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, docTab.txtCustomYamlPath.Text.Trim());
+                if (File.Exists(yamlPath))
+                {
+                    // Наявні (Reader Size & Footnotes)
+                    dataTab.txtWidth.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "width") switch { "" => "1264", string s => s };
+                    dataTab.txtHeight.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "height") switch { "" => "1680", string s => s };
+                    dataTab.txtDpi.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "dpi") switch { "" => "300", string s => s };
+
+                    string noteMode = YamlService.ReadYamlSectionValue(yamlPath, ["footnotes:"], "mode");
+                    int nIdx = dataTab.cmbNotesMode.Items.IndexOf(noteMode);
+                    dataTab.cmbNotesMode.SelectedIndex = nIdx >= 0 ? nIdx : 0;
+
+                    // 1. Зчитуємо значення для Soft Hyphen
+                    bool isSoftHyphen = YamlService.ReadYamlValue(yamlPath, "insert_soft_hyphen").ToLower() == "true";
+                    dataTab.rbSoftHyphenYes.Checked = isSoftHyphen;
+                    dataTab.rbSoftHyphenNo.Checked = !isSoftHyphen;
+
+                    // 2. ВИПРАВЛЕНО: Зчитуємо значення для Remove Transparency
+                    bool isRemoveTransp = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "remove_transparency").ToLower() == "true";
+                    dataTab.rbRemoveTranspYes.Checked = isRemoveTransp;
+                    dataTab.rbRemoveTranspNo.Checked = !isRemoveTransp;
+
+                    // 3. JPEG Quality
+                    string jpegVal = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "jpeg_quality_level");
+                    dataTab.txtJpegQuality.Text = string.IsNullOrEmpty(jpegVal) ? "95" : jpegVal;
+
+                    // 4. Generate Cover
+                    bool isGenCover = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "generate").ToLower() == "true";
+                    dataTab.rbGenCoverYes.Checked = isGenCover;
+                    dataTab.rbGenCoverNo.Checked = !isGenCover;
+                    dataTab.txtCoverPath.Text = YamlService.ReadYamlValue(yamlPath, "default_image_path");
+
+                    string resize = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "resize");
+                    int rIdx = dataTab.cmbResizeCover.Items.IndexOf(resize);
+                    dataTab.cmbResizeCover.SelectedIndex = rIdx >= 0 ? rIdx : 2; // stretch
+
+                    dataTab.rbAnnEnableYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "enable").ToLower() == "true";
+                    dataTab.rbAnnEnableNo.Checked = !dataTab.rbAnnEnableYes.Checked;
+
+                    dataTab.rbAnnInTocYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "in_toc").ToLower() != "false"; // default true
+                    dataTab.rbAnnInTocNo.Checked = !dataTab.rbAnnInTocYes.Checked;
+
+                    string placement = YamlService.ReadYamlSectionValue(yamlPath, ["toc_page:"], "placement");
+                    int pIdx = dataTab.cmbTocPlacement.Items.IndexOf(placement);
+                    dataTab.cmbTocPlacement.SelectedIndex = pIdx >= 0 ? pIdx : 0; // none
+
+                    dataTab.rbDropcapsYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["dropcaps:"], "enable").ToLower() == "true";
+                    dataTab.rbDropcapsNo.Checked = !dataTab.rbDropcapsYes.Checked;
+
+                    return;
+                }
+            }
+            // Дефолти
+            dataTab.txtWidth.Text = "1264";
+            dataTab.txtHeight.Text = "1680";
+            dataTab.txtDpi.Text = "300";
+            dataTab.cmbNotesMode.SelectedIndex = 0;
+
+            dataTab.rbSoftHyphenNo.Checked = true;
+            dataTab.rbRemoveTranspNo.Checked = true;
+            dataTab.txtJpegQuality.Text = "95";
+            dataTab.rbGenCoverNo.Checked = true;
+            dataTab.txtCoverPath.Text = "";
+            dataTab.cmbResizeCover.SelectedIndex = 2; // stretch
+            dataTab.rbAnnEnableNo.Checked = true;
+            dataTab.rbAnnInTocYes.Checked = true; // default true
+            dataTab.cmbTocPlacement.SelectedIndex = 0; // none
+            dataTab.rbDropcapsNo.Checked = true;
+        }
+
         // ========================================================
         // СИНХРОНІЗАЦІЯ LOGGING З YAML
         // ========================================================
@@ -972,53 +1067,47 @@ namespace fb2cng_FullConfig
             logTab.rbLogFolderNo.Checked = true;
         }
 
-
-        private void BtGui_Click(object? sender, EventArgs e)
+        internal void BtnBrowseCover_Click(object? sender, EventArgs e)
         {
-            var runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
-            if (runningProcesses.Length > 0)
+            if (_tabsCache.TryGetValue("metadata:", out UserControl? tab) && tab is MetadataTab dataTab)
             {
-                IntPtr hWnd = runningProcesses[0].MainWindowHandle;
-                if (hWnd != IntPtr.Zero)
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
+                if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    if (Win32Api.IsIconic(hWnd))
-                    {
-                        _ = Win32Api.ShowWindow(hWnd, 9); // SW_RESTORE
-                    }
-
-                    _ = Win32Api.SetForegroundWindow(hWnd);
-                    return;
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    dataTab.txtCoverPath.Text = Path.GetRelativePath(appPath, ofd.FileName).Replace('\\', '/');
                 }
-            }
-
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
-
-            if (File.Exists(exePath))
-            {
-                try
-                {
-                    _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-                }
-                catch (Exception)
-                {
-                    ShowGuiMissingError();
-                }
-            }
-            else
-            {
-                ShowGuiMissingError();
             }
         }
 
-        private void ShowGuiMissingError()
+private void BtGui_Click(object? sender, EventArgs e)
+{
+    string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
+    
+    try
+    {
+        var runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
+        if (runningProcesses.Length > 0)
         {
-            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
-
-            string caption = langDict?.GetValueOrDefault("ErrTitle", "Configuration Error") ?? "Configuration Error";
-            string text = langDict?.GetValueOrDefault("ErrGui", "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!") ?? "GUI program not found: please verify that 'fb2cng_GUI.exe' is present in the application folder!";
-
-            _ = ShowCustomMessageBox(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            IntPtr hWnd = runningProcesses[0].MainWindowHandle;
+            if (hWnd != IntPtr.Zero)
+            {
+                if (Win32Api.IsIconic(hWnd)) Win32Api.ShowWindow(hWnd, 9);
+                Win32Api.SetForegroundWindow(hWnd);
+                return;
+            }
         }
+
+        // ВАЖЛИВО: додаємо WorkingDirectory, щоб GUI не вилітав!
+        Process.Start(new ProcessStartInfo(exePath) 
+        { 
+            UseShellExecute = true,
+            WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory 
+        });
+    }
+    catch { }
+}
 
         private void SaveYamlConfiguration()
         {
@@ -1068,14 +1157,34 @@ namespace fb2cng_FullConfig
                     docTab.chkFb2Name.Checked,             // useFb2Name
                     docTab.chkDefaultName.Checked,         // useDefaultName
                     fieldIndexes,                          // fieldIndexes
-                    folderFlags,                            // folderFlags
-                    dataTab?.chkReaderSize.Checked ?? false, // customSize
-                    dataTab?.txtWidth.Text ?? "1264",      // width
-                    dataTab?.txtHeight.Text ?? "1680",     // height
-                    dataTab?.txtDpi.Text ?? "300",         // dpi
-                    dataTab?.chkNotes.Checked ?? false,    // useNotesMode
-                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default", // notesMode
-                // Параметри Logging
+                    folderFlags,
+                    //Metadata:
+                    dataTab?.chkReaderSize.Checked ?? false,
+                    dataTab?.txtWidth.Text ?? "1264",
+                    dataTab?.txtHeight.Text ?? "1680",
+                    dataTab?.txtDpi.Text ?? "300",
+                    dataTab?.chkNotes.Checked ?? false,
+                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default",
+                    dataTab?.chkSoftHyphen.Checked ?? false,    // useSoftHyphen
+                    dataTab?.rbSoftHyphenYes.Checked ?? false,  // softHyphenVal
+                    dataTab?.chkRemoveTransp.Checked ?? false,  // useRemoveTransp
+                    dataTab?.rbRemoveTranspYes.Checked ?? false,// removeTranspVal
+                    dataTab?.chkJpegQuality.Checked ?? false,   // useJpegQuality
+                    dataTab?.txtJpegQuality.Text ?? "95",       // jpegQuality
+                    dataTab?.chkGenerateCover.Checked ?? false, // useGenCover
+                    dataTab?.rbGenCoverYes.Checked ?? false,    // genCoverVal
+                    dataTab?.txtCoverPath.Text ?? "",           // coverPath
+                    dataTab?.chkResizeCover.Checked ?? false,   // useResizeCover
+                    dataTab?.cmbResizeCover.SelectedItem?.ToString() ?? "stretch", // resizeCover
+                    dataTab?.chkAnnEnable.Checked ?? false,     // useAnnEnable
+                    dataTab?.rbAnnEnableYes.Checked ?? false,   // annEnableVal
+                    dataTab?.chkAnnInToc.Checked ?? false,      // useAnnInToc
+                    dataTab?.rbAnnInTocYes.Checked ?? true,     // annInTocVal (true за замовчуванням)
+                    dataTab?.chkTocPlacement.Checked ?? false,  // useTocPlacement
+                    dataTab?.cmbTocPlacement.SelectedItem?.ToString() ?? "none",   // tocPlacement
+                    dataTab?.chkDropcaps.Checked ?? false,      // useDropcaps
+                    dataTab?.rbDropcapsYes.Checked ?? false,
+                    // Параметри Logging
                     logTab?.chkLogLevel.Checked ?? false,
                     logTab?.cmbLogLevel.SelectedItem?.ToString() ?? "debug",
                     logTab?.chkLogName.Checked ?? false,
