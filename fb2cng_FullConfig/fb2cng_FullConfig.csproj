@@ -11,12 +11,12 @@
 	  <!-- Дозволити Unsafe код у проєкті (Виправляє SYSLIB1062 та CS0227) -->
 	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	  <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>icon_yaml.ico</ApplicationIcon>
 	  <PublishSingleFile>true</PublishSingleFile>
 	  <SelfContained>false</SelfContained>
 	  <!-- Програма використовуватиме встановлений .NET 10 на ПК, тому файл буде маленьким -->
 	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 	  <AssemblyName>fb2cng_Configurator</AssemblyName>
+	  <ApplicationIcon>icon_yaml.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

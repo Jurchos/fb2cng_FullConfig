@@ -1,6 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
-using fb2cng_FullConfig.Templates; // Підключаємо папку з вкладками
+using fb2cng_FullConfig.Templates;
+using fb2cng_FullConfig.Utils;
+using static fb2cng_FullConfig.Utils.UiComponents;
+using fb2cng_FullConfig.Services;
 
 namespace fb2cng_FullConfig
 {
@@ -8,8 +11,14 @@ namespace fb2cng_FullConfig
     public partial class Form1
     {
         // Логічні прапорці захисту від зациклювання графічних подій
-        private bool _isThemeApplying;
         private bool _isChangingStates;
+
+        // Технічні значення для YAML (співпадають за порядком із локалізацією в FillCombo)
+        private static readonly string[] _tocValues = ["normal", "old_kindle", "flat"];
+        private static readonly string[] _noteValues = ["default", "float", "floatRenumbered"];
+        private static readonly string[] _resizeValues = ["none", "keepAR", "stretch"];
+        private static readonly string[] _placementValues = ["none", "before", "after"];
+        private static readonly string[] _logLevels = ["none", "normal", "debug"];
 
         // 1. Керування мовою та локалізацією
         internal void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -34,6 +43,15 @@ namespace fb2cng_FullConfig
         {
             Dictionary<string, string> loc = Config.Localization[Config.Settings.CurrentLanguage];
 
+            // Допоміжний метод для заповнення ComboBox
+            void FillCombo(ComboBox combo, string[] keys)
+            {
+                int selected = combo.SelectedIndex;
+                combo.Items.Clear();
+                foreach (var key in keys) combo.Items.Add(loc.GetValueOrDefault(key, key));
+                combo.SelectedIndex = selected >= 0 ? selected : 0;
+            }
+
             string GetText(string key, string defaultText)
             {
                 return loc.TryGetValue(key, out string? value) ? value : defaultText;
@@ -45,14 +63,12 @@ namespace fb2cng_FullConfig
             btnTheme.Text = GetText("Theme", "Theme");
             btnOk.Text = GetText("Ok", "OK");
             btnCancel.Text = GetText("Cancel", "Cancel");
-            if (btGui != null)
-            {
-                btGui.Text = GetText("Gui", "GUI");
-            }
-            // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "document:"
-            // Звертаємося до елементів всередині DocumentTab, якщо вона створена в кеші
+            btGui?.Text = GetText("Gui", "GUI");
+
+            // ЛОКАЛІЗАЦІЯ ВКЛАДОК
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
+                FillCombo(docTab.cmbTocType, ["Opt_Toc_Normal", "Opt_Toc_OldKindle", "Opt_Toc_Flat"]);
                 docTab.lblLang.Text = GetText("Language", "Language:");
                 docTab.btnDumpConfig.Text = GetText("DumpConfig", "Dump Default Config");
                 docTab.lblConfigName.Text = GetText("ConfigName", "Config Name:");
@@ -60,14 +76,15 @@ namespace fb2cng_FullConfig
                 docTab.chkCss.Text = GetText("CssEnable", "Use Custom CSS");
                 docTab.btnBrowseCss.Text = GetText("Browse", " ...");
                 docTab.btnBrowseCustomYaml.Text = GetText("Browse", " ...");
+                docTab.btnReset.Text = GetText("Reset", " ");
 
-                docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Cover Mode"));
+                docTab.chkCover.SetTextIfNotNull(GetText("TocType", "Navigation hierarchy"));
                 docTab.chkFixZip.SetTextIfNotNull(GetText("FixZip", "Fix Broken ZIP Archives"));
                 docTab.rbFixZipYes.Text = docTab.rbOpenCoverYes.Text = docTab.rbTranslitYes.Text = GetText("Yes", "Yes");
                 docTab.rbFixZipNo.Text = docTab.rbOpenCoverNo.Text = docTab.rbTranslitNo.Text = GetText("No", "No");
 
                 docTab.chkOpenFromCover.SetTextIfNotNull(GetText("OpenCover", "Open from Cover"));
-                                docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
+                docTab.chkTranslit.Text = GetText("Translit", "Transliterate Output Name");
 
                 docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
                 docTab.chkDefaultName.Text = GetText("DefaultName", "Default Filename");
@@ -83,7 +100,10 @@ namespace fb2cng_FullConfig
                 {
                     for (int i = 0; i < 7; i++)
                     {
-                        if (docTab.cmbOutFields[i] == null) continue;
+                        if (docTab.cmbOutFields[i] == null)
+                        {
+                            continue;
+                        }
 
                         docTab.cmbOutFields[i].BeginUpdate();
                         int currSel = docTab.cmbOutFields[i].SelectedIndex;
@@ -100,6 +120,9 @@ namespace fb2cng_FullConfig
             }
             if (_tabsCache.TryGetValue("metadata:", out UserControl? data) && data is MetadataTab dataTab) // Локалізація вкладки "metadata:"
             {
+                FillCombo(dataTab.cmbNotesMode, ["Opt_Note_Default", "Opt_Note_Float", "Opt_Note_FloatRen"]);
+                FillCombo(dataTab.cmbResizeCover, ["Opt_Resize_None", "Opt_Resize_KeepAR", "Opt_Resize_Stretch"]);
+                FillCombo(dataTab.cmbTocPlacement, ["Opt_TocPlace_None", "Opt_TocPlace_Before", "Opt_TocPlace_After"]);
                 dataTab.chkReaderSize.Text = GetText("ReaderSize", "Screen Size");
                 dataTab.lblWidth.Text = GetText("Width", "W:");
                 dataTab.lblHeight.Text = GetText("Height", "H:");
@@ -123,9 +146,9 @@ namespace fb2cng_FullConfig
                 dataTab.rbAnnEnableNo.Text = dataTab.rbAnnInTocNo.Text = dataTab.rbDropcapsNo.Text = GetText("No", "No");
             }
 
-            // ЛОКАЛІЗАЦІЯ ВКЛАДКИ "logging:"
             if (_tabsCache.TryGetValue("logging:", out UserControl? log) && log is LoggingTab logTab)
             {
+                FillCombo(logTab.cmbLogLevel, ["Opt_Log_None", "Opt_Log_Normal", "Opt_Log_Debug"]);
                 logTab.chkLogLevel.Text = GetText("LogLevel", "Logging level:");
                 logTab.chkLogName.Text = GetText("LogName", "Log file name:");
                 logTab.chkPanicLogName.Text = GetText("LogPanicName", "Panic log file name:");
@@ -161,96 +184,56 @@ namespace fb2cng_FullConfig
             }
         }
 
-        // 2. Керування візуальною темою з блокуванням мерехтіння
-        internal void ApplyTheme()
+        public void ApplyTheme()
         {
-            if (_isThemeApplying) return;
-            _isThemeApplying = true;
+            // Передаємо саму форму, хідер, футер, контент-панель та кеш вкладок
+            ThemeManager.Apply(this, headerPanel, footerPanel, pnlContent, _tabsCache);
+        }
 
-            SuspendLayout();
+        internal void BtnReset_Click(object? sender, EventArgs e)
+        {
+            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            try
+            string msgTitle = langDict?.GetValueOrDefault("ResetTitle", "Reset Settings") ?? "Reset Settings";
+            string msgText = langDict?.GetValueOrDefault("ResetConfirm", "Are you sure you want to reset all settings?") ?? "Are you sure you want to reset all settings?";
+
+            // Викликаємо кастомне вікно
+            DialogResult result = ShowCustomMessageBox(msgText, msgTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
             {
-                bool isDark = Config.IsDarkTheme;
-                Color darkBg = Color.FromArgb(37, 37, 38);
-                Color elementBg = Color.FromArgb(45, 45, 48);
-                Color textWhite = Color.FromArgb(245, 245, 245);
-                Color textGray = Color.FromArgb(140, 140, 140);
-                Color limeAccent = Color.Lime;
-
-                // Основний фон вікна
-                BackColor = isDark ? darkBg : SystemColors.Control;
-
-                headerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
-                footerPanel.BackColor = isDark ? elementBg : SystemColors.ControlLight;
-
-                SetControlsTheme(headerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
-                SetControlsTheme(footerPanel, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
-
-                // Фарбуємо всі закешовані вкладки
-                foreach (Control activeTab in pnlContent.Controls)
+                try
                 {
-                    // ВИПРАВЛЕННЯ: Встановлюємо фоном SystemColors.Window (Білий у світлій темі)
-                    activeTab.BackColor = isDark ? darkBg : SystemColors.Window;
+                    string currentExePath = Environment.ProcessPath
+                        ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe");
 
-                    if (activeTab is DocumentTab docTab)
+                    _ = Process.Start(new ProcessStartInfo
                     {
-                        docTab.scrollMenuPanel.BackColor = activeTab.BackColor;
-                        docTab.grpOutName.BackColor = activeTab.BackColor;
-                    }
+                        FileName = currentExePath,
+                        UseShellExecute = true
+                    });
 
-                    // Також перевіряємо MetadataTab, якщо потрібно (тепер він успадкує BackColor вкладки)
-                    SetControlsTheme(activeTab, isDark ? textWhite : SystemColors.ControlText, isDark ? textGray : SystemColors.GrayText, isDark ? elementBg : SystemColors.Window, isDark ? limeAccent : SystemColors.HotTrack, isDark);
+                    Close();
+                }
+                catch (Exception ex)
+                {
+                    Config.LogError("Application reset/restart failed", ex); // Додаємо логування
+                    string errTitle = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
+                    _ = ShowCustomMessageBox($"Reset Error:\n\n{ex.Message}\n\nDetails can be found in logs/Conf_errors.log",
+                        errTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-            finally
-            {
-                ResumeLayout(true);
-                _isThemeApplying = false;
-            }
         }
 
-        private void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
-        {
-            if (e.Index < 0 || sender is not ComboBox cb)
-            {
-                return;
-            }
-
-            bool isControlDisabled = !cb.Enabled || (cb.Parent != null && !cb.Parent.Enabled);
-            e.DrawBackground();
-
-            Color drawTextColor = isControlDisabled ? Color.FromArgb(140, 140, 140) : cb.ForeColor;
-
-            if (isControlDisabled)
-            {
-                // Задаємо колір фону для заблокованого стану залежно від поточної теми
-                Color bgDisabledColor = Config.IsDarkTheme ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
-                using SolidBrush bgBrush = new(bgDisabledColor);
-                e.Graphics.FillRectangle(bgBrush, e.Bounds);
-            }
-
-            TextRenderer.DrawText(
-                e.Graphics,
-                cb.Items[e.Index]?.ToString() ?? string.Empty,
-                cb.Font,
-                e.Bounds,
-                drawTextColor,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.Left
-            );
-
-            if (!isControlDisabled)
-            {
-                e.DrawFocusRectangle();
-            }
-        }
-
-        // Додаємо новий метод вибору YAML файлу:
+        // Метод вибору YAML файлу:
         internal void BtnBrowseCustomYaml_Click(object? sender, EventArgs e)
         {
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
-                if (!docTab.chkCustomYaml.Checked) return;
+                if (!docTab.chkCustomYaml.Checked)
+                {
+                    return;
+                }
 
                 using OpenFileDialog ofd = new();
                 ofd.Filter = "YAML Files (*.yaml;*.yml)|*.yaml;*.yml|All Files (*.*)|*.*";
@@ -292,7 +275,11 @@ namespace fb2cng_FullConfig
 
         internal void ChkFb2Name_CheckedChanged(object? sender, EventArgs e)
         {
-            if (_isChangingStates) return;
+            if (_isChangingStates)
+            {
+                return;
+            }
+
             _isChangingStates = true;
 
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
@@ -303,10 +290,9 @@ namespace fb2cng_FullConfig
                     // 1. Блокуємо чекбокс "Назва за замовчуванням"
                     docTab.chkDefaultName.Enabled = !isFb2Enabled;
 
-                    // GroupBox ЗАЛИШАЄМО ENABLED = TRUE
                     docTab.grpOutName.Enabled = true;
 
-                    // 2. ВИМИКАЄМО ТІЛЬКИ ЕЛЕМЕНТИ ВСЕРЕДИНІ
+                    // 2. Вимикаємо тільки елементи всередині GroupBox, якщо FB2 Name увімкнено
                     for (int i = 0; i < 7; i++)
                     {
                         docTab.cmbOutFields![i].Enabled = !isFb2Enabled;
@@ -319,7 +305,10 @@ namespace fb2cng_FullConfig
                         }
                     }
 
-                    if (!isFb2Enabled) CmbOutFields_SelectedIndexChanged(0);
+                    if (!isFb2Enabled)
+                    {
+                        CmbOutFields_SelectedIndexChanged(0);
+                    }
                 }
                 finally { _isChangingStates = false; }
 
@@ -329,7 +318,11 @@ namespace fb2cng_FullConfig
 
         internal void ChkDefaultName_CheckedChanged(object? sender, EventArgs e)
         {
-            if (_isChangingStates) return;
+            if (_isChangingStates)
+            {
+                return;
+            }
+
             _isChangingStates = true;
 
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
@@ -338,17 +331,13 @@ namespace fb2cng_FullConfig
                 {
                     bool isDefaultEnabled = docTab.chkDefaultName.Checked;
 
-                    // Блокуємо чекбокс FB2 Name
                     docTab.chkFb2Name.Enabled = !isDefaultEnabled;
-
-                    // 1. САМ GroupBox ЗАЛИШАЄМО ENABLED = TRUE
                     docTab.grpOutName.Enabled = true;
 
                     for (int i = 0; i < 7; i++)
                     {
                         docTab.cmbOutFields![i].Enabled = !isDefaultEnabled;
                         docTab.chkAsFolder![i].Enabled = !isDefaultEnabled;
-
 
                         if (isDefaultEnabled)
                         {
@@ -365,350 +354,6 @@ namespace fb2cng_FullConfig
                 ApplyTheme();
             }
         }
-        private void SetControlsTheme(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark)
-        {
-            DocumentTab? docTab = _tabsCache.TryGetValue("document:", out UserControl? tab) ? tab as DocumentTab : null;
-
-            // Додаємо перевірку обох чекбоксів
-            bool isFb2NameChecked = docTab?.chkFb2Name.Checked ?? false;
-            bool isDefaultNameChecked = docTab?.chkDefaultName.Checked ?? false;
-
-            // Якщо хоча б один з них увімкнений — назва заблокована
-            bool isNamingLocked = isFb2NameChecked || isDefaultNameChecked;
-
-            bool isCssChecked = docTab?.chkCss.Checked ?? false;
-
-            SetControlsThemeRecursive(parent, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
-        }
-
-        private void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark, DocumentTab? docTab, bool isNamingLocked, bool isCssChecked)
-        {
-            Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
-            Control? currentGrpOutName = docTab?.grpOutName;
-            bool isOutNameDisabled = isNamingLocked || (docTab != null && !docTab.grpOutName.Enabled);
-
-            foreach (Control c in parent.Controls)
-            {
-                // Логіка визначення, чи вимкнено контроль (для кольору тексту)
-                bool isControlDisabled = !c.Enabled
-                    || (currentGrpOutName != null && (c.Parent == currentGrpOutName || c.Parent?.Parent == currentGrpOutName) && isOutNameDisabled)
-                    || (isDark && c == currentBrowseCssBtn && !isCssChecked);
-
-                if (c is GroupBox gb)
-                {
-                    // Колір заголовка групи
-                    gb.BackColor = parent.BackColor;
-                    gb.ForeColor = isNamingLocked ? disabledColor : (isDark ? foreColor : SystemColors.ControlText);
-                }
-                else if (c is Label lbl)
-                {
-                    lbl.ForeColor = isControlDisabled ? disabledColor : foreColor;
-                    lbl.BackColor = Color.Transparent;
-                }
-                else if (c is CheckBox chk)
-                {
-                    // Спеціальний колір для "Fold", якщо він не заблокований
-                    chk.ForeColor = !isControlDisabled && chk.Tag?.ToString() == "FolderCheckBox" ? folderColor : (isControlDisabled ? disabledColor : foreColor);
-                    chk.BackColor = Color.Transparent;
-                }
-                else if (c is TextBox txt)
-                {
-                    txt.BackColor = backColor;
-                    txt.ForeColor = isControlDisabled ? disabledColor : foreColor;
-                }
-                else if (c is Button btn)
-                {
-                    btn.FlatStyle = FlatStyle.Flat;
-                    btn.FlatAppearance.BorderSize = 0;
-
-                    bool isBrowseBtn = (btn == docTab?.btnBrowseCss) || (btn == docTab?.btnBrowseCustomYaml);
-                    bool isParentChecked = (btn == docTab?.btnBrowseCss && isCssChecked) ||
-                                           (btn == docTab?.btnBrowseCustomYaml && (docTab?.chkCustomYaml.Checked ?? false));
-                    if (isDark)
-                    {
-                        btn.BackColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(40, 40, 42) : backColor;
-                        btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : foreColor;
-                        btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
-                    }
-                    else
-                    {
-                        btn.BackColor = SystemColors.Control;
-                        btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : SystemColors.ControlText;
-                        btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.LightGray : Color.DarkGray;
-                    }
-                }
-                else if (c is RadioButton rb)
-                {
-                    rb.ForeColor = isControlDisabled ? disabledColor : foreColor;
-                    rb.BackColor = Color.Transparent;
-                }
-                else if (c is ComboBox cb)
-                {
-                    cb.BackColor = backColor;
-                    cb.ForeColor = isControlDisabled ? disabledColor : foreColor;
-                    cb.FlatStyle = isDark ? FlatStyle.Flat : FlatStyle.Standard;
-                    cb.DrawMode = isDark ? DrawMode.OwnerDrawFixed : DrawMode.Normal;
-                    cb.DrawItem -= ComboBox_DrawItem;
-                    if (isDark) cb.DrawItem += ComboBox_DrawItem;
-                }
-
-                if (c.HasChildren)
-                    SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
-            }
-        }
-
-        public DialogResult ShowCustomMessageBox(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            using Form msgForm = new();
-            // Використовуємо нашу глобальну змінну теми
-            bool isDark = Config.IsDarkTheme;
-
-            // Визначаємо українську мову з нашого глобального конфігу
-            bool isUa = Config.Settings.CurrentLanguage == "Ukrainian";
-
-            msgForm.Text = caption;
-            msgForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-            msgForm.MaximizeBox = false;
-            msgForm.MinimizeBox = false;
-            msgForm.StartPosition = FormStartPosition.CenterScreen;
-            msgForm.Font = new Font("Segoe UI", 10F);
-            msgForm.BackColor = isDark ? Color.FromArgb(24, 24, 24) : Color.FromArgb(245, 245, 245);
-
-            // --- 1. АВТОМАТИЧНЕ ВИЗНАЧЕННЯ МАСШТАБУ DPI ---
-            float currentScale = msgForm.Font.Height / 18f;
-
-            // --- 2. МАСШТАБОВАНІ ВІДСТУПИ ТА РОЗМІРИ ---
-            int paddingTop = (int)(18 * currentScale);
-            int paddingMiddle = (int)(15 * currentScale);
-            int paddingBottom = (int)(12 * currentScale);
-            int buttonHeight = (int)(32 * currentScale);
-            int buttonWidth = (int)(100 * currentScale);
-
-            // Збільшуємо базову ширину, якщо є іконка, щоб текст вміщався
-            int baseWidth = (icon != MessageBoxIcon.None) ? 360 : 330;
-            int calculatedWidth = (int)(baseWidth * currentScale);
-            msgForm.ClientSize = new Size(calculatedWidth, msgForm.ClientSize.Height);
-
-            // Налаштування іконки
-            PictureBox? picIcon = null;
-            // Зменшуємо базовий розмір іконки до 24 для компактності
-            int iconSize = (int)(24 * currentScale);
-            int textTopOffset = paddingTop;
-
-            if (icon != MessageBoxIcon.None)
-            {
-                picIcon = new PictureBox
-                {
-                    Size = new Size(iconSize, iconSize),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    // ЦЕНТРУЄМО ІКОНКУ ПО ГОРИЗОНТАЛІ
-                    Location = new Point((msgForm.ClientSize.Width - iconSize) / 2, paddingTop)
-                };
-
-                // Малюємо компактні векторні іконки
-                Bitmap bmp = new(iconSize, iconSize);
-                using (Graphics g = Graphics.FromImage(bmp))
-                {
-                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-                    // Спрощуємо перевірки, оскільки Hand/Stop — це те саме, що й Error
-                    if (icon == MessageBoxIcon.Error)
-                    {
-                        g.FillEllipse(Brushes.Crimson, 0, 0, iconSize - 1, iconSize - 1);
-                        using Pen pen = new(Color.White, 2.5f);
-                        int offset = iconSize / 4;
-                        g.DrawLine(pen, offset, offset, iconSize - offset, iconSize - offset);
-                        g.DrawLine(pen, iconSize - offset, offset, offset, iconSize - offset);
-                    }
-                    // Asterisk — це те саме, що й Information
-                    else if (icon == MessageBoxIcon.Information)
-                    {
-                        Color infoColor = isDark ? Color.FromArgb(0, 140, 255) : Color.FromArgb(0, 102, 204);
-                        using Brush infoBrush = new SolidBrush(infoColor);
-                        g.FillEllipse(infoBrush, 0, 0, iconSize - 1, iconSize - 1);
-
-                        // Виносимо створення шрифту в using, щоб уникнути витоку пам'яті
-                        using Font infoFont = new("Georgia", 12F, FontStyle.Bold | FontStyle.Italic);
-                        g.DrawString("i", infoFont, Brushes.White, new PointF(iconSize * 0.26f, iconSize * 0.08f));
-                    }
-                    // Exclamation — це те саме, що й Warning
-                    else if (icon == MessageBoxIcon.Warning)
-                    {
-                        PointF[] points = [new(iconSize / 2f, 0), new(0, iconSize - 1), new(iconSize - 1, iconSize - 1)];
-                        g.FillPolygon(Brushes.Orange, points);
-
-                        // Виносимо створення шрифту в using, щоб уникнути витоку пам'яті
-                        using Font warningFont = new("Segoe UI", 11F, FontStyle.Bold);
-                        g.DrawString("!", warningFont, Brushes.White, new PointF(iconSize * 0.35f, iconSize * 0.18f));
-                    }
-                }
-                picIcon.Image = bmp;
-                msgForm.Controls.Add(picIcon);
-
-                // Зменшений відступ тексту від нижнього краю іконки (усього 6 пікселів, масштабованих під DPI)
-                textTopOffset = picIcon.Bottom + (int)(6 * currentScale);
-            }
-
-            // Налаштування RichTextBox для тексту
-            RichTextBox rtbText = new()
-            {
-                Text = text,
-                Width = msgForm.ClientSize.Width - (int)(32 * currentScale),
-                ForeColor = isDark ? Color.White : Color.Black,
-                BackColor = msgForm.BackColor,
-                BorderStyle = BorderStyle.None,
-                ReadOnly = true,
-                ScrollBars = RichTextBoxScrollBars.None,
-                TabStop = false,
-                TabIndex = 99
-            };
-
-            // ТЕКСТ ЗАВЖДИ ПО ЦЕНТРУ
-            rtbText.SelectAll();
-            rtbText.SelectionAlignment = HorizontalAlignment.Center;
-            rtbText.DeselectAll();
-
-            rtbText.MouseDown += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); _ = msgForm.Focus(); };
-            rtbText.GotFocus += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); };
-
-            msgForm.Controls.Add(rtbText);
-
-            // --- 3. ДИНАМІЧНИЙ РОЗРАХУНОК ВИСОТИ ТЕКСТУ ---
-            int lastCharIndex = rtbText.TextLength > 0 ? rtbText.TextLength - 1 : 0;
-            Point lastCharPos = rtbText.GetPositionFromCharIndex(lastCharIndex);
-            int textHeight = lastCharPos.Y + rtbText.Font.Height + (int)(10 * currentScale);
-
-            int minTextHeight = (int)(40 * currentScale);
-            if (textHeight < minTextHeight)
-            {
-                textHeight = minTextHeight;
-            }
-
-            rtbText.Height = textHeight;
-
-            // Позиціонуємо текст суворо по центру вікна по горизонталі, а по вертикалі — нижче іконки
-            rtbText.Location = new Point((msgForm.ClientSize.Width - rtbText.Width) / 2, textTopOffset);
-
-            // Розраховуємо фінальну Y-координату для кнопок під текстом
-            int buttonsY = rtbText.Bottom + paddingMiddle;
-
-            Color btnBg = isDark ? Color.FromArgb(50, 50, 50) : Color.FromArgb(230, 230, 230);
-            Color btnTextCol = isDark ? Color.White : Color.Black;
-            Color accentBg = isDark ? Color.FromArgb(0, 102, 204) : Color.FromArgb(0, 120, 215);
-
-            Button? primaryButton = null;
-
-            if (buttons == MessageBoxButtons.OK)
-            {
-                Button btnOkCustom = new()
-                {
-                    Text = "OK",
-                    DialogResult = DialogResult.OK,
-                    Size = new Size(buttonWidth, buttonHeight),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = accentBg,
-                    ForeColor = Color.White,
-                    TabIndex = 0
-                };
-                btnOkCustom.FlatAppearance.BorderSize = 0;
-                UiStyles.MakeButtonRounded(btnOkCustom, (int)(4 * currentScale)); // Використовуємо ваш покращений метод
-
-                btnOkCustom.Location = new Point((msgForm.ClientSize.Width - btnOkCustom.Width) / 2, buttonsY);
-
-                msgForm.Controls.Add(btnOkCustom);
-                msgForm.AcceptButton = btnOkCustom;
-                primaryButton = btnOkCustom;
-            }
-            else if (buttons == MessageBoxButtons.OKCancel)
-            {
-                Button btnOkCustom = new()
-                {
-                    Text = "OK",
-                    DialogResult = DialogResult.OK,
-                    Size = new Size(buttonWidth, buttonHeight),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = accentBg,
-                    ForeColor = Color.White,
-                    TabIndex = 0
-                };
-                btnOkCustom.FlatAppearance.BorderSize = 0;
-                UiStyles.MakeButtonRounded(btnOkCustom, (int)(4 * currentScale));
-
-                Button btnCancelCustom = new()
-                {
-                    Text = isUa ? "Скасувати" : "Cancel",
-                    DialogResult = DialogResult.Cancel,
-                    Size = new Size(buttonWidth, buttonHeight),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = btnBg,
-                    ForeColor = btnTextCol,
-                    TabIndex = 1
-                };
-                btnCancelCustom.FlatAppearance.BorderColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(200, 200, 200);
-                UiStyles.MakeButtonRounded(btnCancelCustom, (int)(4 * currentScale));
-
-                int spacing = (int)(15 * currentScale);
-                int totalButtonsWidth = btnOkCustom.Width + spacing + btnCancelCustom.Width;
-                int startX = (msgForm.ClientSize.Width - totalButtonsWidth) / 2;
-
-                btnOkCustom.Location = new Point(startX, buttonsY);
-                btnCancelCustom.Location = new Point(startX + btnOkCustom.Width + spacing, buttonsY);
-
-                msgForm.Controls.AddRange([btnOkCustom, btnCancelCustom]);
-                msgForm.AcceptButton = btnOkCustom;
-                msgForm.CancelButton = btnCancelCustom;
-                primaryButton = btnOkCustom;
-            }
-
-            int finalHeight = buttonsY + buttonHeight + paddingBottom;
-            msgForm.ClientSize = new Size(calculatedWidth, finalHeight);
-
-            Rectangle primaryScreen = Screen.FromControl(this).Bounds;
-            msgForm.Location = new Point(
-                primaryScreen.Left + ((primaryScreen.Width - msgForm.Width) / 2),
-                primaryScreen.Top + ((primaryScreen.Height - msgForm.Height) / 2)
-            );
-
-            msgForm.StartPosition = FormStartPosition.CenterScreen;
-            msgForm.TopMost = true;
-
-            msgForm.Shown += (s, e) =>
-            {
-                try
-                {
-                    IntPtr msgFormHandle = msgForm.Handle;
-                    IntPtr foregroundWindowHandle = Win32Api.GetForegroundWindow();
-                    uint foregroundThreadId = Win32Api.GetWindowThreadProcessId(foregroundWindowHandle, IntPtr.Zero);
-                    uint currentThreadId = Win32Api.GetCurrentThreadId();
-
-                    if (foregroundThreadId != currentThreadId && foregroundThreadId != 0)
-                    {
-                        _ = Win32Api.AttachThreadInput(currentThreadId, foregroundThreadId, true);
-                        _ = Win32Api.SetForegroundWindow(msgFormHandle);
-                        _ = Win32Api.SetActiveWindow(msgFormHandle);
-                        msgForm.Activate();
-                        _ = Win32Api.AttachThreadInput(currentThreadId, foregroundThreadId, false);
-                    }
-                    else
-                    {
-                        _ = Win32Api.SetForegroundWindow(msgFormHandle);
-                        _ = Win32Api.SetActiveWindow(msgFormHandle);
-                        msgForm.Activate();
-                    }
-                }
-                catch { }
-
-                if (primaryButton != null)
-                {
-                    _ = primaryButton.Focus();
-                }
-
-                _ = msgForm.BeginInvoke(new Action(() => { _ = Win32Api.HideCaret(rtbText.Handle); }));
-            };
-
-            return msgForm.ShowDialog();
-        }
-
 
         internal void CmbOutFields_SelectedIndexChanged(int index)
         {
@@ -770,6 +415,7 @@ namespace fb2cng_FullConfig
             {
                 if (!YamlService.IsEngineAvailable())
                 {
+                    Config.LogError("DumpConfig failed: fbc.exe is missing in the application folder.");
                     string caption = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
                     string text = langDict?.GetValueOrDefault("ErrFbc", "Error: fbc.exe not found!") ?? "Error: fbc.exe not found!";
 
@@ -816,7 +462,7 @@ namespace fb2cng_FullConfig
             else
             {
                 // Якщо вимкнено - повертаємо стандарт
-                docTab.txtConfigName.Text = "config.yaml";
+                docTab.txtConfigName.Text = "Data/config.yaml";
             }
         }
 
@@ -826,7 +472,10 @@ namespace fb2cng_FullConfig
             {
                 // ВАЖЛИВО: Якщо користувач вже обрав файл (поле не порожнє), 
                 // ми не затираємо його автоматично при кожному кліку чекбокса.
-                if (!string.IsNullOrEmpty(docTab.txtCssPath.Text)) return;
+                if (!string.IsNullOrEmpty(docTab.txtCssPath.Text))
+                {
+                    return;
+                }
 
                 string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
                 if (!string.IsNullOrEmpty(yamlPath))
@@ -863,10 +512,12 @@ namespace fb2cng_FullConfig
 
                         if (!string.IsNullOrEmpty(value))
                         {
-                            int index = docTab.cmbCoverMode.Items.IndexOf(value);
+                            // Мапимо технічне значення назад на індекс
+                            string[] techValues = ["normal", "old_kindle", "flat"];
+                            int index = Array.IndexOf(techValues, value);
                             if (index >= 0)
                             {
-                                docTab.cmbCoverMode.SelectedIndex = index;
+                                docTab.cmbTocType.SelectedIndex = index;
                                 return; // Виходимо, якщо значення успішно знайдено і встановлено
                             }
                         }
@@ -875,9 +526,9 @@ namespace fb2cng_FullConfig
             }
 
             // СКИНУТИ до значення за замовчуванням ("normal"), якщо галочка знята або файл не знайдено
-            if (docTab.cmbCoverMode.Items.Count > 0)
+            if (docTab.cmbTocType.Items.Count > 0)
             {
-                docTab.cmbCoverMode.SelectedIndex = 0; // Перший пункт зазвичай "normal"
+                docTab.cmbTocType.SelectedIndex = 0; // Перший пункт зазвичай "normal"
             }
         }
 
@@ -891,23 +542,23 @@ namespace fb2cng_FullConfig
                     string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
                     if (File.Exists(fullPath))
                     {
-                        string fixZip = YamlService.ReadYamlValue(fullPath, "fix_zip").ToLower();
-                        string openCover = YamlService.ReadYamlValue(fullPath, "open_from_cover").ToLower();
-                        string translit = YamlService.ReadYamlValue(fullPath, "file_name_transliterate").ToLower();
+                        string fixZip = YamlService.ReadYamlValue(fullPath, "fix_zip").ToLowerInvariant();
+                        string openCover = YamlService.ReadYamlValue(fullPath, "open_from_cover").ToLowerInvariant();
+                        string translit = YamlService.ReadYamlValue(fullPath, "file_name_transliterate").ToLowerInvariant();
 
-                        docTab.rbFixZipYes.Checked = (fixZip == "true");
-                        docTab.rbFixZipNo.Checked = (fixZip != "true"); // за замовчуванням false
+                        docTab.rbFixZipYes.Checked = fixZip == "true";
+                        docTab.rbFixZipNo.Checked = fixZip != "true"; // за замовчуванням false
 
-                        docTab.rbOpenCoverYes.Checked = (openCover == "true");
-                        docTab.rbOpenCoverNo.Checked = (openCover != "true");
+                        docTab.rbOpenCoverYes.Checked = openCover == "true";
+                        docTab.rbOpenCoverNo.Checked = openCover != "true";
 
-                        docTab.rbTranslitYes.Checked = (translit == "true");
-                        docTab.rbTranslitNo.Checked = (translit != "true");
+                        docTab.rbTranslitYes.Checked = translit == "true";
+                        docTab.rbTranslitNo.Checked = translit != "true";
                         return;
                     }
                 }
             }
-            // СКИНУТИ, якщо галочка "Редагувати..." знята
+            // дефолтні, якщо галочка "Редагувати..." знята
             docTab.rbFixZipNo.Checked = true;
             docTab.rbOpenCoverNo.Checked = true;
             docTab.rbTranslitNo.Checked = true;
@@ -915,7 +566,10 @@ namespace fb2cng_FullConfig
 
         private void SyncMetadataWithYaml(DocumentTab docTab)
         {
-            if (!_tabsCache.TryGetValue("metadata:", out UserControl? m) || m is not MetadataTab dataTab) return;
+            if (!_tabsCache.TryGetValue("metadata:", out UserControl? m) || m is not MetadataTab dataTab)
+            {
+                return;
+            }
 
             if (docTab.chkCustomYaml.Checked)
             {
@@ -923,21 +577,22 @@ namespace fb2cng_FullConfig
                 if (File.Exists(yamlPath))
                 {
                     // Наявні (Reader Size & Footnotes)
-                    dataTab.txtWidth.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "width") switch { "" => "1264", string s => s };
-                    dataTab.txtHeight.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "height") switch { "" => "1680", string s => s };
-                    dataTab.txtDpi.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "dpi") switch { "" => "300", string s => s };
+                    dataTab.txtWidth.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "width") switch { "" => "1264", var s => s };
+                    dataTab.txtHeight.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "height") switch { "" => "1680", var s => s };
+                    dataTab.txtDpi.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "dpi") switch { "" => "300", var s => s };
 
                     string noteMode = YamlService.ReadYamlSectionValue(yamlPath, ["footnotes:"], "mode");
+                    string[] noteValues = ["default", "float", "floatRenumbered"];
                     int nIdx = dataTab.cmbNotesMode.Items.IndexOf(noteMode);
                     dataTab.cmbNotesMode.SelectedIndex = nIdx >= 0 ? nIdx : 0;
 
                     // 1. Зчитуємо значення для Soft Hyphen
-                    bool isSoftHyphen = YamlService.ReadYamlValue(yamlPath, "insert_soft_hyphen").ToLower() == "true";
+                    bool isSoftHyphen = string.Equals(YamlService.ReadYamlValue(yamlPath, "insert_soft_hyphen"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbSoftHyphenYes.Checked = isSoftHyphen;
                     dataTab.rbSoftHyphenNo.Checked = !isSoftHyphen;
 
-                    // 2. ВИПРАВЛЕНО: Зчитуємо значення для Remove Transparency
-                    bool isRemoveTransp = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "remove_transparency").ToLower() == "true";
+                    // 2. Зчитуємо значення для Remove Transparency
+                    bool isRemoveTransp = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "remove_transparency"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbRemoveTranspYes.Checked = isRemoveTransp;
                     dataTab.rbRemoveTranspNo.Checked = !isRemoveTransp;
 
@@ -946,7 +601,7 @@ namespace fb2cng_FullConfig
                     dataTab.txtJpegQuality.Text = string.IsNullOrEmpty(jpegVal) ? "95" : jpegVal;
 
                     // 4. Generate Cover
-                    bool isGenCover = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "generate").ToLower() == "true";
+                    bool isGenCover = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "generate"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbGenCoverYes.Checked = isGenCover;
                     dataTab.rbGenCoverNo.Checked = !isGenCover;
                     dataTab.txtCoverPath.Text = YamlService.ReadYamlValue(yamlPath, "default_image_path");
@@ -955,17 +610,17 @@ namespace fb2cng_FullConfig
                     int rIdx = dataTab.cmbResizeCover.Items.IndexOf(resize);
                     dataTab.cmbResizeCover.SelectedIndex = rIdx >= 0 ? rIdx : 2; // stretch
 
-                    dataTab.rbAnnEnableYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "enable").ToLower() == "true";
+                    dataTab.rbAnnEnableYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbAnnEnableNo.Checked = !dataTab.rbAnnEnableYes.Checked;
 
-                    dataTab.rbAnnInTocYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "in_toc").ToLower() != "false"; // default true
+                    dataTab.rbAnnInTocYes.Checked = !string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["annotation:"], "in_toc"), "false", StringComparison.OrdinalIgnoreCase); // default true
                     dataTab.rbAnnInTocNo.Checked = !dataTab.rbAnnInTocYes.Checked;
 
                     string placement = YamlService.ReadYamlSectionValue(yamlPath, ["toc_page:"], "placement");
                     int pIdx = dataTab.cmbTocPlacement.Items.IndexOf(placement);
                     dataTab.cmbTocPlacement.SelectedIndex = pIdx >= 0 ? pIdx : 0; // none
 
-                    dataTab.rbDropcapsYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["dropcaps:"], "enable").ToLower() == "true";
+                    dataTab.rbDropcapsYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["dropcaps:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbDropcapsNo.Checked = !dataTab.rbDropcapsYes.Checked;
 
                     return;
@@ -1040,7 +695,10 @@ namespace fb2cng_FullConfig
                             string cleanRead = hasF ? dest[5..] : dest;
                             // Виклик логіки з Program.cs
                             int idx = YamlService.GetTemplateIndex(cleanRead, YamlService.LogNameValues);
-                            if (idx >= 0) logTab.cmbLogName.SelectedIndex = idx;
+                            if (idx >= 0)
+                            {
+                                logTab.cmbLogName.SelectedIndex = idx;
+                            }
                         }
 
                         // 4. PANIC ШАБЛОН (тепер через GetTemplateIndex)
@@ -1081,127 +739,134 @@ namespace fb2cng_FullConfig
             }
         }
 
-private void BtGui_Click(object? sender, EventArgs e)
-{
-    string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
+        private void BtGui_Click(object? sender, EventArgs e)
+         {
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
     
-    try
-    {
-        var runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
-        if (runningProcesses.Length > 0)
-        {
-            IntPtr hWnd = runningProcesses[0].MainWindowHandle;
-            if (hWnd != IntPtr.Zero)
+             try
             {
-                if (Win32Api.IsIconic(hWnd)) Win32Api.ShowWindow(hWnd, 9);
-                Win32Api.SetForegroundWindow(hWnd);
-                return;
-            }
-        }
-
-        // ВАЖЛИВО: додаємо WorkingDirectory, щоб GUI не вилітав!
-        Process.Start(new ProcessStartInfo(exePath) 
-        { 
-            UseShellExecute = true,
-            WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory 
-        });
-    }
-    catch { }
-}
-
-        private void SaveYamlConfiguration()
-        {
-            // Одразу витягуємо з кешу та перевіряємо, чи є перший таб документом
-            if (_tabsCache.TryGetValue("document:", out UserControl? doc) && doc is DocumentTab docTab)
-            {
-                // ініціалізація фіксованих масивів у .NET 10 за допомогою Inline Arrays або реплікації
-                int[] fieldIndexes = new int[7];
-                bool[] folderFlags = new bool[7];
-
-                if (docTab.cmbOutFields != null && docTab.chkAsFolder != null)
+                Process[] runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
+                if (runningProcesses.Length > 0)
                 {
-                    for (int i = 0; i < 7; i++)
+                    IntPtr hWnd = runningProcesses[0].MainWindowHandle;
+                    if (hWnd != IntPtr.Zero)
                     {
-                        fieldIndexes[i] = docTab.cmbOutFields[i].SelectedIndex;
-                        folderFlags[i] = docTab.chkAsFolder[i].Checked;
+                        if (Win32Api.IsIconic(hWnd))
+                        {
+                            _ = Win32Api.ShowWindow(hWnd, 9);
+                        }
+
+                        _ = Win32Api.SetForegroundWindow(hWnd);
+                        return;
                     }
                 }
 
-                // Безпечно дістаємо інші таби з кешу (якщо їх немає, змінні будуть null, що коректно обробляється через `?.`)
-                MetadataTab? dataTab = _tabsCache.TryGetValue("metadata:", out UserControl? data) ? data as MetadataTab : null;
-                LoggingTab? logTab = _tabsCache.TryGetValue("logging:", out UserControl? log) ? log as LoggingTab : null;
-
-
-                // Визначаємо вибрані шаблони назв логів
-                int logIdx = logTab?.cmbLogName.SelectedIndex ?? 0;
-                string logTmpl = (logIdx >= 0 && logIdx < YamlService.LogNameValues.Length) ? YamlService.LogNameValues[logIdx] : YamlService.LogNameValues[0];
-
-                int panicIdx = logTab?.cmbPanicLogName.SelectedIndex ?? 0;
-                string panicLogTmpl = (panicIdx >= 0 && panicIdx < YamlService.PanicLogNameValues.Length) ? YamlService.PanicLogNameValues[panicIdx] : YamlService.PanicLogNameValues[0];
-
-                // 2. Виклик сервісу з ПРАВИЛЬНИМ ПОРЯДКОМ АРГУМЕНТІВ
-                bool saved = YamlService.SaveConfiguration(
-                    docTab.txtConfigName.Text,             // configName
-                    docTab.chkCustomYaml.Checked,          // useCustomYaml
-                    docTab.txtCustomYamlPath.Text,         // customYamlPath
-                    docTab.chkCss.Checked,                 // useCss
-                    docTab.txtCssPath.Text,                // cssPath
-                    docTab.chkCover.Checked,               // useCoverMode
-                    docTab.cmbCoverMode.SelectedItem?.ToString() ?? "normal", // coverMode
-                    docTab.chkFixZip.Checked,              // saveFixZip
-                    docTab.rbFixZipYes.Checked,            // fixZipVal
-                    docTab.chkOpenFromCover.Checked,       // saveOpenCover
-                    docTab.rbOpenCoverYes.Checked,         // openCoverVal
-                    docTab.chkTranslit.Checked,            // saveTranslit
-                    docTab.rbTranslitYes.Checked,          // translitVal
-                    docTab.chkFb2Name.Checked,             // useFb2Name
-                    docTab.chkDefaultName.Checked,         // useDefaultName
-                    fieldIndexes,                          // fieldIndexes
-                    folderFlags,
-                    //Metadata:
-                    dataTab?.chkReaderSize.Checked ?? false,
-                    dataTab?.txtWidth.Text ?? "1264",
-                    dataTab?.txtHeight.Text ?? "1680",
-                    dataTab?.txtDpi.Text ?? "300",
-                    dataTab?.chkNotes.Checked ?? false,
-                    dataTab?.cmbNotesMode.SelectedItem?.ToString() ?? "default",
-                    dataTab?.chkSoftHyphen.Checked ?? false,    // useSoftHyphen
-                    dataTab?.rbSoftHyphenYes.Checked ?? false,  // softHyphenVal
-                    dataTab?.chkRemoveTransp.Checked ?? false,  // useRemoveTransp
-                    dataTab?.rbRemoveTranspYes.Checked ?? false,// removeTranspVal
-                    dataTab?.chkJpegQuality.Checked ?? false,   // useJpegQuality
-                    dataTab?.txtJpegQuality.Text ?? "95",       // jpegQuality
-                    dataTab?.chkGenerateCover.Checked ?? false, // useGenCover
-                    dataTab?.rbGenCoverYes.Checked ?? false,    // genCoverVal
-                    dataTab?.txtCoverPath.Text ?? "",           // coverPath
-                    dataTab?.chkResizeCover.Checked ?? false,   // useResizeCover
-                    dataTab?.cmbResizeCover.SelectedItem?.ToString() ?? "stretch", // resizeCover
-                    dataTab?.chkAnnEnable.Checked ?? false,     // useAnnEnable
-                    dataTab?.rbAnnEnableYes.Checked ?? false,   // annEnableVal
-                    dataTab?.chkAnnInToc.Checked ?? false,      // useAnnInToc
-                    dataTab?.rbAnnInTocYes.Checked ?? true,     // annInTocVal (true за замовчуванням)
-                    dataTab?.chkTocPlacement.Checked ?? false,  // useTocPlacement
-                    dataTab?.cmbTocPlacement.SelectedItem?.ToString() ?? "none",   // tocPlacement
-                    dataTab?.chkDropcaps.Checked ?? false,      // useDropcaps
-                    dataTab?.rbDropcapsYes.Checked ?? false,
-                    // Параметри Logging
-                    logTab?.chkLogLevel.Checked ?? false,
-                    logTab?.cmbLogLevel.SelectedItem?.ToString() ?? "debug",
-                    logTab?.chkLogName.Checked ?? false,
-                    logTmpl,
-                    logTab?.chkPanicLogName.Checked ?? false,
-                    panicLogTmpl,
-                    logTab?.chkLogMode.Checked ?? false,
-                    (logTab?.rbLogModeOldNew.Checked ?? false) ? "append" : "overwrite",
-                    logTab?.chkLogFolder.Checked ?? false,
-                    logTab?.rbLogFolderYes.Checked ?? false
-                );
-
-                if (saved) Close();
+                // ВАЖЛИВО: додаємо WorkingDirectory, щоб GUI не вилітав!
+                _ = Process.Start(new ProcessStartInfo(exePath)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
+                });
+            }
+            catch (Exception ex)
+            {
+                // Логуємо, чому не вдалося відкрити графічний інтерфейс
+                Config.LogError("Failed to start fb2cng_GUI.exe", ex);
             }
         }
 
-        private void ShowHelp()
+        private void SaveYamlConfiguration()
+        {
+            if (!_tabsCache.TryGetValue("document:", out UserControl? doc) || doc is not DocumentTab docTab)
+            {
+                return;
+            }
+
+            MetadataTab? dataTab = _tabsCache.TryGetValue("metadata:", out UserControl? data) ? data as MetadataTab : null;
+            LoggingTab? logTab = _tabsCache.TryGetValue("logging:", out UserControl? log) ? log as LoggingTab : null;
+
+            int[] fieldIndexes = new int[7];
+            bool[] folderFlags = new bool[7];
+            if (docTab.cmbOutFields != null)
+            {
+                for (int i = 0; i < 7; i++) { fieldIndexes[i] = docTab.cmbOutFields[i].SelectedIndex; folderFlags[i] = docTab.chkAsFolder![i].Checked; }
+            }
+
+            try
+            {
+                // Виклик сервісу
+                bool saved = YamlService.SaveConfiguration(
+                    docTab.txtConfigName.Text, docTab.chkCustomYaml.Checked, docTab.txtCustomYamlPath.Text,
+                    docTab.chkCss.Checked, docTab.txtCssPath.Text,
+                    docTab.chkCover.Checked, _tocValues[docTab.cmbTocType.SelectedIndex],
+                    docTab.chkFixZip.Checked, docTab.rbFixZipYes.Checked,
+                    docTab.chkOpenFromCover.Checked, docTab.rbOpenCoverYes.Checked,
+                    docTab.chkTranslit.Checked, docTab.rbTranslitYes.Checked,
+                    docTab.chkFb2Name.Checked, docTab.chkDefaultName.Checked,
+                    fieldIndexes, folderFlags,
+                    dataTab?.chkReaderSize.Checked ?? false, dataTab?.txtWidth.Text ?? "1264", dataTab?.txtHeight.Text ?? "1680", dataTab?.txtDpi.Text ?? "300",
+                    dataTab?.chkNotes.Checked ?? false, _noteValues[dataTab?.cmbNotesMode.SelectedIndex ?? 0],
+                    dataTab?.chkSoftHyphen.Checked ?? false, dataTab?.rbSoftHyphenYes.Checked ?? false,
+                    dataTab?.chkRemoveTransp.Checked ?? false, dataTab?.rbRemoveTranspYes.Checked ?? false,
+                    dataTab?.chkJpegQuality.Checked ?? false, dataTab?.txtJpegQuality.Text ?? "95",
+                    dataTab?.chkGenerateCover.Checked ?? false, dataTab?.rbGenCoverYes.Checked ?? false, dataTab?.txtCoverPath.Text ?? "",
+                    dataTab?.chkResizeCover.Checked ?? false, _resizeValues[dataTab?.cmbResizeCover.SelectedIndex ?? 2],
+                    dataTab?.chkAnnEnable.Checked ?? false, dataTab?.rbAnnEnableYes.Checked ?? false,
+                    dataTab?.chkAnnInToc.Checked ?? false, dataTab?.rbAnnInTocYes.Checked ?? true,
+                    dataTab?.chkTocPlacement.Checked ?? false, _placementValues[dataTab?.cmbTocPlacement.SelectedIndex ?? 0],
+                    dataTab?.chkDropcaps.Checked ?? false, dataTab?.rbDropcapsYes.Checked ?? false,
+                    logTab?.chkLogLevel.Checked ?? false, _logLevels[logTab?.cmbLogLevel.SelectedIndex ?? 2],
+                    logTab?.chkLogName.Checked ?? false, logTab?.cmbLogName.SelectedIndex >= 0 ? YamlService.LogNameValues[logTab.cmbLogName.SelectedIndex] : "",
+                    logTab?.chkPanicLogName.Checked ?? false, logTab?.cmbPanicLogName.SelectedIndex >= 0 ? YamlService.PanicLogNameValues[logTab.cmbPanicLogName.SelectedIndex] : "",
+                    logTab?.chkLogMode.Checked ?? false, logTab?.rbLogModeOldNew.Checked ?? false ? "append" : "overwrite",
+                    logTab?.chkLogFolder.Checked ?? false, logTab?.rbLogFolderYes.Checked ?? false
+                );
+
+                if (saved)
+                {
+                    Dictionary<string, string> loc = Config.Localization[Config.Settings.CurrentLanguage];
+                    string cap = loc.GetValueOrDefault("SaveSuccessTitle", "Success");
+                    string msg = loc.TryGetValue("SaveSuccess", out string? t) ? string.Format(t, docTab.txtConfigName.Text) : "Saved!";
+                    _ = ShowCustomMessageBox(msg, cap, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                Dictionary<string, string> loc = Config.Localization[Config.Settings.CurrentLanguage];
+                string title = loc.GetValueOrDefault("SaveErrorTitle", "Error");
+                string msg = "Unknown error";
+
+                if (ex.Message == "ERR_NO_ENGINE")
+                {
+                    // Повідомлення про відсутність fbc.exe
+                    msg = loc.GetValueOrDefault("ErrFbc", "Error: fbc.exe not found!");
+                }
+                else if (ex.Message == "ERR_SOURCE_MISSING")
+                {
+                    // Повідомлення про те, що кастомний файл не знайдено
+                    msg = loc.GetValueOrDefault("ErrDirNotFound", "Source file not found!");
+                }
+                else if (ex.Message == "ERR_READONLY")
+                {
+                    msg = loc.TryGetValue("ErrReadOnly", out string? t) ? string.Format(t, docTab.txtConfigName.Text) : "File is Read-Only!";
+                }
+                else if (ex.Message == "ERR_DIRNOTFOUND")
+                {
+                    msg = loc.TryGetValue("ErrDirNotFound", out string? t) ? string.Format(t, docTab.txtConfigName.Text) : "Directory not found!";
+                }
+                else if (ex.Message.StartsWith("YAML_KEY:"))
+                {
+                    title = loc.GetValueOrDefault("YamlTitle", "YAML Error");
+                    string key = ex.Message.Replace("YAML_KEY:", "");
+                    msg = loc.TryGetValue("YamlErr", out string? t) ? string.Format(t, key) : $"Key {key} not found!";
+                }
+
+                _ = ShowCustomMessageBox(msg, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static void ShowHelp()
         {
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
@@ -1209,31 +874,6 @@ private void BtGui_Click(object? sender, EventArgs e)
             string msg = langDict?.GetValueOrDefault("HelpText", "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.") ?? "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.";
 
             _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-    }
-
-    public static class ControlExtensions // Розширення для перевірки null перед (залишаємо без змін)
-    {
-        public static void SetTextIfNotNull(this Control? control, string text)
-        {
-            if (control == null)
-            {
-                return;
-            }
-            control.Text = text;
-        }
-
-        public static void SetTextForAllIfNotNull(this IEnumerable<Control?>? controls, string text)
-        {
-            if (controls == null)
-            {
-                return;
-            }
-
-            foreach (Control? control in controls)
-            {
-                control.SetTextIfNotNull(text);
-            }
         }
     }
 }

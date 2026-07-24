@@ -1,6 +1,4 @@
-﻿using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-
+﻿using fb2cng_FullConfig.Utils;
 namespace fb2cng_FullConfig.Templates
 {
 
@@ -9,6 +7,7 @@ namespace fb2cng_FullConfig.Templates
         // Елементи інтерфейсу вкладки 
         public Panel scrollMenuPanel = null!;
         public ComboBox langComboBox = null!;
+        public Button btnReset = null!;
         public Button btnDumpConfig = null!;
         public TextBox txtConfigName = null!;
 
@@ -21,7 +20,7 @@ namespace fb2cng_FullConfig.Templates
         public Button btnBrowseCss = null!;
 
         public CheckBox chkCover = null!;
-        public ComboBox cmbCoverMode = null!;
+        public ComboBox cmbTocType = null!;
 
         public CheckBox chkFixZip = null!, chkOpenFromCover = null!, chkTranslit = null!;
         public RadioButton rbFixZipYes = null!, rbFixZipNo = null!;
@@ -42,8 +41,6 @@ namespace fb2cng_FullConfig.Templates
         {
             DoubleBuffered = true;
 
-            // ЗАХИСТ ВІД РОЗ'ЇЗДУ: Вимикаємо автоматичне системне масштабування для UserControl, 
-            // оскільки ми вже розраховуємо всі SetBounds вручну через currentScale!
             AutoScaleMode = AutoScaleMode.None;
 
             SetupInterface();
@@ -58,12 +55,12 @@ namespace fb2cng_FullConfig.Templates
 
         private static ControlGroup SetupToggleGroup(Image icon, Panel parentPanel)
         {
-            var chk = new CheckBox { AutoSize = true };
-            var txt = new TextBox { Enabled = false };
-            var btn = new Button { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            CheckBox chk = new() { AutoSize = true };
+            TextBox txt = new() { Enabled = false };
+            Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
             btn.FlatAppearance.BorderSize = 0;
 
-            // Викликаємо наш новий єдиний метод малювання (якщо він у Form1, додайте Form1. перед назвою)
+            // Викликаємо наш новий єдиний метод малювання (він у UiStyles, додаєм UiStyles. перед назвою)
             UiStyles.SetupIconButtonDrawing(btn, icon, chk, UiStyles.InactiveIconMatrix);
 
             // Зв'язуємо стан доступності тексту та кнопки із чекбоксом
@@ -79,28 +76,14 @@ namespace fb2cng_FullConfig.Templates
         }
         private void SetupInterface()
         {
-            float currentScale = Win32Api.GetDpiScale();
+            // Отримуємо всі готові прораховані метрики в один рядок
+            UiStyles.LayoutMetrics m = new(UiStyles.Scale);
 
-            int blockMargin = (int)(10 * currentScale);// Відстань між блоками елементів, щоб вони не злипалися
-            int labelHeight = (int)(20 * currentScale);// Висота текстових міток, щоб вони виглядали пропорційно до текстових полів
-            int fieldHeight = (int)(24 * currentScale);// Висота текстових полів, щоб вони виглядали пропорційно до чекбоксів
-            int checkBoxHeight = (int)(22 * currentScale);// Висота чекбоксів, щоб вони виглядали пропорційно до текстових полів
-            int sidePadding = (int)(3 * currentScale);// Відступ зліва та справа для кнопок та текстових полів
-
-            static Panel CreateRadioGroup(out RadioButton yes, out RadioButton no, float scale)
-            {
-                Panel p = new() { AutoSize = true, Enabled = false }; // Вимкнені за замовчуванням
-                yes = new RadioButton { AutoSize = true, Location = new Point(0, 0), Text = "Yes" };
-                no = new RadioButton { AutoSize = true, Location = new Point((int)(65 * scale), 0), Text = "No" };
-                p.Controls.AddRange([yes, no]);
-                return p;
-            }
-
-            // 1. Ініціалізація чистих контейнерів
-            scrollMenuPanel = new Panel { AutoScroll = true };
-            scrollMenuPanel.HorizontalScroll.Enabled = false; // ЗАБОРОНЯЄМО ГОРИЗОНТАЛЬНИЙ СКРОЛ
-            scrollMenuPanel.HorizontalScroll.Visible = false;
+            // забороняєм горизонтальний скрол
+            scrollMenuPanel = new Panel { Dock = DockStyle.Fill };
             Controls.Add(scrollMenuPanel);
+
+            UiStyles.DisableHorizontalScroll(scrollMenuPanel);
 
             grpOutName = new GroupBox { Text = "" };
             scrollMenuPanel.Controls.Add(grpOutName);
@@ -109,47 +92,48 @@ namespace fb2cng_FullConfig.Templates
             lblLang = new Label { Text = "Language:", AutoSize = true };
             langComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
             langComboBox.Items.AddRange(["English", "Українська", "Русский"]);
-            scrollMenuPanel.Controls.AddRange([lblLang, langComboBox]);
+            btnReset = new Button
+            {
+                Image = UiStyles.ResizeImage(Properties.Resources.icon_reset, m.IconSize + UiStyles.GetScaled(3), m.IconSize + UiStyles.GetScaled(3)),
+                ImageAlign = ContentAlignment.MiddleCenter, // Вирівнюємо іконку чітко по центру
+                FlatStyle = FlatStyle.Flat
+            };
+            scrollMenuPanel.Controls.AddRange([lblLang, langComboBox, btnReset]);
 
             btnDumpConfig = new Button();
             scrollMenuPanel.Controls.Add(btnDumpConfig);
 
             lblConfigName = new Label { AutoSize = true };
-            txtConfigName = new TextBox { Text = "config.yaml" };
+            txtConfigName = new TextBox { Text = "Data/config.yaml" };
             scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
-            var yamlGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
+            ControlGroup yamlGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
             chkCustomYaml = yamlGroup.CheckBox; txtCustomYamlPath = yamlGroup.TextBox; btnBrowseCustomYaml = yamlGroup.Button;
 
             // Налаштування CSS та кнопки з малюванням іконки
-            var cssGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
+            ControlGroup cssGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
             chkCss = cssGroup.CheckBox; txtCssPath = cssGroup.TextBox; btnBrowseCss = cssGroup.Button;
 
             chkCover = new CheckBox { AutoSize = true }; // обкладинка
-            cmbCoverMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            cmbCoverMode.Items.AddRange(["normal", "old_kindle", "flat"]);
-            cmbCoverMode.SelectedIndex = 0;
-            chkCover.CheckedChanged += (s, e) => { cmbCoverMode.Enabled = chkCover.Checked; (ParentForm as Form1)?.ApplyTheme(); };
-            scrollMenuPanel.Controls.AddRange([chkCover, cmbCoverMode]);
+            cmbTocType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
+            cmbTocType.Items.AddRange(["normal", "old_kindle", "flat"]);
+            cmbTocType.SelectedIndex = 0;
+            chkCover.CheckedChanged += (s, e) => { cmbTocType.Enabled = chkCover.Checked; (ParentForm as Form1)?.ApplyTheme(); };
+            scrollMenuPanel.Controls.AddRange([chkCover, cmbTocType]);
 
             // Fix ZIP, Open From Cover, Translit (радіо-кнопки)
             chkFixZip = new CheckBox { AutoSize = true };
-            Panel pnlFixZip = CreateRadioGroup(out rbFixZipYes, out rbFixZipNo, currentScale);
+            Panel pnlFixZip = UiStyles.CreateRadioGroup(out rbFixZipYes, out rbFixZipNo);
 
             chkOpenFromCover = new CheckBox { AutoSize = true };
-            Panel pnlOpenCover = CreateRadioGroup(out rbOpenCoverYes, out rbOpenCoverNo, currentScale);
+            Panel pnlOpenCover = UiStyles.CreateRadioGroup(out rbOpenCoverYes, out rbOpenCoverNo);
 
             chkTranslit = new CheckBox { AutoSize = true };
-            Panel pnlTranslit = CreateRadioGroup(out rbTranslitYes, out rbTranslitNo, currentScale);
+            Panel pnlTranslit = UiStyles.CreateRadioGroup(out rbTranslitYes, out rbTranslitNo);
 
-            // Fb2Name 
             chkFb2Name = new CheckBox { AutoSize = true };
             chkDefaultName = new CheckBox { AutoSize = true };
-
-            // Додаємо всі створені елементи на панель
-            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover, chkTranslit, pnlTranslit, chkFb2Name, chkDefaultName]);
-
-            lblOutNameTitle = new Label();
+            lblOutNameTitle = new Label { AutoSize = true };
             // Конструктор структури назви (7 елементів)
             cmbOutFields = new ComboBox[7];
             chkAsFolder = new CheckBox[7];
@@ -161,116 +145,106 @@ namespace fb2cng_FullConfig.Templates
                 chkAsFolder[index] = new CheckBox { Text = "Fold", Enabled = false, Tag = "FolderCheckBox" };
                 cmbOutFields[index].Items.AddRange(["", "", "", "", "", "", "", "", ""]);
                 cmbOutFields[index].SelectedIndex = 0;
-                if (index > 0) cmbOutFields[index].Enabled = false;
+                if (index > 0)
+                {
+                    cmbOutFields[index].Enabled = false;
+                }
 
                 grpOutName.Controls.AddRange([cmbOutFields[index], chkAsFolder[index]]);
             }
-
+            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover,
+                chkTranslit, pnlTranslit, chkFb2Name, chkDefaultName, grpOutName]);
             // ========================================================
             // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ ВСЕРЕДИНІ USERCONTROL
             // ========================================================
-            int xLeft = (int)(16 * currentScale);// Відступ зліва для всіх елементів
-            int fieldWidth = (int)(520 * currentScale) - (xLeft * 2) - (int)(8 * currentScale);// Враховуємо паддінг зліва та справа, а також невеликий запас для скролу
+            Size = m.TotalSize;
 
-            // Задаємо базову висоту під центральний контент-контейнер Form1
-            Size = new Size((int)(520 * currentScale), (int)(565 * currentScale));             // Висота UserControl, яка включає скролл-контейнер
-
-            int scrollPanelHeight = (int)(545 * currentScale);                                 // Висота скролл-контейнера, яка включає всі елементи всередині
-            scrollMenuPanel.Dock = DockStyle.Fill;
-
-            int scrollFieldWidth = fieldWidth - (int)(3 * currentScale);
-            int scrollRightField = fieldWidth + xLeft - (int)(3 * currentScale);
-
-            int nextY = (int)(11 * currentScale);                                               // Початкова координата Y для першого елемента
-            int textLabelWidth = (int)(240 * currentScale);                                     // Ширина текстових міток
-            int valueFieldWidth = scrollFieldWidth - textLabelWidth - (int)(4 * currentScale);  // Ширина полів значень (ComboBox, TextBox) з урахуванням відступу між міткою та полем
-            int radioX = xLeft + textLabelWidth + (int)(5 * currentScale);
+            // Створюємо змінну для крокування вниз (вона починається зі стартового Y)
+            int nextY = m.StartY;
             // Позиціонування елементів
-            lblLang.SetBounds(xLeft, nextY, textLabelWidth, labelHeight);
-            langComboBox.ItemHeight = fieldHeight - 6;
-            langComboBox.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            int yamlTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5) - m.SidePadding;
+            int spacing = UiStyles.GetScaled(6); // Масштабований відступ між полем мови і кнопкою
+            lblLang.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.LabelHeight);
+            langComboBox.ItemHeight = m.FieldHeight - 6;
+            langComboBox.SetBounds(m.XLeft + m.TextLabelWidth, nextY, yamlTxtWidth, m.FieldHeight);
+            int resetWidth = m.BrowseBtnWidth - UiStyles.GetScaled(24);
+            int resetX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth + UiStyles.GetScaled(18);
+            btnReset.SetBounds(resetX, nextY - UiStyles.GetScaled(2), resetWidth, m.FieldHeight + UiStyles.GetScaled(3));
 
-            nextY = langComboBox.Bottom + blockMargin + (int)(2 * currentScale);
-            btnDumpConfig.SetBounds(xLeft + sidePadding, nextY, scrollFieldWidth - sidePadding, fieldHeight + (int)(4 * currentScale));
+            nextY = btnReset.Bottom + m.BlockMargin + UiStyles.GetScaled(2);
+            btnDumpConfig.SetBounds(m.XLeft + m.SidePadding, nextY, m.FieldWidth - UiStyles.GetScaled(6), m.FieldHeight + UiStyles.GetScaled(4));
 
-            nextY = btnDumpConfig.Bottom + blockMargin;
-            lblConfigName.SetBounds(xLeft, nextY, textLabelWidth, labelHeight);
-            txtConfigName.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            nextY = btnDumpConfig.Bottom + m.BlockMargin;
+            lblConfigName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.LabelHeight);
+            txtConfigName.SetBounds(m.XLeft + m.TextLabelWidth, nextY, m.ValueFieldWidth, m.FieldHeight);
 
-            nextY = txtConfigName.Bottom + blockMargin;
-
+            nextY = txtConfigName.Bottom + m.BlockMargin;
             // 1. Блок Custom YAML (новий)
-            chkCustomYaml.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-            int browseBtnWidth = (int)(55 * currentScale);
-            int yamlTxtWidth = valueFieldWidth - browseBtnWidth - (int)(5 * currentScale) - sidePadding;
+            int browseX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth - UiStyles.GetScaled(6);
+            chkCustomYaml.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             txtCustomYamlPath.Multiline = true;
-            txtCustomYamlPath.SetBounds(xLeft + textLabelWidth, nextY, yamlTxtWidth, fieldHeight);
-            btnBrowseCustomYaml.SetBounds(scrollRightField - browseBtnWidth - sidePadding, nextY, browseBtnWidth, fieldHeight);
+            txtCustomYamlPath.SetBounds(m.XLeft + m.TextLabelWidth, nextY, yamlTxtWidth, m.FieldHeight);
+            btnBrowseCustomYaml.SetBounds(browseX, nextY, m.BrowseBtnWidth, m.FieldHeight);
 
             // 2. Блок CSS (зсувається нижче)
-            nextY = txtCustomYamlPath.Bottom + blockMargin;
-            chkCss.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-
-            int cssTxtWidth = valueFieldWidth - browseBtnWidth - (int)(5 * currentScale) - sidePadding;
+            nextY = txtCustomYamlPath.Bottom + m.BlockMargin;
+            chkCss.SetBounds(m.XLeft, nextY + UiStyles.GetScaled(1), m.TextLabelWidth, m.CheckBoxHeight);
+            int cssTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5) - m.SidePadding;
             txtCssPath.Multiline = true;
-            txtCssPath.SetBounds(xLeft + textLabelWidth, nextY, cssTxtWidth, fieldHeight);
-            btnBrowseCss.SetBounds(scrollRightField - browseBtnWidth - sidePadding, nextY, browseBtnWidth, fieldHeight);
+            txtCssPath.SetBounds(m.XLeft + m.TextLabelWidth, nextY, cssTxtWidth, m.FieldHeight);
+            btnBrowseCss.SetBounds(browseX, nextY, m.BrowseBtnWidth, m.FieldHeight);
 
-            nextY = txtCssPath.Bottom + blockMargin;
-            chkCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            cmbCoverMode.ItemHeight = fieldHeight - 6;
-            cmbCoverMode.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            nextY = txtCssPath.Bottom + m.BlockMargin;
+            chkCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbTocType.ItemHeight = m.FieldHeight - 6;
+            cmbTocType.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
 
-            nextY = cmbCoverMode.Bottom + blockMargin;
+            nextY = cmbTocType.Bottom + m.BlockMargin;
             // Позиціонуємо FixZip
-            chkFixZip.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            pnlFixZip.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(150 * currentScale), fieldHeight);
+            chkFixZip.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlFixZip.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(150), m.FieldHeight);
 
-            nextY = chkFixZip.Bottom + blockMargin;
-
+            nextY = chkFixZip.Bottom + m.BlockMargin;
             // Позиціонуємо OpenFromCover
-            chkOpenFromCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            pnlOpenCover.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(150 * currentScale), fieldHeight);
+            chkOpenFromCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlOpenCover.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(150), m.FieldHeight);
 
-            nextY = chkOpenFromCover.Bottom + blockMargin;
-
+            nextY = chkOpenFromCover.Bottom + m.BlockMargin;
             // Позиціонуємо Translit
-            chkTranslit.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            pnlTranslit.SetBounds(radioX + (int)(80 * currentScale), nextY, (int)(140 * currentScale), fieldHeight);
+            chkTranslit.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlTranslit.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
 
-
-            nextY = chkTranslit.Bottom + blockMargin;
+            nextY = chkTranslit.Bottom + m.BlockMargin;
             // Позиціонуємо Fb2Name (Він займає всю ширину, бо не має радіобатонів)
-            chkFb2Name.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+            chkFb2Name.SetBounds(m.XLeft, nextY, m.FieldWidth, m.CheckBoxHeight);
 
-            nextY = chkFb2Name.Bottom + blockMargin;
-            chkDefaultName.SetBounds(xLeft, nextY, scrollFieldWidth, checkBoxHeight);
+            nextY = chkFb2Name.Bottom + m.BlockMargin;
+            chkDefaultName.SetBounds(m.XLeft, nextY, m.FieldWidth, m.CheckBoxHeight);
 
             // Налаштування групи структури назви файлу
-            int OutNameTopPadding = (int)(10 * currentScale);// Відступ зверху для групи структури назви файлу
-            int rowHeight = fieldHeight + (int)(5 * currentScale);// Висота одного рядка з комбо та чекбоксом
-            int grpOutHeight = (rowHeight * 7) + (int)(25 * currentScale);// Висота групи з 8 рядків + заголовок групи
-            grpOutName.SetBounds(xLeft, chkDefaultName.Bottom + OutNameTopPadding, fieldWidth, grpOutHeight);
+            int OutNameTopPadding = UiStyles.GetScaled(10);// Відступ зверху для групи структури назви файлу
+            int rowHeight = m.FieldHeight + UiStyles.GetScaled(5);// Висота одного рядка з комбо та чекбоксом
+            int grpOutHeight = (rowHeight * 7) + UiStyles.GetScaled(25);// Висота групи з 8 рядків + заголовок групи
+            grpOutName.SetBounds(m.XLeft, chkDefaultName.Bottom + OutNameTopPadding, m.FieldWidth, grpOutHeight);
 
             int comboWidth = (int)(grpOutName.Width * 0.76f);
-            int checkFoldWidth = grpOutName.Width - comboWidth - (int)(15 * currentScale);
-            int itemY = (int)(20 * currentScale);
+            int checkFoldWidth = grpOutName.Width - comboWidth - UiStyles.GetScaled(15);
+            int itemY = UiStyles.GetScaled(20);
 
             for (int i = 0; i < 7; i++)
             {
                 if (cmbOutFields != null && chkAsFolder != null)
                 {
-                    cmbOutFields[i].ItemHeight = fieldHeight - 6;
-                    cmbOutFields[i].SetBounds((int)(10 * currentScale), itemY, comboWidth, fieldHeight);
-                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + (int)(15 * currentScale), itemY + (int)(1 * currentScale), checkFoldWidth, checkBoxHeight);
+                    cmbOutFields[i].ItemHeight = m.FieldHeight - 6;
+                    cmbOutFields[i].SetBounds(UiStyles.GetScaled(10), itemY, comboWidth, m.FieldHeight);
+                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + UiStyles.GetScaled(15), itemY + UiStyles.GetScaled(1), checkFoldWidth, m.CheckBoxHeight);
                     itemY += rowHeight;
                 }
             }
-
             // Правильне роздільне створення об'єкта та встановлення його координат
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
-            lblScrollAnchor.SetBounds(0, itemY + (int)(10 * currentScale), 1, 1);
-            grpOutName.Controls.Add(lblScrollAnchor);
+            lblScrollAnchor.SetBounds(0, grpOutName.Bottom + UiStyles.GetScaled(10), 1, 1);
+            scrollMenuPanel.Controls.Add(lblScrollAnchor);
         }
     }
 }

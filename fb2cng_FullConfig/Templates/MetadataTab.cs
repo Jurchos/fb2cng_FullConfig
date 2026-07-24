@@ -1,4 +1,5 @@
-﻿namespace fb2cng_FullConfig.Templates
+﻿using fb2cng_FullConfig.Utils;
+namespace fb2cng_FullConfig.Templates
 {
     public partial class MetadataTab : UserControl
     {
@@ -50,140 +51,81 @@
 
         private void SetupInterface()
         {
-            float currentScale = Win32Api.GetDpiScale();
-            int xLeft = (int)(16 * currentScale);
-            int rowHeight = (int)(28 * currentScale);
-            int textLabelWidth = (int)(240 * currentScale);
-            int valueFieldWidth = (int)(240 * currentScale);
-            int radioX = xLeft + textLabelWidth + (int)(5 * currentScale);
-            int browseBtnWidth = (int)(55 * currentScale);
-            int fieldHeight = (int)(24 * currentScale);
-            int checkBoxHeight = (int)(22 * currentScale);
+            // Отримуємо всі готові прораховані метрики в один рядок
+            UiStyles.LayoutMetrics m = new(UiStyles.Scale);
 
-            scrollMetadataPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+            // забороняєм горизонтальний скрол
+            scrollMetadataPanel = new Panel { Dock = DockStyle.Fill };
             Controls.Add(scrollMetadataPanel);
 
-            // Хелпер для створення груп радіо-кнопок
-            static Panel CreateRadioGroup(out RadioButton rbYes, out RadioButton rbNo, float scale)
-            {
-                Panel p = new() { AutoSize = true, Enabled = false };
-                rbYes = new RadioButton { AutoSize = true, Location = new Point(0, 0), Text = "Yes" };
-                rbNo = new RadioButton { AutoSize = true, Location = new Point((int)(65 * scale), 0), Text = "No" };
-                p.Controls.AddRange([rbYes, rbNo]);
-                return p;
-            }
-
-            int nextY = (int)(11 * currentScale);
+            UiStyles.DisableHorizontalScroll(scrollMetadataPanel);
 
             // 1. Reader Size
             chkReaderSize = new CheckBox { AutoSize = true };
-            chkReaderSize.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-
-            int sizeX = xLeft + textLabelWidth + (int)(5 * currentScale);
-            int boxW = (int)(44 * currentScale);
-            int lblW = (int)(20 * currentScale);
 
             lblWidth = new Label { Text = "W:", TextAlign = ContentAlignment.MiddleRight, Enabled = false };
-            lblWidth.SetBounds(sizeX, nextY, lblW, fieldHeight);
             txtWidth = new TextBox { Text = "1264", Enabled = false };
-            txtWidth.SetBounds(lblWidth.Right + 2, nextY, boxW, fieldHeight);
 
             lblHeight = new Label { Text = "H:", TextAlign = ContentAlignment.MiddleRight, Enabled = false };
-            lblHeight.SetBounds(txtWidth.Right + (int)(10 * currentScale), nextY, lblW, fieldHeight);
             txtHeight = new TextBox { Text = "1680", Enabled = false };
-            txtHeight.SetBounds(lblHeight.Right + 2, nextY, boxW, fieldHeight);
 
             lblDpi = new Label { Text = "DPI:", TextAlign = ContentAlignment.MiddleRight, Enabled = false };
-            lblDpi.SetBounds(txtHeight.Right + (int)(10 * currentScale), nextY, (int)(32 * currentScale), fieldHeight);
             txtDpi = new TextBox { Text = "300", Enabled = false };
-            txtDpi.SetBounds(lblDpi.Right + 2, nextY, boxW, fieldHeight);
 
             // 2. Footnotes
-            nextY += rowHeight;
             chkNotes = new CheckBox { AutoSize = true };
-            chkNotes.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
             cmbNotesMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbNotesMode.Items.AddRange(["default", "float", "floatRenumbered"]);
             cmbNotesMode.SelectedIndex = 0;
-            cmbNotesMode.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
 
             // 3. Soft Hyphen
-            nextY += rowHeight;
             chkSoftHyphen = new CheckBox { AutoSize = true };
-            chkSoftHyphen.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlSH = CreateRadioGroup(out rbSoftHyphenYes, out rbSoftHyphenNo, currentScale);
-            pnlSH.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlSH = UiStyles.CreateRadioGroup(out rbSoftHyphenYes, out rbSoftHyphenNo);
 
             // 4. Transparency
-            nextY += rowHeight;
             chkRemoveTransp = new CheckBox { AutoSize = true };
-            chkRemoveTransp.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlRT = CreateRadioGroup(out rbRemoveTranspYes, out rbRemoveTranspNo, currentScale);
-            pnlRT.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlRT = UiStyles.CreateRadioGroup(out rbRemoveTranspYes, out rbRemoveTranspNo);
 
             // 5. JPEG Quality
-            nextY += rowHeight;
             chkJpegQuality = new CheckBox { AutoSize = true };
-            chkJpegQuality.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
             txtJpegQuality = new TextBox { Text = "95", Enabled = false };
-            txtJpegQuality.SetBounds(radioX, nextY, boxW, fieldHeight);
 
             // 6. Generate Cover
-            nextY += rowHeight;
             chkGenerateCover = new CheckBox { AutoSize = true };
-            chkGenerateCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlGC = CreateRadioGroup(out rbGenCoverYes, out rbGenCoverNo, currentScale);
-            pnlGC.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlGC = UiStyles.CreateRadioGroup(out rbGenCoverYes, out rbGenCoverNo);
 
             // 7. Cover Path
-            nextY += rowHeight;
             txtCoverPath = new TextBox { Enabled = false };
-            int coverTxtWidth = valueFieldWidth - browseBtnWidth - (int)(5 * currentScale);
-            txtCoverPath.SetBounds(radioX, nextY, coverTxtWidth, fieldHeight);
+            int coverTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5);
             btnBrowseCover = new Button { FlatStyle = FlatStyle.Flat, Text = "", Enabled = false };
-            btnBrowseCover.SetBounds(txtCoverPath.Right + 5, nextY, browseBtnWidth, fieldHeight);
 
             // 8. Resize Mode
-            nextY += rowHeight;
             chkResizeCover = new CheckBox { AutoSize = true };
-            chkResizeCover.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
             cmbResizeCover = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbResizeCover.Items.AddRange(["none", "keepAR", "stretch"]);
             cmbResizeCover.SelectedIndex = 2;
-            cmbResizeCover.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
 
             // 9. Annotation Enable
-            nextY += rowHeight;
             chkAnnEnable = new CheckBox { AutoSize = true };
-            chkAnnEnable.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlAE = CreateRadioGroup(out rbAnnEnableYes, out rbAnnEnableNo, currentScale);
-            pnlAE.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlAE = UiStyles.CreateRadioGroup(out rbAnnEnableYes, out rbAnnEnableNo);
 
             // 10. Annotation In TOC
-            nextY += rowHeight;
             chkAnnInToc = new CheckBox { AutoSize = true };
-            chkAnnInToc.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlAIT = CreateRadioGroup(out rbAnnInTocYes, out rbAnnInTocNo, currentScale);
-            pnlAIT.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlAIT = UiStyles.CreateRadioGroup(out rbAnnInTocYes, out rbAnnInTocNo);
 
             // 11. TOC Placement
-            nextY += rowHeight;
             chkTocPlacement = new CheckBox { AutoSize = true };
-            chkTocPlacement.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
             cmbTocPlacement = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbTocPlacement.Items.AddRange(["none", "before", "after"]);
             cmbTocPlacement.SelectedIndex = 0;
-            cmbTocPlacement.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
 
             // 12. Dropcaps
-            nextY += rowHeight;
             chkDropcaps = new CheckBox { AutoSize = true };
-            chkDropcaps.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            Panel pnlDC = CreateRadioGroup(out rbDropcapsYes, out rbDropcapsNo, currentScale);
-            pnlDC.SetBounds(radioX, nextY, valueFieldWidth, fieldHeight);
+            Panel pnlDC = UiStyles.CreateRadioGroup(out rbDropcapsYes, out rbDropcapsNo);
 
             // ЛОГІКА АКТИВАЦІЇ ПОЛІВ
-            chkReaderSize.CheckedChanged += (s, e) => {
+            chkReaderSize.CheckedChanged += (s, e) =>
+            {
                 lblWidth.Enabled = txtWidth.Enabled = lblHeight.Enabled = txtHeight.Enabled = lblDpi.Enabled = txtDpi.Enabled = chkReaderSize.Checked;
             };
             chkNotes.CheckedChanged += (s, e) => cmbNotesMode.Enabled = chkNotes.Checked;
@@ -206,9 +148,69 @@
                 chkTocPlacement, cmbTocPlacement, chkDropcaps, pnlDC
             ]);
 
+            // ========================================================
+            // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ ВСЕРЕДИНІ USERCONTROL
+            // ========================================================
+            Size = m.TotalSize;
+
+            // Створюємо змінну для крокування вниз (вона починається зі стартового Y)
+            int nextY = m.StartY;
+            chkReaderSize.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            int wLabelWidth = m.CheckBoxHeight + (int)(4 * UiStyles.Scale);
+            lblWidth.SetBounds(m.SizeInputX, nextY, wLabelWidth, m.FieldHeight);
+            txtWidth.SetBounds(lblWidth.Right, nextY, m.CheckBoxHeight * 2, m.FieldHeight);
+            lblHeight.SetBounds(txtWidth.Right + (m.SidePadding * 2), nextY, m.CheckBoxHeight, m.FieldHeight);
+            txtHeight.SetBounds(lblHeight.Right, nextY, m.CheckBoxHeight * 2, m.FieldHeight);
+            lblDpi.SetBounds(txtHeight.Right + (m.SidePadding * 2), nextY, m.RowHeight + (int)(4 * UiStyles.Scale), m.FieldHeight);
+            txtDpi.SetBounds(lblDpi.Right, nextY, m.CheckBoxHeight * 2, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkNotes.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbNotesMode.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkSoftHyphen.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlSH.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkRemoveTransp.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlRT.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkJpegQuality.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            txtJpegQuality.SetBounds(m.RadioX, nextY, m.CheckBoxHeight * 2, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkGenerateCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlGC.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
+            nextY += m.RowHeight;
+            txtCoverPath.SetBounds(m.SizeInputX, nextY, coverTxtWidth, m.FieldHeight);
+            btnBrowseCover.SetBounds(txtCoverPath.Right + 5, nextY, m.BrowseBtnWidth, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkResizeCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbResizeCover.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkAnnEnable.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlAE.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkAnnInToc.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlAIT.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkTocPlacement.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbTocPlacement.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
+
+            nextY += m.RowHeight;
+            chkDropcaps.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlDC.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+
             // Якір для скролу
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
-            lblScrollAnchor.SetBounds(0, nextY + rowHeight + 20, 1, 1);
+            lblScrollAnchor.SetBounds(0, nextY + m.RowHeight + 20, 1, 1);
             scrollMetadataPanel.Controls.Add(lblScrollAnchor);
         }
     }

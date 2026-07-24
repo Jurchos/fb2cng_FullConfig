@@ -1,6 +1,5 @@
-﻿using System.Drawing.Drawing2D;
-using fb2cng_FullConfig.Templates;
-
+﻿using fb2cng_FullConfig.Templates;
+using fb2cng_FullConfig.Utils;
 namespace fb2cng_FullConfig
 {
     public partial class Form1 : Form
@@ -9,7 +8,6 @@ namespace fb2cng_FullConfig
         private Panel headerPanel = null!;
         private Panel footerPanel = null!;
         private Panel pnlContent = null!; // Центральний контейнер для вкладок
-
         // Кнопки Хідера 
         private Button btnTabDocument = null!;
         private Button btnTabMetadata = null!;
@@ -68,9 +66,8 @@ namespace fb2cng_FullConfig
 
         private void SetupMainFramework()
         {
-            float currentScale = Win32Api.GetDpiScale();
-            int btnRadius = (int)(4 * currentScale);
-            int iconSize = (int)(17 * currentScale);
+            // Отримуємо всі готові прораховані метрики в один рядок
+            UiStyles.LayoutMetrics m = new(UiStyles.Scale);
 
             // Базові налаштування вікна
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -79,28 +76,18 @@ namespace fb2cng_FullConfig
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
 
             // Задаємо фіксовану ідеальну ширину вікна 
-            int calculatedWidth = (int)(515 * currentScale);
-            ClientSize = new Size(calculatedWidth, ClientSize.Height);
+            ClientSize = new Size(m.ScaledWidth, ClientSize.Height);
 
             // ==========================================
-            // КРОК 1: СТВОРЕННЯ ХІДЕРА (ВЕРХНЯ ПАНЕЛЬ)
+            // СТВОРЕННЯ ХІДЕРА (ВЕРХНЯ ПАНЕЛЬ)
             // ==========================================
-            int rowHeight = (int)(28 * currentScale); // Висота ряду кнопок хідера
-            int headerHeight = rowHeight + (int)(8 * currentScale); // Загальна висота 
-
             headerPanel = new Panel();
-            headerPanel.SetBounds(0, 0, ClientSize.Width, headerHeight);
+            headerPanel.SetBounds(0, 0, ClientSize.Width, m.HeaderHeight);
             Controls.Add(headerPanel);
 
-            // --- НАЛАШТУВАННЯ ВІДСТУПІВ КНОПОК ХІДЕРА ---
-            int paddingLeft = (int)(13 * currentScale);   // Відступ зліва для першої кнопки (було 16)
-            int paddingRight = (int)(14 * currentScale);  // Відступ справа для третьої кнопки (було 16)
-            int betweenButtons = (int)(4 * currentScale); // Відступ між самими кнопками
-
             // Автоматичний розрахунок ширини кнопок з урахуванням нових відступів
-            int totalInterButtonSpace = betweenButtons * 2; // Два проміжки між трьома кнопками
-            int tabWidthRow1 = (headerPanel.Width - paddingLeft - paddingRight - totalInterButtonSpace) / 3;
-            int tabWidthRow2 = tabWidthRow1; // Робимо другий ряд таким самим
+            int totalInterButtonSpace = m.BetweenButtons * 2; // Два проміжки між трьома кнопками
+            int tabWidthRow1 = (headerPanel.Width - m.HeaderPaddingLeft - m.HeaderPaddingRight - totalInterButtonSpace) / 3;
 
             // Головна вкладка, метаінформація та логування
             btnTabDocument = new Button { Text = "document:", Tag = "document:" };
@@ -108,33 +95,28 @@ namespace fb2cng_FullConfig
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
 
              // Координати (використовуємо змінні відступів)
-            btnTabDocument.SetBounds(paddingLeft, (int)(4 * currentScale), tabWidthRow1, rowHeight);
-            btnTabMetadata.SetBounds(btnTabDocument.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
-            btnTabLogging.SetBounds(btnTabMetadata.Right + betweenButtons, btnTabDocument.Top, tabWidthRow1, rowHeight);
+            btnTabDocument.SetBounds(m.HeaderPaddingLeft, m.BetweenButtons, tabWidthRow1, m.HeaderRowHeight);
+            btnTabMetadata.SetBounds(btnTabDocument.Right + m.BetweenButtons, btnTabDocument.Top, tabWidthRow1, m.HeaderRowHeight);
+            btnTabLogging.SetBounds(btnTabMetadata.Right + m.BetweenButtons, btnTabDocument.Top, tabWidthRow1, m.HeaderRowHeight);
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
             Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabLogging];
             foreach (Button btn in tabButtons)
             {
                 btn.Click += TabButton_Click;
-                UiStyles.MakeButtonRounded(btn, (int)(4 * currentScale)); // Заокруглення для вкладок
+                UiStyles.MakeButtonRounded(btn, m.BtnRadius); // Заокруглення для вкладок
                 headerPanel.Controls.Add(btn);
             }
-
             // ==================================================
-            // КРОК 2: СТВОРЕННЯ ЦЕНТРАЛЬНОГО КОНТЕНТ-КОНТЕЙНЕРА
+            // СТВОРЕННЯ ЦЕНТРАЛЬНОГО КОНТЕНТ-КОНТЕЙНЕРА
             // ==================================================
-            // Базова фіксована висота 
-            int contentHeight = (int)(565 * currentScale);
-
             pnlContent = new Panel();
-            pnlContent.SetBounds(0, headerPanel.Bottom, ClientSize.Width, contentHeight);
+            pnlContent.SetBounds(0, headerPanel.Bottom, ClientSize.Width, m.ContentHeight);
             Controls.Add(pnlContent);
-
             // ==========================================
-            // КРОК 3: СТВОРЕННЯ СТАТИЧНОГО ФУТЕРА
+            // СТВОРЕННЯ СТАТИЧНОГО ФУТЕРА
             // ==========================================
-            int footerHeight = (int)(24 * currentScale) + (int)(14 * currentScale);// Висота футера з урахуванням відступів
+            int footerHeight = m.FieldHeight + m.HeaderPaddingRight;// Висота футера з урахуванням відступів
 
             footerPanel = new Panel();
             footerPanel.SetBounds(0, pnlContent.Bottom, ClientSize.Width, footerHeight);// Встановлюємо футер чітко під контентом
@@ -147,20 +129,20 @@ namespace fb2cng_FullConfig
             btnHelp = new Button
             {
                 Text = "Help",
-                Image = UiStyles.ResizeImage(Properties.Resources.icon_info, iconSize, iconSize),
+                Image = UiStyles.ResizeImage(Properties.Resources.icon_info, m.IconSize, m.IconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding((int)(2 * currentScale), 0, 0, 0)
+                Padding = new Padding(UiStyles.GetScaled(2), 0, 0, 0)
             };
             btnTheme = new Button
             {
                 Text = "Theme",
-                Image = UiStyles.ResizeImage(Properties.Resources.day_night, iconSize, iconSize),
+                Image = UiStyles.ResizeImage(Properties.Resources.day_night, m.IconSize, m.IconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding((int)(10 * currentScale), 0, 0, 0)
+                Padding = new Padding(UiStyles.GetScaled(10), 0, 0, 0)
             };
             // 3. Створюємо кнопку GUI ТІЛЬКИ якщо файл існує
             if (guiExists)
@@ -171,11 +153,11 @@ namespace fb2cng_FullConfig
                     ImageAlign = ContentAlignment.MiddleCenter,
                     TextAlign = ContentAlignment.MiddleCenter,
                     TextImageRelation = TextImageRelation.ImageBeforeText,
-                    Padding = new Padding((int)(3 * currentScale), 0, 0, 0)
+                    Padding = new Padding(UiStyles.GetScaled(3), 0, 0, 0)
                 };
                 if (Properties.Resources.icon_GUI != null)
                 {
-                    btGui.Image = UiStyles.ResizeImage(Properties.Resources.icon_GUI, iconSize, iconSize);
+                    btGui.Image = UiStyles.ResizeImage(Properties.Resources.icon_GUI, m.IconSize, m.IconSize);
                 }
                 // Прив'язуємо подію відразу тут, де ми впевнені, що кнопка не null
                 btGui.Click += BtGui_Click;
@@ -199,40 +181,33 @@ namespace fb2cng_FullConfig
             btnCancel.Click += (s, e) => Close();
             btnHelp.Click += (s, e) => ShowHelp();
             btnOk.Click += (s, e) => SaveYamlConfiguration();
+            AcceptButton = btnOk;                    // Натискання Enter тепер викликає збереження (OK)
+            CancelButton = btnCancel;                // Натискання Esc тепер закриває вікно (Cancel)
 
             // 6. РОЗСТАНОВКА (SetBounds) з перевіркою
-            int btnWidth = (int)(90 * currentScale);
-            int guiBtnWidth = (int)(65 * currentScale);
-            int btnHeight = (int)(24 * currentScale) + (int)(4 * currentScale);
-            int btnTop = (int)(5 * currentScale);
-            int xLeft = (int)(16 * currentScale);
-            int btnspacing = (int)(6 * currentScale);
-
-            btnHelp.SetBounds(xLeft, btnTop, btnWidth, btnHeight);
-            btnTheme.SetBounds(btnHelp.Right + btnspacing, btnTop, btnWidth, btnHeight);
-
+            btnHelp.SetBounds(m.XLeft, m.FooterBtnTop, m.FooterBtnWidth, m.FooterBtnHeight);
+            btnTheme.SetBounds(btnHelp.Right + m.BetweenButtons, m.FooterBtnTop, m.FooterBtnWidth, m.FooterBtnHeight);
             // Кнопка GUI позиціонується лише якщо вона є
             if (guiExists && btGui != null)
             {
-                btGui.SetBounds(btnTheme.Right + btnspacing, btnTop, guiBtnWidth, btnHeight);
+                btGui.SetBounds(btnTheme.Right + m.BetweenButtons, m.FooterBtnTop, m.FooterGuiBtnWidth, m.FooterBtnHeight);
             }
-
-            btnCancel.SetBounds(ClientSize.Width - xLeft - btnWidth, btnTop, btnWidth, btnHeight);
-            btnOk.SetBounds(btnCancel.Left - (int)(96 * currentScale), btnTop, btnWidth, btnHeight);
+            btnCancel.SetBounds(ClientSize.Width - m.XLeft - m.FooterBtnWidth, m.FooterBtnTop, m.FooterBtnWidth, m.FooterBtnHeight);
+            btnOk.SetBounds(btnCancel.Left - UiStyles.GetScaled(96), m.FooterBtnTop, m.FooterBtnWidth, m.FooterBtnHeight);
 
             // 7. ЗАОКРУГЛЕННЯ ТІЛЬКИ ІСНУЮЧИХ КНОПОК
-            UiStyles.MakeButtonRounded(btnHelp, btnRadius);
-            UiStyles.MakeButtonRounded(btnTheme, btnRadius);
+            UiStyles.MakeButtonRounded(btnHelp, m.BtnRadius);
+            UiStyles.MakeButtonRounded(btnTheme, m.BtnRadius);
             if (guiExists && btGui != null)
             {
-                UiStyles.MakeButtonRounded(btGui, btnRadius);
+                UiStyles.MakeButtonRounded(btGui, m.BtnRadius);
             }
-            UiStyles.MakeButtonRounded(btnOk, btnRadius);
-            UiStyles.MakeButtonRounded(btnCancel, btnRadius);
+            UiStyles.MakeButtonRounded(btnOk, m.BtnRadius);
+            UiStyles.MakeButtonRounded(btnCancel, m.BtnRadius);
 
             // --- АДАПТАЦІЯ ГЕОМЕТРІЇ ПРИ ВЕЛИКОМУ МАСШТАБІ (200-225%) ---
-            int finalHeight = footerPanel.Bottom + (int)(8 * currentScale);
-            int maxAllowedHeight = Screen.PrimaryScreen!.WorkingArea.Height - (int)(40 * currentScale);
+            int finalHeight = footerPanel.Bottom + UiStyles.GetScaled(8);
+            int maxAllowedHeight = Screen.PrimaryScreen!.WorkingArea.Height - UiStyles.GetScaled(40);
 
             if (finalHeight > maxAllowedHeight)
             {
@@ -240,16 +215,13 @@ namespace fb2cng_FullConfig
 
                 // 1. Стискаємо центральний контейнер контенту під екран користувача
                 pnlContent.Height -= heightDeficit;
-
                 // 2. Підтягуємо футер чітко до низу нового контенту
                 footerPanel.Top = pnlContent.Bottom;
-
                 // Фіксуємо оновлену висоту програми
-                finalHeight = footerPanel.Bottom + (int)(8 * currentScale);
+                finalHeight = footerPanel.Bottom + UiStyles.GetScaled(8);
             }
-
             // Призначаємо фінальні безпечні розміри вікна програми
-            ClientSize = new Size(calculatedWidth, finalHeight);
+            ClientSize = new Size(m.ScaledWidth, finalHeight);
 
             // Центрування на моніторі
             StartPosition = FormStartPosition.Manual;
@@ -280,74 +252,91 @@ namespace fb2cng_FullConfig
             _currentActiveTab = tabName;
             SuspendLayout();
 
-            // 1. Сховати всі наявні вкладки
-            foreach (Control ctrl in pnlContent.Controls)
+            try // Додаємо блок відстеження помилок
             {
-                ctrl.Visible = false;
+                // 1. Сховати всі наявні вкладки
+                foreach (Control ctrl in pnlContent.Controls)
+                {
+                    ctrl.Visible = false;
+                }
+
+                // 2. Отримати або створити цільову вкладку
+                if (!_tabsCache.TryGetValue(tabName, out UserControl? tabControl))
+                {
+                    tabControl = tabName switch
+                    {
+                        "document:" => new DocumentTab(),
+                        "metadata:" => new MetadataTab(),
+                        "logging:" => new LoggingTab(),
+                        _ => throw new ArgumentException("Error")
+                    };
+                    tabControl.Name = tabName;
+                    tabControl.Dock = DockStyle.Fill;
+                    _tabsCache[tabName] = tabControl;
+
+                    if (tabControl is DocumentTab docTab)
+                    {
+                        InitializeDocumentTabEvents(docTab);
+                    }
+                    if (tabControl is MetadataTab dataTab)
+                    {
+                        InitializeMetadataTabEvents(dataTab);
+                    }
+
+                    pnlContent.Controls.Add(tabControl);
+                }
+
+                // 3. СИНХРОНІЗАЦІЯ 
+                // Отримуємо посилання на DocumentTab один раз для всіх перевірок
+                if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab activeDocTab)
+                {
+                    if (tabName == "metadata:")
+                    {
+
+                        SyncMetadataWithYaml(activeDocTab);
+                    }
+                    else if (tabName == "logging:")
+                    {
+                        SyncLoggingSettingsWithYaml(activeDocTab);
+                    }
+                }
+
+                // 4. Відображення
+                tabControl.Visible = true;
+                tabControl.BringToFront();
+                UpdateLocalization();
+                ApplyTheme();
             }
 
-            // 2. Отримати або створити цільову вкладку
-            if (!_tabsCache.TryGetValue(tabName, out UserControl? tabControl))
+            catch (Exception ex)
             {
-                tabControl = tabName switch
-                {
-                    "document:" => new DocumentTab(),
-                    "metadata:" => new MetadataTab(),
-                    "logging:" => new LoggingTab(),
-                    _ => throw new ArgumentException("Error")
-                };
-                tabControl.Name = tabName;
-                tabControl.Dock = DockStyle.Fill;
-                _tabsCache[tabName] = tabControl;
+                // Логуємо помилку перемикання вкладок
+                Config.LogError($"Error while switching to tab: {tabName}", ex);
 
-                if (tabControl is DocumentTab docTab)
-                {
-                    InitializeDocumentTabEvents(docTab);
-                }
-                if (tabControl is MetadataTab dataTab)
-                {
-                    InitializeMetadataTabEvents(dataTab);
-                }
-
-                pnlContent.Controls.Add(tabControl);
+                // Повідомляємо користувача (опціонально)
+                _ = MessageBox.Show($"Failed to load tab: {tabName}.\nCheck logs/Conf_errors.log for details.",
+                        "Interface Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-
-            // 3. СИНХРОНІЗАЦІЯ 
-            // Отримуємо посилання на DocumentTab один раз для всіх перевірок
-            if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab activeDocTab)
+            finally
             {
-                if (tabName == "metadata:")
-                {
-
-                    SyncMetadataWithYaml(activeDocTab);
-                }
-                else if (tabName == "logging:")
-                {
-                    SyncLoggingSettingsWithYaml(activeDocTab);
-                }
+                // Обов'язково відновлюємо малювання інтерфейсу, навіть якщо сталася помилка
+                ResumeLayout(true);
             }
-
-            // 4. Відображення
-            tabControl.Visible = true;
-            tabControl.BringToFront();
-            UpdateLocalization();
-            ApplyTheme();
-            ResumeLayout(true);
         }
 
         private void InitializeDocumentTabEvents(DocumentTab docTab)
         {
-            float currentScale = Win32Api.GetDpiScale();
-
             // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ ТРЬОХ КНОПОК
-            UiStyles.MakeButtonRounded(docTab.btnBrowseCss, (int)(4 * currentScale));
-            UiStyles.MakeButtonRounded(docTab.btnDumpConfig, (int)(4 * currentScale));
-            UiStyles.MakeButtonRounded(docTab.btnBrowseCustomYaml, (int)(4 * currentScale));
+            UiStyles.MakeButtonRounded(docTab.btnBrowseCss, UiStyles.GetScaled(4));
+            UiStyles.MakeButtonRounded(docTab.btnDumpConfig, UiStyles.GetScaled(4));
+            UiStyles.MakeButtonRounded(docTab.btnBrowseCustomYaml, UiStyles.GetScaled(4));
+            UiStyles.MakeButtonRounded(docTab.btnReset, UiStyles.GetScaled(4));
 
             // 2. ПРИВ'ЯЗКА КЛІКІВ
             docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
             docTab.btnBrowseCustomYaml.Click += BtnBrowseCustomYaml_Click;
             docTab.btnDumpConfig.Click += BtnDumpConfig_Click;
+            docTab.btnReset.Click += BtnReset_Click;
 
             // 3. РЕШТА ПОДІЙ
             docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
@@ -424,8 +413,7 @@ namespace fb2cng_FullConfig
 
         private void InitializeMetadataTabEvents(MetadataTab dataTab)
         {
-            float currentScale = Win32Api.GetDpiScale();
-            UiStyles.MakeButtonRounded(dataTab.btnBrowseCover, (int)(4 * currentScale));
+            UiStyles.MakeButtonRounded(dataTab.btnBrowseCover, UiStyles.GetScaled(4));
             dataTab.btnBrowseCover.Click += BtnBrowseCover_Click;
 
             // ВИКЛИК ApplyTheme ДО УСІХ ЧЕКБОКСІВ МЕТАДАНИХ

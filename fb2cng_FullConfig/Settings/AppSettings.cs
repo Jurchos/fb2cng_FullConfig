@@ -3,7 +3,7 @@
     public class AppSettings
     {
         public string CurrentLanguage { get; set; } = "English";
-        public bool IsDarkTheme { get; set; } = false;
+        public bool IsDarkTheme { get; set; }
         // Сюди можна додавати нові параметри в майбутньому
     }
 }

@@ -1,4 +1,5 @@
-﻿namespace fb2cng_FullConfig.Templates
+﻿using fb2cng_FullConfig.Utils;
+namespace fb2cng_FullConfig.Templates
 {
     public partial class LoggingTab : UserControl
     {
@@ -27,24 +28,8 @@
 
         private void SetupInterface()
         {
-            float currentScale = Win32Api.GetDpiScale();
-
-            int blockMargin = (int)(12 * currentScale);
-            int fieldHeight = (int)(24 * currentScale);
-            int checkBoxHeight = (int)(22 * currentScale);
-            int xLeft = (int)(16 * currentScale);
-            int textLabelWidth = (int)(240 * currentScale);
-            int valueFieldWidth = textLabelWidth - (int)(5 * currentScale);
-            int radioX = xLeft + textLabelWidth + (int)(5 * currentScale);
-
-            static Panel CreateRadioGroup(out RadioButton rb1, string text1, out RadioButton rb2, string text2, float scale)
-            {
-                Panel p = new() { AutoSize = true, Enabled = false };
-                rb1 = new RadioButton { AutoSize = true, Location = new Point(0, 0), Text = text1 };
-                rb2 = new RadioButton { AutoSize = true, Location = new Point((int)(85 * scale), 0), Text = text2 };
-                p.Controls.AddRange([rb1, rb2]);
-                return p;
-            }
+            // Отримуємо всі готові прораховані метрики в один рядок
+            UiStyles.LayoutMetrics m = new(UiStyles.Scale);
 
             // 1. Рівень логування
             chkLogLevel = new CheckBox { AutoSize = true };
@@ -81,7 +66,7 @@
 
             // 4. Режим логування
             chkLogMode = new CheckBox { AutoSize = true };
-            Panel pnlLogMode = CreateRadioGroup(out rbLogModeOnlyNew, "only_new", out rbLogModeOldNew, "old+new", currentScale);
+            Panel pnlLogMode = UiStyles.CreateRadioGroup(out rbLogModeOnlyNew, out rbLogModeOldNew);
             rbLogModeOnlyNew.Checked = true;
             chkLogMode.CheckedChanged += (s, e) =>
             {
@@ -91,7 +76,7 @@
 
             // 5. Папка для логів
             chkLogFolder = new CheckBox { AutoSize = true };
-            Panel pnlLogFolder = CreateRadioGroup(out rbLogFolderYes, "Так", out rbLogFolderNo, "Ні", currentScale);
+            Panel pnlLogFolder = UiStyles.CreateRadioGroup(out rbLogFolderYes, out rbLogFolderNo);
             rbLogFolderNo.Checked = true;
             chkLogFolder.CheckedChanged += (s, e) =>
             {
@@ -108,35 +93,35 @@
             ]);
 
             // Геометрія розставлення
-            int nextY = (int)(11 * currentScale);
+            int nextY = m.StartY;
 
             // 1. Log Level
-            chkLogLevel.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-            cmbLogLevel.ItemHeight = fieldHeight - 6;
-            cmbLogLevel.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            chkLogLevel.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbLogLevel.ItemHeight = m.FieldHeight - 6;
+            cmbLogLevel.SetBounds(m.XLeft + m.TextLabelWidth, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 2. Log Name
-            nextY = cmbLogLevel.Bottom + blockMargin;
-            chkLogName.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-            cmbLogName.ItemHeight = fieldHeight - 6;
-            cmbLogName.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            nextY = cmbLogLevel.Bottom + m.BlockMargin;
+            chkLogName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbLogName.ItemHeight = m.FieldHeight - 6;
+            cmbLogName.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 3. Panic Log Name
-            nextY = cmbLogName.Bottom + blockMargin;
-            chkPanicLogName.SetBounds(xLeft, nextY + (int)(1 * currentScale), textLabelWidth, checkBoxHeight);
-            cmbPanicLogName.ItemHeight = fieldHeight - 6;
-            cmbPanicLogName.SetBounds(xLeft + textLabelWidth, nextY, valueFieldWidth, fieldHeight);
+            nextY = cmbLogName.Bottom + m.BlockMargin;
+            chkPanicLogName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            cmbPanicLogName.ItemHeight = m.FieldHeight - 6;
+            cmbPanicLogName.SetBounds(m.XLeft + m.TextLabelWidth, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 4. Log Mode
-            nextY = cmbPanicLogName.Bottom + blockMargin;
-            chkLogMode.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            pnlLogMode.SetBounds(radioX, nextY, (int)(180 * currentScale), fieldHeight);
+            nextY = cmbPanicLogName.Bottom + m.BlockMargin;
+            chkLogMode.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlLogMode.SetBounds(m.SizeInputX, nextY, UiStyles.GetScaled(180), m.FieldHeight);
 
             // 5. Log Folder
-            int bigBlockMargin = blockMargin + (int)(8 * currentScale);
+            int bigBlockMargin = m.BlockMargin + UiStyles.GetScaled(8);
             nextY = chkLogMode.Bottom + bigBlockMargin;
-            chkLogFolder.SetBounds(xLeft, nextY, textLabelWidth, checkBoxHeight);
-            pnlLogFolder.SetBounds(radioX, nextY, (int)(180 * currentScale), fieldHeight);
+            chkLogFolder.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
+            pnlLogFolder.SetBounds(m.SizeInputX, nextY, UiStyles.GetScaled(180), m.FieldHeight);
         }
     }
 }

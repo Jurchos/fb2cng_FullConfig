@@ -1,14 +1,83 @@
 ﻿using fb2cng_FullConfig.Settings;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
-
+using System.Linq;
 namespace fb2cng_FullConfig
 {
     public static class Config
     {
-        // Оптимізація CA1869: Кешуємо опції JSON на рівні класу, щоб не перестворювати їх у пам'яті
+        // 1. СПОЧАТКУ ОГОЛОШУЄМО ВСІ ПОЛЯ ТА КЕШОВАНИЙ ДИЗАЙН (Тепер усе на своєму місці)
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+        private static readonly Lock _fileLock = new();
 
+        // 2. ПОТІМ ЙДУТЬ МЕТОДИ
+        // Метод ініціалізації (викликається при старті в Program.cs)
+        public static void Initialize(IConfiguration config)
+        {
+            Settings = config.Get<AppSettings>() ?? new AppSettings();
+        }
+
+        public static void LogError(string message, Exception? ex = null)
+        {
+            try
+            {
+                string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!Directory.Exists(logsDir))
+                {
+                    _ = Directory.CreateDirectory(logsDir);
+                }
+
+                string logFile = Path.Combine(logsDir, "Conf_errors.log");
+                string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+
+                if (ex != null)
+                {
+                    // Беремо лише перший рядок StackTrace (де саме стався збій)
+                    string firstTraceLine = "";
+                    if (!string.IsNullOrEmpty(ex.StackTrace))
+                    {
+                        // Розбиваємо на рядки та беремо перший
+                        firstTraceLine = ex.StackTrace.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                                                     .FirstOrDefault()?.Trim() ?? "";
+                    }
+
+                    logMessage += $" | Exception: {ex.Message}";
+
+                    if (!string.IsNullOrEmpty(firstTraceLine))
+                    {
+                        logMessage += $" | Trace: {firstTraceLine}";
+                    }
+                }
+
+                File.AppendAllLines(logFile, [logMessage]);
+            }
+            catch { }
+        }
+
+        // Збереження у JSON форматі
+        public static void SaveSettings()
+        {
+            lock (_fileLock) // Блокуємо доступ, поки один потік пише файл
+            {
+                try
+                {
+                    // 1. Отримуємо шлях до директорії та створюємо її, якщо вона відсутня
+                    string? directoryPath = Path.GetDirectoryName(settingsFile);
+                    if (!string.IsNullOrEmpty(directoryPath))
+                    {
+                        _ = Directory.CreateDirectory(directoryPath);
+                    }
+
+                    // 2. Використовуємо глобальні кешовані опції замість локального new()
+                    string jsonString = JsonSerializer.Serialize(Settings, JsonOptions);
+                    File.WriteAllText(settingsFile, jsonString);
+                }
+                catch (Exception ex)
+                {
+                    LogError("SaveSettings error", ex);
+                }
+            }
+        }
         // 1. Посилання на сам об'єкт налаштувань (для нових фіч)
         public static AppSettings Settings { get; private set; } = new AppSettings();
 
@@ -28,7 +97,6 @@ namespace fb2cng_FullConfig
         // Шлях до файлу конфігурації
         private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conf_config.json");
 
-        // Виправлення CA2211: Робимо внутрішнє поле приватним та readonly для безпеки
         // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
         public static Dictionary<string, Dictionary<string, string>> Localization { get; } = new()
 
@@ -37,23 +105,28 @@ namespace fb2cng_FullConfig
             ["English"] = new()
             {
                 ["Title"] = "fb2cng Template Configurator",
-                ["Language"] = "Language:",
-                ["DumpConfig"] = "Load Default config.yaml",
-                ["ConfigName"] = "Name of custom template:",
-                ["CustomYamlEnable"] = "Edit user.yaml",
-                ["CssEnable"] = "Use Custom CSS Stylesheet",
-                ["Fb2Name"] = "Use the fb2 filename for the output file",
-                ["DefaultName"] = "Reference output filename",
                 ["Help"] = "Help",
+                ["HelpText"] = "“fb2cng Template Configurator”\nDeveloped for the fb2cng GUI toolkit.\n\n" +
+               "If you are too lazy to manually edit YAML files and learn Go template syntax:\n" +
+               "• Configuration Management: Extract the default template, create custom settings from scratch, or edit previously created YAML files.\n" +
+               "• Visual Builder: Intuitively customize the structure and formatting rules for your converted books.\n" +
+               "• Quick Result: Choose your preferences and click 'Save' — the app will assemble your user.yaml automatically.\n\n" +
+               "Developed by: Jurchos & Gemini\n" +
+               "Version: 1.4",
                 ["Theme"] = "Theme",
                 ["Ok"] = "Save",
                 ["Cancel"] = "Cancel",
                 ["Yes"] = "Yes",
                 ["No"] = "No",
-                ["ErrTitle"] = "Component Missing",
-                ["ErrFbc"] = "The GUI program for fb2cng not found: please verify that 'fbc.exe' is present in the application folder!",
-                ["OutNameTitle"] = "Output file name structure",
-                ["AsFolder"] = "as a folder",
+                ["Language"] = "Language:",
+                ["DumpConfig"] = "Load Default config.yaml",
+                ["ConfigName"] = "Custom template name:",
+                ["CustomYamlEnable"] = "Edit user.yaml",
+                ["CssEnable"] = "Use Custom CSS Stylesheet",
+                ["Fb2Name"] = "Use source fb2 name for the output file",
+                ["DefaultName"] = "Reference name for the output file",
+                ["OutNameTitle"] = "Output filename structure",
+                ["AsFolder"] = "as folder",
                 ["Translit"] = "Transliterate output filename",
                 ["ReaderSize"] = "Reader screen size (W / H / DPI)",
                 ["Width"] = "W:",
@@ -69,37 +142,36 @@ namespace fb2cng_FullConfig
                 ["Item_Date"] = "Date (.Date)",
                 ["Item_Source"] = "Source File (.SourceFile)",
                 ["Item_Uuid"] = "Book UUID (.BookID)",
-                ["FootnotesMode"] = "Footnotes display method:",
+                ["FootnotesMode"] = "Footnotes mode:",
+                ["Opt_Note_Default"] = "Standard (links)",
+                ["Opt_Note_Float"] = "Floating (popup)",
+                ["Opt_Note_FloatRen"] = "Floating + renumber",
                 ["SoftHyphen"] = "Insert soft hyphens",
                 ["RemoveTransp"] = "Remove image transparency",
                 ["JpegQuality"] = "JPEG quality level (40-100%)",
                 ["GenCover"] = "Generate book cover",
                 ["CoverPath"] = "Default cover path:",
                 ["ResizeCover"] = "Cover resize mode:",
-                ["AnnEnable"] = "Separate annotation section",
-                ["AnnInToc"] = "Show annotation in TOC",
-                ["TocPlacement"] = "Extra TOC page placement",
-                ["Dropcaps"] = "Automatic dropcaps styling",
-                ["TocType"] = "Navigation hierarchy type:",
-                ["OpenCover"] = "Open book from the cover page",
+                ["Opt_Resize_None"] = "Original size",
+                ["Opt_Resize_KeepAR"] = "Keep aspect ratio",
+                ["Opt_Resize_Stretch"] = "Stretch to fill",
+                ["AnnEnable"] = "Annotation as separate chapter",
+                ["AnnInToc"] = "Include annotation in TOC",
+                ["TocPlacement"] = "TOC as separate page",
+                ["Opt_TocPlace_None"] = "None",
+                ["Opt_TocPlace_Before"] = "Before content",
+                ["Opt_TocPlace_After"] = "After content",
+                ["Dropcaps"] = "Automatic dropcap styling",
+                ["TocType"] = "Navigation type (TOC):",
+                ["Opt_Toc_Normal"] = "Normal (nested)",
+                ["Opt_Toc_OldKindle"] = "Compatible (old Kindle)",
+                ["Opt_Toc_Flat"] = "Flat (single level)",
+                ["OpenCover"] = "Open book from the cover",
                 ["FixZip"] = "Remove data descriptor (Fix ZIP)",
-                ["SaveErrorTitle"] = "Save Error",
-                ["ErrReadOnly"] = "Access Denied:\n The file '{0}' is locked!\nPlease check if it is marked as 'Read-Only' or opened in another application.",
-                ["ErrAccessDenied"] = "Access Denied:\n Access to the file '{0}' is denied!\nPlease run the application as Administrator.",
-                ["SaveSuccessTitle"] = "Success",
-                ["SaveSuccess"] = "Configuration successfully saved to {0}!",
-                ["YamlTitle"] = "YAML Error",
-                ["YamlErr"] = "Error: Key '{0}' not found in template config.yaml!",
-                ["HelpText"] = "fb2cng Template Configurator\nDesigned for the fb2cng GUI toolkit." +
-                               "\n\nThis application automatically builds a Go template for the fb2cng.exe CLI converter and updates the YAML configuration files." +
-                               "\n1. Adjust the required parameters." +
-                               "\n2. Use the Constructor to build the folder structure and filename." +
-                               "\n3. Click 'Save'." +
-                               "\n\nCreated by: Jurchos & Gemini" +
-                               "\nVersion: 1.3",
-                ["GenTitle"] = "Success",
-                ["GenSuccess"] = "config.yaml successfully generated!",
                 ["LogLevel"] = "Logging level:",
+                ["Opt_Log_None"] = "Disabled (none)",
+                ["Opt_Log_Normal"] = "Standard (normal)",
+                ["Opt_Log_Debug"] = "Full (debug)",
                 ["LogName"] = "Log name pattern:",
                 ["LogPanicName"] = "Panic log pattern:",
                 ["LogMode"] = "Logging mode:",
@@ -109,30 +181,48 @@ namespace fb2cng_FullConfig
                 ["LogOpt_TimeName"] = "time + name",
                 ["LogOpt_NameTag"] = "name + tag",
                 ["LogMode_OnlyNew"] = "Replace",
-                ["LogMode_OldNew"] = "Append"
-
+                ["LogMode_OldNew"] = "Append",
+                ["ResetTitle"] = "Application Restart",
+                ["ResetConfirm"] = "Are you sure you want to reset the configuration settings to defaults?\n(Language and theme settings will be preserved)",
+                ["SaveErrorTitle"] = "Save Error",
+                ["ErrReadOnly"] = "Access Denied:\n The file '{0}' is locked!\nPlease check if it is marked as 'Read-Only' or opened in another application.",
+                ["ErrAccessDenied"] = "Access Denied:\n Access to the file '{0}' is denied!\nPlease run the application as Administrator.",
+                ["ErrDirNotFound"] = "The directory specified by the path '{0}' was not found!",
+                ["ErrTitle"] = "Component Missing",
+                ["ErrFbc"] = "The fb2cng engine was not found: please verify that 'fbc.exe' is present in the application folder!",
+                ["SaveSuccessTitle"] = "Success",
+                ["SaveSuccess"] = "Configuration successfully saved to {0}!",
+                ["YamlTitle"] = "YAML Error",
+                ["YamlErr"] = "Error: Key '{0}' not found in template config.yaml!",
+                ["GenTitle"] = "Success",
+                ["GenSuccess"] = "File config.yaml successfully saved to the 'Data' folder."
             },
 
             // 2. УКРАЇНСЬКА ЛОКАЛІЗАЦІЯ
             ["Ukrainian"] = new()
             {
                 ["Title"] = "Конфігуратор шаблона fb2cng",
-                ["Language"] = "Мова:",
-                ["DumpConfig"] = "Завантажити дефолтний config.yaml",
-                ["ConfigName"] = "Назва власного шаблона:",
-                ["CustomYamlEnable"] = "Редагувати user.yaml",
-                ["CssEnable"] = "CSS-таблиця стилів",
-                ["Fb2Name"] = "Залишити назву fb2 для вихідного файла",
-                ["DefaultName"] = "Еталонна назва вихідного файла",
                 ["Help"] = "Довідка",
+                ["HelpText"] = "«Конфігуратор шаблона fb2cng»\nРозроблено для набору інструментів fb2cng GUI.\n\n" +
+               "Якщо ліньки вручну редагувати YAML-файли та вивчати шаблони мови Go:\n" +
+               "• Керуйте конфігурацією: завантажуйте дефолтний шаблон, створюйте власні налаштування на базі стандартних або редагуйте раніше створені YAML-файли.\n" +
+               "• Візуальний конструктор: інтуїтивно налаштовуйте структуру та правила форматування ваших готових книг.\n" +
+               "• Швидкий результат: оберіть потрібні параметри та натисніть «Зберегти» — програма сама сформує ваш user.yaml .\n\n" +
+               "Розробка: Jurchos & Gemini\n" +
+               "Версія: 1.4",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Зберегти",
                 ["Cancel"] = "Скасувати",
                 ["Yes"] = "Так",
                 ["No"] = "Ні",
-                ["ErrTitle"] = "Помилка конфігурації",
-                ["ErrFbc"] = "Відсутня програма-конвертор: перевірте наявність файлу 'fbc.exe' в папці з програмою!",
-                ["OutNameTitle"] = "Структура назви вихідного файла",
+                ["Language"] = "Мова:",
+                ["DumpConfig"] = "Завантажити дефолтний config.yaml",
+                ["ConfigName"] = "Назва для власного шаблона:",
+                ["CustomYamlEnable"] = "Редагувати user.yaml",
+                ["CssEnable"] = "CSS-таблиця стилів",
+                ["Fb2Name"] = "Використати назву fb2 для вихідного файлу",
+                ["DefaultName"] = "Еталонна назва для вихідного файлу",
+                ["OutNameTitle"] = "Структура назви вихідного файлу",
                 ["AsFolder"] = "як папка",
                 ["Translit"] = "Транслітерувати назву вихідного файлу",
                 ["ReaderSize"] = "Розмір екрана рідера (Ш/В/DPI)",
@@ -147,39 +237,38 @@ namespace fb2cng_FullConfig
                 ["Item_Lang"] = "Мова (.Language)",
                 ["Item_Genre"] = "Жанр (.Genres)",
                 ["Item_Date"] = "Дата (.Date)",
-                ["Item_Source"] = "Базова назва файла (.SourceFile)",
+                ["Item_Source"] = "Базова назва файлу (.SourceFile)",
                 ["Item_Uuid"] = "UUID книги (.BookID)",
-                ["FootnotesMode"] = "Спосіб відображення виносок:",
-                ["SoftHyphen"] = "Вставка м'яких дефісів",
+                ["FootnotesMode"] = "Режим виносок:",
+                ["Opt_Note_Default"] = "Стандартний (посилання)",
+                ["Opt_Note_Float"] = "Спливаючий (float/popup)",
+                ["Opt_Note_FloatRen"] = "Спливаючий + нумерація",
+                ["SoftHyphen"] = "Вставка м'яких переносів",
                 ["RemoveTransp"] = "Вилучити прозорість зображень",
                 ["JpegQuality"] = "Рівень якості JPEG (40-100%)",
                 ["GenCover"] = "Генерувати обкладинку",
                 ["CoverPath"] = "Шлях до обкладинки:",
-                ["ResizeCover"] = "Спосіб обробки обкладинки:",
-                ["AnnEnable"] = "Окремий «розділ» з анотацією",
-                ["AnnInToc"] = "Показувати анотацію в змісті",
-                ["TocPlacement"] = "Додаткова сторінка зі змістом",
+                ["ResizeCover"] = "Розмір обкладинки:",
+                ["Opt_Resize_None"] = "Не змінювати",
+                ["Opt_Resize_KeepAR"] = "Зберегти пропорції",
+                ["Opt_Resize_Stretch"] = "Розтягнути на екран",
+                ["AnnEnable"] = "Анотація окремим розділом",
+                ["AnnInToc"] = "Включати анотацію до змісту",
+                ["TocPlacement"] = "Зміст окремою сторінкою",
+                ["Opt_TocPlace_None"] = "Не створювати",
+                ["Opt_TocPlace_Before"] = "На початку книги",
+                ["Opt_TocPlace_After"] = "В кінці книги",
                 ["Dropcaps"] = "Автоматична стилізація буквиць",
-                ["TocType"] = "Тип навігаційної ієрархії:",
-                ["OpenCover"] = "Відкриття книги з титульної сторінки",
+                ["TocType"] = "Тип навігації (TOC):",
+                ["Opt_Toc_Normal"] = "Стандартна (багаторівнева)",
+                ["Opt_Toc_OldKindle"] = "Сумісна (старі Kindle)",
+                ["Opt_Toc_Flat"] = "Спрощена (один рівень)",
+                ["OpenCover"] = "Відкривати книгу з обкладинки",
                 ["FixZip"] = "Вилучити дескриптор даних (Fix ZIP)",
-                ["SaveErrorTitle"] = "Помилка збереження",
-                ["ErrReadOnly"] = "Помилка доступу:\n Файл '{0}' заблоковано!\nПеревірте, чи не встановлено атрибут 'Тільки для читання', або чи не відкритий він в іншій програмі.",
-                ["ErrAccessDenied"] = "Помилка доступу:\n Відмовлено в доступі до файлу '{0}'!\nЗапустіть програму від імені Адміністратора.",
-                ["SaveSuccessTitle"] = "Успіх",
-                ["SaveSuccess"] = "Конфігурацію успішно збережено у файл {0}!",
-                ["YamlTitle"] = "Помилка YAML",
-                ["YamlErr"] = "Помилка: Ключ '{0}' не знайдено у файлі config.yaml!",
-                ["HelpText"] = "Конфігуратор шаблона fb2cng\nРозроблено для набору інструментів fb2cng GUI." +
-                               "\n\nПрограма автоматично збирає Go-шаблон для консольного конвертера fb2cng.exe та модифікує файли конфігурації YAML." +
-                               "\n1. Налаштуйте необхідні параметри." +
-                               "\n2. Використовуйте конструктор для створення структури папок та імені." +
-                               "\n3. Натисніть 'Зберегти.'" +
-                               "\n\nСтворено: Jurchos & Gemini" +
-                               "\nВерсія: 1.3",
-                ["GenTitle"] = "Успіх",
-                ["GenSuccess"] = "config.yaml успішно згенеровано!",
                 ["LogLevel"] = "Рівень логування:",
+                ["Opt_Log_None"] = "Вимкнено (none)",
+                ["Opt_Log_Normal"] = "Звичайний (normal)",
+                ["Opt_Log_Debug"] = "Розширений (debug)",
                 ["LogName"] = "Шаблон назви логу:",
                 ["LogPanicName"] = "Шаблон панік-логу:",
                 ["LogMode"] = "Режим логування:",
@@ -189,29 +278,47 @@ namespace fb2cng_FullConfig
                 ["LogOpt_TimeName"] = "час + назва",
                 ["LogOpt_NameTag"] = "назва + мітка",
                 ["LogMode_OnlyNew"] = "Заміна",
-                ["LogMode_OldNew"] = "Дозапис"
-
+                ["LogMode_OldNew"] = "Дозапис",
+                ["ResetTitle"] = "Перезапуск програми",
+                ["ResetConfirm"] = "Ви впевнені, що хочете скинути налаштування конфігурації до початкового стану?\n(Параметри мови та теми будуть збережені)",
+                ["SaveErrorTitle"] = "Помилка збереження",
+                ["ErrReadOnly"] = "Помилка доступу:\n Файл '{0}' заблоковано!\nПеревірте, чи не встановлено атрибут 'Тільки для читання', або чи не відкритий він в іншій програмі.",
+                ["ErrAccessDenied"] = "Помилка доступу:\n Відмовлено в доступі до файлу '{0}'!\nЗапустіть програму від імені Адміністратора.",
+                ["ErrDirNotFound"] = "Папку, на яку вказує шлях '{0}', не знайдено!",
+                ["ErrTitle"] = "Помилка конфігурації",
+                ["ErrFbc"] = "Відсутня програма-конвертор: перевірте наявність файлу 'fbc.exe' в папці з програмою!",
+                ["SaveSuccessTitle"] = "Успіх",
+                ["SaveSuccess"] = "Конфігурацію успішно збережено у файл {0}!",
+                ["YamlTitle"] = "Помилка YAML",
+                ["YamlErr"] = "Помилка: Ключ '{0}' не знайдено у файлі config.yaml!",
+                ["GenTitle"] = "Успіх",
+                ["GenSuccess"] = "Файл config.yaml успішно збережено в папку 'Data'."
             },
 
             // 3. РОСІЙСЬКА ЛОКАЛІЗАЦІЯ
             ["Russian"] = new()
             {
                 ["Title"] = "Конфигуратор шаблона fb2cng",
-                ["Language"] = "Язык:",
-                ["DumpConfig"] = "Загрузить дефолтный config.yaml",
-                ["ConfigName"] = "Имя пользовательского шаблона:",
-                ["CustomYamlEnable"] = "Редактировать user.yaml",
-                ["CssEnable"] = "CSS-таблица стилей",
-                ["Fb2Name"] = "Сохранить имя fb2 для выходного файла",
-                ["DefaultName"] = "Эталонное имя выходного файла",
                 ["Help"] = "Справка",
+                ["HelpText"] = "«Конфигуратор шаблона fb2cng»\nРазработано для набора инструментов fb2cng GUI.\n\n" +
+               "Если лень вручную редактировать YAML-файлы и изучать шаблоны языка Go:\n" +
+               "• Управление конфигурацией: извлекайте дефолтный шаблон, создавайте свои настройки на базе стандартных или редактируйте ранее созданные YAML-файлы.\n" +
+               "• Визуальный конструктор: интуитивно настраивайте структуру и правила форматирования ваших готовых книг.\n" +
+               "• Быстрый результат: выберите нужные параметры и нажмите «Сохранить» — программа сама сформирует ваш user.yaml .\n\n" +
+               "Разработка: Jurchos & Gemini\n" +
+               "Версия: 1.4",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Сохранить",
                 ["Cancel"] = "Отмена",
                 ["Yes"] = "Да",
                 ["No"] = "Нет",
-                ["ErrTitle"] = "Ошибка конфигурации",
-                ["ErrFbc"] = "Программа-конвертер не найдена: проверьте наличие файла 'fbc.exe' в папке с программой!",
+                ["Language"] = "Язык:",
+                ["DumpConfig"] = "Загрузить дефолтный config.yaml",
+                ["ConfigName"] = "Имя пользовательского шаблона:",
+                ["CustomYamlEnable"] = "Редактировать user.yaml",
+                ["CssEnable"] = "CSS-таблица стилей",
+                ["Fb2Name"] = "Использовать имя fb2 для выходного файла",
+                ["DefaultName"] = "Эталонное имя для выходного файла",
                 ["OutNameTitle"] = "Структура имени выходного файла",
                 ["AsFolder"] = "как папка",
                 ["Translit"] = "Транслитерировать имя выходного файла",
@@ -227,39 +334,38 @@ namespace fb2cng_FullConfig
                 ["Item_Lang"] = "Язык (.Language)",
                 ["Item_Genre"] = "Жанр (.Genres)",
                 ["Item_Date"] = "Дата (.Date)",
-                ["Item_Source"] = "Базовое имя файла (.SourceFile)",
+                ["Item_Source"] = "Исходное имя файла (.SourceFile)",
                 ["Item_Uuid"] = "UUID книги (.BookID)",
-                ["FootnotesMode"] = "Способ отображения сносок:",
+                ["FootnotesMode"] = "Режим сносок:",
+                ["Opt_Note_Default"] = "Стандартный (ссылки)",
+                ["Opt_Note_Float"] = "Всплывающий (float/popup)",
+                ["Opt_Note_FloatRen"] = "Всплывающий + нумерация",
                 ["SoftHyphen"] = "Вставка мягких переносов",
                 ["RemoveTransp"] = "Удалить прозрачность изображений",
                 ["JpegQuality"] = "Уровень качества JPEG (40-100%)",
                 ["GenCover"] = "Генерировать обложку",
                 ["CoverPath"] = "Путь к обложке:",
-                ["ResizeCover"] = "Способ обработки обложки:",
-                ["AnnEnable"] = "Отдельный «раздел» с аннотацией",
-                ["AnnInToc"] = "Показывать аннотацию в оглавлении",
-                ["TocPlacement"] = "Дополнительная страница оглавления",
+                ["ResizeCover"] = "Размер обложки:",
+                ["Opt_Resize_None"] = "Не изменять",
+                ["Opt_Resize_KeepAR"] = "Сохранить пропорции",
+                ["Opt_Resize_Stretch"] = "Растянуть на экран",
+                ["AnnEnable"] = "Аннотация отдельным разделом",
+                ["AnnInToc"] = "Включать аннотацию в оглавление",
+                ["TocPlacement"] = "Оглавление отдельной страницей",
+                ["Opt_TocPlace_None"] = "Не создавать",
+                ["Opt_TocPlace_Before"] = "В начале книги",
+                ["Opt_TocPlace_After"] = "В конце книги",
                 ["Dropcaps"] = "Автоматическая стилизация буквиц",
-                ["TocType"] = "Тип навигационной иерархии:",
-                ["OpenCover"] = "Открытие книги с титульной страницы",
+                ["TocType"] = "Тип навигации (TOC):",
+                ["Opt_Toc_Normal"] = "Стандартная (многоуровневая)",
+                ["Opt_Toc_OldKindle"] = "Совместимая (старые Kindle)",
+                ["Opt_Toc_Flat"] = "Упрощенная (один уровень)",
+                ["OpenCover"] = "Открывать книгу с обложки",
                 ["FixZip"] = "Удалить дескриптор данных (Fix ZIP)",
-                ["SaveErrorTitle"] = "Ошибка сохранения",
-                ["ErrReadOnly"] = "Ошибка доступа:\n Файл '{0}' заблокирован!\nПроверьте, не установлен ли атрибут 'Только для чтения', или не открыт ли он в другой программе.",
-                ["ErrAccessDenied"] = "Ошибка доступа:\n Отказано в доступе к файлу '{0}'!\nЗапустите программу от имени Администратора.",
-                ["SaveSuccessTitle"] = "Успех",
-                ["SaveSuccess"] = "Конфигурация успешно сохранена в файл {0}!",
-                ["YamlTitle"] = "Ошибка YAML",
-                ["YamlErr"] = "Ошибка: Ключ '{0}' не найден в файле config.yaml!",
-                ["HelpText"] = "Конфигуратор шаблона fb2cng\nРазработано для набора инструментов fb2cng GUI." +
-                               "\n\nПрограмма автоматически собирает Go-шаблон для консольного конвертера fb2cng.exe и модифицирует файлы конфигурации YAML." +
-                               "\n1. Настройте необходимые параметры." +
-                               "\n2. Используйте конструктор для создания структуры папок и имени." +
-                               "\n3. Нажмите 'Сохранить'." +
-                               "\n\nСоздано: Jurchos & Gemini" +
-                               "\nВерсия: 1.3",
-                ["GenTitle"] = "Успех",
-                ["GenSuccess"] = "config.yaml успешно сгенерирован!",
                 ["LogLevel"] = "Уровень логирования:",
+                ["Opt_Log_None"] = "Выключено (none)",
+                ["Opt_Log_Normal"] = "Стандартный (normal)",
+                ["Opt_Log_Debug"] = "Расширенный (debug)",
                 ["LogName"] = "Шаблон имени лога:",
                 ["LogPanicName"] = "Шаблон паник-лога:",
                 ["LogMode"] = "Режим логирования:",
@@ -269,52 +375,22 @@ namespace fb2cng_FullConfig
                 ["LogOpt_TimeName"] = "время + имя",
                 ["LogOpt_NameTag"] = "имя + метка",
                 ["LogMode_OnlyNew"] = "Замена",
-                ["LogMode_OldNew"] = "Дозапись"
-
+                ["LogMode_OldNew"] = "Дозапись",
+                ["ResetTitle"] = "Перезапуск программы",
+                ["ResetConfirm"] = "Вы уверены, что хотите сбросить настройки конфигурации до начального состояния?\n(Язык и тема будут сохранены)",
+                ["ErrTitle"] = "Ошибка конфигурации",
+                ["ErrFbc"] = "Программа-конвертер не найдена: проверьте наличие файла 'fbc.exe' в папке с программой!",
+                ["SaveErrorTitle"] = "Ошибка сохранения",
+                ["ErrReadOnly"] = "Ошибка доступа:\n Файл '{0}' заблокирован!\nПроверьте, не установлен ли атрибут 'Только для чтения', или не открыт ли он в другой программе.",
+                ["ErrAccessDenied"] = "Ошибка доступа:\n Отказано в доступе к файлу '{0}'!\nЗапустите программу от имени Администратора.",
+                ["ErrDirNotFound"] = "Указанный путь к папке '{0}' не существует!",
+                ["SaveSuccessTitle"] = "Успех",
+                ["SaveSuccess"] = "Конфигурация успешно сохранена в файл {0}!",
+                ["YamlTitle"] = "Ошибка YAML",
+                ["YamlErr"] = "Ошибка: Ключ '{0}' не найден в файле config.yaml!",
+                ["GenTitle"] = "Успех",
+                ["GenSuccess"] = "Файл config.yaml успешно сохранен в папку 'Data'."
             }
         };
-
-        // Метод ініціалізації (викликається при старті в Program.cs)
-        public static void Initialize(IConfiguration config)
-        {
-            Settings = config.Get<AppSettings>() ?? new AppSettings();
-        }
-
-        // Збереження у JSON форматі
-        public static void SaveSettings()
-        {
-            try
-            {
-                // 1. Отримуємо шлях до директорії та створюємо її, якщо вона відсутня
-                string? directoryPath = Path.GetDirectoryName(settingsFile);
-                if (!string.IsNullOrEmpty(directoryPath))
-                {
-                    Directory.CreateDirectory(directoryPath);
-                }
-
-                // 2. Використовуємо глобальні кешовані опції замість локального new()
-                string jsonString = JsonSerializer.Serialize(Settings, JsonOptions);
-                File.WriteAllText(settingsFile, jsonString);
-            }
-            catch (Exception ex)
-            {
-                try
-                {
-                    // 1. Створюємо окремий шлях до папки logs
-                    string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                    Directory.CreateDirectory(logsDir); // Безпечно створює папку, якщо її немає
-
-                    // 2. Поєднуємо шлях папки з назвою файлу
-                    string logFile = Path.Combine(logsDir, "Conf_errors.log");
-
-                    // Оптимальний запис логу для .NET 10 через AppendAllLines
-                    File.AppendAllLines(logFile, [$"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Save error: {ex.Message}"]);
-                }
-                catch
-                {
-                    // Поглинаємо помилку запису логу, щоб програма не впала в catch-блоці
-                }
-            }
-        }
     }
 }
