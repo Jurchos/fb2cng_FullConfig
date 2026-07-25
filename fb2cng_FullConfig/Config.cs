@@ -27,7 +27,7 @@ namespace fb2cng_FullConfig
                     _ = Directory.CreateDirectory(logsDir);
                 }
 
-                string logFile = Path.Combine(logsDir, "Conf_errors.log");
+                string logFile = Path.Combine(logsDir, "conf_errors.log");
                 string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
 
                 if (ex != null)
