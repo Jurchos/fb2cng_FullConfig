@@ -461,40 +461,38 @@ namespace fb2cng_FullConfig
             }
             else
             {
-                // Якщо вимкнено - повертаємо стандарт
+                // Коли галочку знято, ми очищуємо саме поле зі шляхом "Data/11.yaml"
+                docTab.txtCustomYamlPath.Text = "";
+
+                // Повертаємо стандартне ім'я для вихідного файлу
                 docTab.txtConfigName.Text = "Data/config.yaml";
             }
         }
 
         private static void SyncCssWithCustomYaml(DocumentTab docTab)
         {
-            if (docTab.chkCustomYaml.Checked && docTab.chkCss.Checked)
+            if (docTab.chkCustomYaml.Checked)
             {
-                // ВАЖЛИВО: Якщо користувач вже обрав файл (поле не порожнє), 
-                // ми не затираємо його автоматично при кожному кліку чекбокса.
-                if (!string.IsNullOrEmpty(docTab.txtCssPath.Text))
-                {
-                    return;
-                }
-
+                // 1. Отримуємо шлях до обраного YAML
                 string yamlPath = docTab.txtCustomYamlPath.Text.Trim();
                 if (!string.IsNullOrEmpty(yamlPath))
                 {
                     string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, yamlPath);
                     if (File.Exists(fullPath))
                     {
+                        // 2. Зчитуємо значення ключа stylesheet_path
                         string value = YamlService.ReadYamlValue(fullPath, "stylesheet_path");
-                        if (!string.IsNullOrEmpty(value))
-                        {
-                            docTab.txtCssPath.Text = value;
-                        }
+
+                        // 3. Просто записуємо значення в текстове поле. 
+                        // Це спрацює навіть якщо чекбокс chkCss вимкнений (так само як з обкладинкою).
+                        docTab.txtCssPath.Text = value;
                     }
                 }
             }
-            if (!docTab.chkCustomYaml.Checked)
+            else
             {
+                // Якщо режим редагування вимкнено - очищуємо шлях
                 docTab.txtCssPath.Text = "";
-                return;
             }
         }
 

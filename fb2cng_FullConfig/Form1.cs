@@ -350,6 +350,7 @@ namespace fb2cng_FullConfig
                 {
                     SyncCssWithCustomYaml(docTab);
                 }
+                ApplyTheme();
             };
             // Синхронізація імені конфігу при зміні стану чекбокса
             docTab.chkCustomYaml.CheckedChanged += (s, e) =>
