@@ -70,6 +70,7 @@ namespace fb2cng_FullConfig.Utils
             public int SizeInputX { get; }
             public int RadioX { get; }
             // змінні, перенесені з Form1.cs ---
+            public int HeaderTopPadding { get; }
             public int HeaderRowHeight { get; }
             public int HeaderHeight { get; }
             public int HeaderPaddingLeft { get; }
@@ -112,6 +113,7 @@ namespace fb2cng_FullConfig.Utils
                 SizeInputX = XLeft + TextLabelWidth;  // Координата X для полів введення, що мають текстові мітки
                 RadioX = XLeft + TextLabelWidth + Scale(60); // Координата X для радіокнопок, що мають текстові мітки
                 // Розрахунки для Form1.cs
+                HeaderTopPadding = Scale(4);
                 HeaderRowHeight = Scale(28);// Висота ряду кнопок хідера
                 HeaderHeight = HeaderRowHeight + Scale(8);
                 HeaderPaddingLeft = Scale(13); // Відступ зліва для першої кнопки

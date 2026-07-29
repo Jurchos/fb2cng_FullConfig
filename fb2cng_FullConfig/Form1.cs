@@ -95,9 +95,9 @@ namespace fb2cng_FullConfig
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
 
              // Координати (використовуємо змінні відступів)
-            btnTabDocument.SetBounds(m.HeaderPaddingLeft, m.BetweenButtons, tabWidthRow1, m.HeaderRowHeight);
-            btnTabMetadata.SetBounds(btnTabDocument.Right + m.BetweenButtons, btnTabDocument.Top, tabWidthRow1, m.HeaderRowHeight);
-            btnTabLogging.SetBounds(btnTabMetadata.Right + m.BetweenButtons, btnTabDocument.Top, tabWidthRow1, m.HeaderRowHeight);
+            btnTabDocument.SetBounds(m.HeaderPaddingLeft, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
+            btnTabMetadata.SetBounds(btnTabDocument.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
+            btnTabLogging.SetBounds(btnTabMetadata.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
             Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabLogging];
