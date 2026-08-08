@@ -1,7 +1,6 @@
 ﻿using fb2cng_FullConfig.Settings;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
-using System.Linq;
 namespace fb2cng_FullConfig
 {
     public static class Config

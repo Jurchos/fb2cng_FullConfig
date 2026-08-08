@@ -255,15 +255,14 @@ namespace fb2cng_FullConfig
             try // Додаємо блок відстеження помилок
             {
                 // 1. Сховати всі наявні вкладки
-                foreach (Control ctrl in pnlContent.Controls)
-                {
-                    ctrl.Visible = false;
-                }
+                foreach (Control ctrl in pnlContent.Controls) ctrl.Visible = false;
 
-                // 2. Отримати або створити цільову вкладку
-                if (!_tabsCache.TryGetValue(tabName, out UserControl? tabControl))
+                // 1. ПЕРЕВІРЯЄМО, ЧИ Є ВКЛАДКА В КЕШІ
+                bool isFirstLoad = !_tabsCache.ContainsKey(tabName);
+
+                if (isFirstLoad)
                 {
-                    tabControl = tabName switch
+                    UserControl tabControl = tabName switch
                     {
                         "document:" => new DocumentTab(),
                         "metadata:" => new MetadataTab(),
@@ -286,24 +285,19 @@ namespace fb2cng_FullConfig
                     pnlContent.Controls.Add(tabControl);
                 }
 
-                // 3. СИНХРОНІЗАЦІЯ 
-                // Отримуємо посилання на DocumentTab один раз для всіх перевірок
-                if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab activeDocTab)
+                // 2. ЯКЩО ЦЕ ПЕРШИЙ ЗАПУСК ВКЛАДКИ — СИНХРОНІЗУЄМО ЇЇ З ПОТОЧНИМ YAML
+                if (isFirstLoad)
                 {
-                    if (tabName == "metadata:")
+                    if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab docTabReference)
                     {
-
-                        SyncMetadataWithYaml(activeDocTab);
-                    }
-                    else if (tabName == "logging:")
-                    {
-                        SyncLoggingSettingsWithYaml(activeDocTab);
+                        if (tabName == "metadata:") SyncMetadataWithYaml(docTabReference);
+                        else if (tabName == "logging:") SyncLoggingSettingsWithYaml(docTabReference);
                     }
                 }
 
-                // 4. Відображення
-                tabControl.Visible = true;
-                tabControl.BringToFront();
+                // 3. ПОКАЗУЄМО ВКЛАДКУ
+                _tabsCache[tabName].Visible = true;
+                _tabsCache[tabName].BringToFront();
                 UpdateLocalization();
                 ApplyTheme();
             }
@@ -359,6 +353,7 @@ namespace fb2cng_FullConfig
                 SyncCssWithCustomYaml(docTab);
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
+                SyncMetadataWithYaml(docTab);
                 SyncLoggingSettingsWithYaml(docTab);
                 // Також викликаємо оновлення теми, бо зміна стану чекбокса впливає на візуал
                 ApplyTheme();
@@ -371,6 +366,7 @@ namespace fb2cng_FullConfig
                 SyncCssWithCustomYaml(docTab); // Можна теж додати про всяк випадок
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
+                SyncMetadataWithYaml(docTab);
                 SyncLoggingSettingsWithYaml(docTab);
             };
 

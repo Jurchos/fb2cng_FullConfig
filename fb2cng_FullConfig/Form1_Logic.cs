@@ -435,6 +435,13 @@ namespace fb2cng_FullConfig
 
                 if (success)
                 {
+                    // Оновлюємо інтерфейс відразу після генерації файлу
+
+                        SyncTocTypeWithCustomYaml(docTab);
+                        SyncBinarySettingsWithYaml(docTab);
+                        SyncLoggingSettingsWithYaml(docTab);
+                        SyncMetadataWithYaml(docTab); // Тепер метадані оновляться при створенні файлу
+
                     string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
                     string msg = langDict?.GetValueOrDefault("GenSuccess", "config.yaml successfully generated!") ?? "config.yaml successfully generated!";
 
