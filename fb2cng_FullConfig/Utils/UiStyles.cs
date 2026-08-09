@@ -57,9 +57,11 @@ namespace fb2cng_FullConfig.Utils
             public int LabelHeight { get; }
             public int FieldHeight { get; }
             public int CheckBoxHeight { get; }
+            public int ElementSpacing { get; }
             public int SidePadding { get; }
             public int RowHeight { get; }
             public int BrowseBtnWidth { get; }
+            public int RadioGroupWidth { get; }
             public int IconSize { get; }
             public int BtnRadius { get; }
             public int XLeft { get; }
@@ -95,14 +97,16 @@ namespace fb2cng_FullConfig.Utils
                 BaseWidth = baseWidth;
                 ScaledWidth = Scale(baseWidth);
                 TotalSize = new Size(ScaledWidth, Scale(565)); // Загальний розмір форми -заготовка, в основному для розрахунку CustomMessageBox
-                BlockMargin = Scale(10);     // Відстань між блоками
+                BlockMargin = Scale(14);     // Відстань між блоками
                 LabelHeight = Scale(20);     // Висота текстових міток
                 FieldHeight = Scale(24);     // Висота полів введення
                 CheckBoxHeight = Scale(22);  // Висота чекбоксів
+                ElementSpacing = Scale(6);   // Масштабований відступ між полем і кнопкою
                 SidePadding = Scale(3);      // Відступ з боків (права сторона) 
-                RowHeight = Scale(32);       // Висота одного рядка (для розрахунку вертикального розташування)
+                RowHeight = Scale(30);       // Висота одного рядка (для розрахунку вертикального розташування)
                 BrowseBtnWidth = Scale(55);  // Ширина кнопки "Папка"
-                IconSize = Scale(17);
+                RadioGroupWidth = Scale(140);// Ширина групи радіокнопок
+                IconSize = Scale(22);
                 BtnRadius = Scale(4);
 
                 XLeft = Scale(16);           // Лівий відступ для всіх елементів
@@ -120,7 +124,7 @@ namespace fb2cng_FullConfig.Utils
                 HeaderPaddingRight = Scale(14); // Відступ справа для останньої кнопки
                 BetweenButtons = Scale(6);
 
-                ContentHeight = Scale(580); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
+                ContentHeight = Scale(625); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
 
                 FooterHeight = Scale(24) + Scale(14);// Висота футера з урахуванням відступів
                 FooterBtnWidth = Scale(90);
@@ -147,48 +151,20 @@ namespace fb2cng_FullConfig.Utils
 
         internal static void SetupIconButtonDrawing(Button btn, Image icon, CheckBox dependencyCheckBox, float[][] inactiveMatrix)
         {
-            if (btn == null || dependencyCheckBox == null)
-            {
-                return;
-            }
+            if (btn == null || dependencyCheckBox == null) return;
 
-            btn.Tag = false; // Ставимо початковий стан Hovered у Tag
-
-            // Обробка подій миші для ефекту наведення
-            btn.EnabledChanged += (s, e) => { if (!btn.Enabled) { btn.Tag = false; btn.Invalidate(); } };
-            btn.MouseEnter += (s, e) => { if (btn.Enabled) { btn.Tag = true; btn.Invalidate(); } };
-            btn.MouseLeave += (s, e) => { btn.Tag = false; btn.Invalidate(); };
-
-            // Універсальна подія Paint
+            // Ми прибрали звідси Paint фону, залишаємо ТІЛЬКИ малювання іконки
             btn.Paint += (s, e) =>
             {
-                bool isHovered = (bool)btn.Tag;
-
-                // 1. Малювання кастомного фону при наведенні
-                if (isHovered && btn.Enabled)
-                {
-                    Color baseBgColor = btn.BackColor;
-                    bool isDark = baseBgColor.R < 128;
-                    Color drawBgColor = isDark
-                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
-                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
-
-                    using Brush backBrush = new SolidBrush(drawBgColor);
-                    e.Graphics.FillRectangle(backBrush, 0, 0, btn.Width, btn.Height);
-                }
-
-                // 2. Малювання іконки папки з точними налаштуваннями якості
                 if (icon != null)
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
                     int paddingX = (int)(btn.Width * 0.24);
                     int paddingY = (int)(btn.Height * 0.12);
                     Rectangle destRect = new(paddingX, paddingY, btn.Width - (paddingX * 2), btn.Height - (paddingY * 2));
 
-                    // Якщо чекбокс НЕ активний — малюємо сіру/прозору іконку за вашою матрицею
                     if (!dependencyCheckBox.Checked)
                     {
                         using System.Drawing.Imaging.ImageAttributes imageAttributes = new();
@@ -201,9 +177,152 @@ namespace fb2cng_FullConfig.Utils
                     }
                 }
             };
-
-            // Перемальовуємо кнопку при зміні стану чекбокса, щоб іконка миттєво змінювала яскравість
             dependencyCheckBox.CheckedChanged += (s, e) => btn.Invalidate();
+        }
+
+        internal static void MakeButtonRounded(Button btn, int radius)
+        {
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = Color.Transparent;
+            btn.FlatAppearance.MouseDownBackColor = Color.Transparent;
+
+            void UpdateRegion()
+            {
+                if (btn.Width <= 0 || btn.Height <= 0) return;
+                using GraphicsPath path = new();
+                float r = radius;
+                if (r > btn.Height / 2f) r = btn.Height / 2f;
+                path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
+                path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
+                path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
+                path.CloseAllFigures();
+                // ВАЖЛИВО: Звільняємо старий Region перед призначенням нового
+                Region? oldRegion = btn.Region;
+                btn.Region = new Region(path);
+                oldRegion?.Dispose();
+            }
+
+            btn.HandleCreated += (s, e) => UpdateRegion();
+            btn.SizeChanged += (s, e) => UpdateRegion();
+
+            bool isHovered = false;
+            btn.MouseEnter += (s, e) => { if (btn.Enabled) { isHovered = true; btn.Invalidate(); } };
+            btn.MouseLeave += (s, e) => { isHovered = false; btn.Invalidate(); };
+
+            btn.Paint += (s, ev) =>
+            {
+                ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                ev.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                bool isDark = Config.IsDarkTheme;
+
+                using GraphicsPath path = new();
+                float r = radius;
+                path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
+                path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
+                path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
+                path.CloseAllFigures();
+
+                // 1. ДИНАМІЧНИЙ РОЗРАХУНОК ФОНУ
+                Color baseColor = btn.BackColor;
+                Color drawBg = baseColor;
+
+                if (isHovered && btn.Enabled)
+                {
+                    if (isDark)
+                    {
+                        // В темній темі робимо трохи світлішим
+                        drawBg = Color.FromArgb(
+                            Math.Min(255, baseColor.R + 25),
+                            Math.Min(255, baseColor.G + 25),
+                            Math.Min(255, baseColor.B + 30));
+                    }
+                    else
+                    {
+                        // В світлій темі: якщо кнопка акцентна (синя/темна) - робимо світлішою
+                        if (baseColor.R < 180 || baseColor.G < 180 || baseColor.B < 180)
+                        {
+                            drawBg = Color.FromArgb(
+                                Math.Min(255, baseColor.R + 40),
+                                Math.Min(255, baseColor.G + 40),
+                                Math.Min(255, baseColor.B + 50));
+                        }
+                        else // Якщо кнопка звичайна сіра - стандартний колір наведення
+                        {
+                            drawBg = Color.FromArgb(225, 225, 225);
+                        }
+                    }
+                }
+
+                using (SolidBrush br = new(drawBg))
+                {
+                    ev.Graphics.FillPath(br, path);
+                }
+
+                // 2. ВМІСТ (Текст/Іконки)
+                TextFormatFlags flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+                if (btn.Image != null)
+                {
+                    int imgW = btn.Image.Width;
+                    int imgH = btn.Image.Height;
+
+                    // ПЕРЕВІРКА: Якщо тексту немає (або лише пробіли), малюємо іконку по центру
+                    if (string.IsNullOrWhiteSpace(btn.Text))
+                    {
+                        int startX = (btn.Width - imgW) / 2;
+                        int startY = (btn.Height - imgH) / 2;
+                        ev.Graphics.DrawImage(btn.Image, startX, startY, imgW, imgH);
+                    }
+                    else
+                    {
+                        // Якщо текст є, малюємо іконку + текст поруч
+                        int spacing = GetScaled(4);
+                        Size textSize = TextRenderer.MeasureText(btn.Text, btn.Font);
+                        int totalW = imgW + spacing + textSize.Width;
+                        int startX = (btn.Width - totalW) / 2;
+                        int startY = (btn.Height - imgH) / 2;
+                        ev.Graphics.DrawImage(btn.Image, startX, startY, imgW, imgH);
+
+                        Rectangle textRect = new(startX + imgW + spacing, 0, textSize.Width, btn.Height);
+                        TextRenderer.DrawText(ev.Graphics, btn.Text, btn.Font, textRect, btn.ForeColor, flags);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(btn.Text))
+                {
+                    TextRenderer.DrawText(ev.Graphics, btn.Text, btn.Font, btn.ClientRectangle, btn.ForeColor, flags);
+                }
+
+                // 3. РАМКА
+                float penWidth = 1.1f;
+                float offset = 0.5f;
+                using GraphicsPath framePath = new();
+                framePath.AddArc(offset, offset, r * 2, r * 2, 180, 90);
+                framePath.AddArc(btn.Width - (r * 2) - offset, offset, r * 2, r * 2, 270, 90);
+                framePath.AddArc(btn.Width - (r * 2) - offset, btn.Height - (r * 2) - offset, r * 2, r * 2, 0, 90);
+                framePath.AddArc(offset, btn.Height - (r * 2) - offset, r * 2, r * 2, 90, 90);
+                framePath.CloseAllFigures();
+
+                Color borderColor;
+                if (!btn.Enabled) borderColor = isDark ? Color.FromArgb(60, 60, 62) : Color.LightGray;
+                else
+                {
+                    // Якщо кнопка акцентна - рамка має бути кольору тексту або прозорою
+                    if (!isDark && baseColor.R < 180) borderColor = Color.FromArgb(100, baseColor);
+                    else borderColor = isDark ? Color.FromArgb(85, 85, 90) : Color.DarkGray;
+                }
+
+                Form? parentForm = btn.FindForm();
+                if (parentForm != null && parentForm.AcceptButton == btn && btn.Enabled && !isHovered)
+                    borderColor = isDark ? Color.FromArgb(110, 110, 115) : Color.FromArgb(100, 100, 105);
+
+                if (isHovered && btn.Enabled)
+                    borderColor = isDark ? Color.FromArgb(150, 150, 155) : (baseColor.R < 180 ? baseColor : Color.FromArgb(0, 120, 215));
+
+                using Pen pen = new(borderColor, penWidth);
+                ev.Graphics.DrawPath(pen, framePath);
+            };
         }
 
         // Масштабує вхідне зображення до заданих розмірів з високою якістю рендерингу.
@@ -238,104 +357,7 @@ namespace fb2cng_FullConfig.Utils
             }
         }
 
-        internal static void MakeButtonRounded(Button btn, int radius)
-        {
-            btn.FlatStyle = FlatStyle.Flat; // ОБОВ'ЯЗКОВО
-            btn.FlatAppearance.BorderSize = 0;
 
-            // Крок 1. Надійний Region
-            using (GraphicsPath path = new())
-            {
-                float r = radius;
-                path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-                path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
-                path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
-                path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
-                path.CloseAllFigures();
-
-                btn.Region = new Region(path);
-            }
-
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-
-            // Додаємо змінні для світлої теми з перевіркою Enabled (захист від багу при старті)
-            bool isHovered = false;
-            btn.MouseEnter += (s, e) => { if (btn.Enabled) { isHovered = true; btn.Invalidate(); } };
-            btn.MouseLeave += (s, e) => { isHovered = false; btn.Invalidate(); };
-
-            // Якщо під час зміни Enabled кнопка була під мишкою, скидаємо стан підсвічування
-            btn.EnabledChanged += (s, e) => { if (!btn.Enabled) { isHovered = false; btn.Invalidate(); } };
-
-            // Крок 2. Малювання рамки
-            btn.Paint += (s, ev) =>
-            {
-                ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                bool isDarkTheme = Config.IsDarkTheme;
-
-                if (isDarkTheme)
-                {
-                    // ДЛЯ ТЕМНОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new();
-                    float r = radius;
-                    float startXY = 0.5f;
-                    float sizeAdjustment = 1.0f;
-
-                    buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
-                    buttonFramePath.AddArc(0, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
-                    buttonFramePath.CloseAllFigures();
-
-                    // Якщо кнопка вимкнена в темній темі, робимо рамку тьмяною
-                    // 1. Спочатку визначаємо стандартний колір рамки для активної кнопки
-                    Color activeBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                        ? btn.FlatAppearance.BorderColor
-                        : btn.ForeColor;
-
-                    // 2. Тепер легко і читабельно робимо вибір залежно від стану кнопки
-                    Color btnBorderColor = !btn.Enabled
-                        ? Color.FromArgb(70, Color.Gray)
-                        : activeBorderColor;
-                    using Pen pen = new(btnBorderColor, 1.2F);
-                    ev.Graphics.DrawPath(pen, buttonFramePath);
-                }
-                else
-                {
-                    // ДЛЯ СВІТЛОЇ ТЕМИ
-                    using GraphicsPath buttonFramePath = new();
-                    float r = radius;
-                    float startXY = 0.5f;
-                    float sizeAdjustment = 1.0f;
-
-                    buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
-                    buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
-                    buttonFramePath.AddArc(0, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
-                    buttonFramePath.CloseAllFigures();
-
-                    Color btnBorderColor;
-                    if (!btn.Enabled)
-                    {
-                        btnBorderColor = Color.LightGray;
-                    }
-                    else if (isHovered)
-                    {
-                        btnBorderColor = Color.FromArgb(0, 120, 215); // Підсвічування при наведенні
-                    }
-                    else
-                    {
-                        btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                            ? btn.FlatAppearance.BorderColor
-                            : Color.DarkGray;
-                    }
-
-                    using Pen pen = new(btnBorderColor, 1.0F);
-                    ev.Graphics.DrawPath(pen, buttonFramePath);
-                }
-            };
-        }
         internal static void MsgBoxButtonStyles(Button btn, int radius, bool isDark, Color formBackColor)
         {
             if (btn == null)

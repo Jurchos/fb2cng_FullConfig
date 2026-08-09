@@ -6,7 +6,7 @@ namespace fb2cng_FullConfig.Services
     public static class YamlService
     {
         private static readonly string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fbc.exe");
-        private static readonly string sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "config.yaml");
+        private static readonly string sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Config.DataFolder, Config.ConfigFileName);
 
         public static bool IsEngineAvailable()
         {
@@ -26,7 +26,7 @@ namespace fb2cng_FullConfig.Services
                 ProcessStartInfo psi = new()
                 {
                     FileName = exePath,
-                    Arguments = "dumpconfig --default Data/config.yaml",
+                    Arguments = $"dumpconfig --default \"{Config.DefaultConfigPath}\"",
                     WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
                     CreateNoWindow = true,
                     UseShellExecute = false
@@ -471,21 +471,22 @@ namespace fb2cng_FullConfig.Services
                             // Додаємо статичні роздільники імені (дефіс чи підкреслення) як красиві окремі рядки YAML
                             if (!prevIsFolder)
                             {
-                                if (selIndex == 9 && sb.Append("        {{- printf \"_\" -}}\n") != null)
+                                if (selIndex == 9)
                                 {
-                                    // Порожньо, все перенесно в if
+                                    _ = sb.Append("        {{- printf \"_\" -}}\n");
                                 }
                                 else if ((selIndex == 2 && !isFolder) || (prevSelIndex == 2 && !prevIsFolder))
                                 {
                                     // Пропускаємо дефіс C#, Go сам розставить пробіли/тире через printf
                                 }
-                                else if (sb.Append("        {{- printf \" - \" -}}\n") != null)
+                                else
                                 {
+                                    _ = sb.Append("        {{- printf \" - \" -}}\n");
                                 }
                             }
                         }
                     }
-                    isFirst = sb.Append(chunk) == null;
+                    _ = sb.Append(chunk); isFirst = false;
                 }
             }
 
@@ -583,6 +584,51 @@ namespace fb2cng_FullConfig.Services
             return [.. result];
         }
 
+        private static string[] ProcessVignettes(string[] lines, bool useVignettes, bool[] items)
+        {
+            List<string> result = [];
+            string[] keys = ["title_top", "title_bottom", "title_top", "title_bottom", "end", "title_top", "title_bottom", "end"];
+            int keyIdx = 0;
+            bool inVignettes = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                string trimmed = line.TrimStart();
+
+                if (trimmed.Contains("vignettes:"))
+                {
+                    inVignettes = true;
+                    result.Add(useVignettes ? "    vignettes:" : "    # vignettes:");
+                    continue;
+                }
+
+                // Вихід із секції віньєток
+                if (inVignettes && (trimmed.Contains("dropcaps:") || (line.Length - trimmed.Length < 4 && trimmed.Length > 0 && !trimmed.StartsWith('#'))))
+                {
+                    inVignettes = false;
+                }
+
+                if (inVignettes)
+                {
+                    if (trimmed.Contains("book:") || trimmed.Contains("chapter:") || trimmed.Contains("section:"))
+                    {
+                        result.Add(useVignettes ? line.Replace("#", "") : (trimmed.StartsWith('#') ? line : "    # " + trimmed));
+                    }
+                    else if (keyIdx < keys.Length && trimmed.Contains(keys[keyIdx] + ":"))
+                    {
+                        bool active = useVignettes && items[keyIdx];
+                        string clean = trimmed.Replace("#", "").Trim();
+                        result.Add(active ? $"        {clean}" : $"        # {clean}");
+                        keyIdx++;
+                    }
+                    else { result.Add(line); }
+                }
+                else { result.Add(line); }
+            }
+            return [.. result];
+        }
+
         public static bool SaveConfiguration(
           string configName, bool useCustomYaml, string customYamlPath,
           bool useCss, string cssPath,
@@ -593,17 +639,25 @@ namespace fb2cng_FullConfig.Services
           bool useFb2Name,
           bool useDefaultName,
           int[] fieldIndexes, bool[] folderFlags,
-          bool customSize, string width, string height, string dpi,
-          bool useNotesMode, string notesMode,
-          bool useSoftHyphen, bool softHyphenVal,
-          bool useRemoveTransp, bool removeTranspVal,
-          bool useJpegQuality, string jpegQuality,
-          bool useGenCover, bool genCoverVal, string coverPath,
-          bool useResizeCover, string resizeCover,
-          bool useAnnEnable, bool annEnableVal,
-          bool useAnnInToc, bool annInTocVal,
-          bool useTocPlacement, string tocPlacement,
-          bool useDropcaps, bool dropcapsVal,
+
+          bool useSoftHyphen, bool softHyphenVal,                             // 2. insert_soft_hyphen
+          bool usePageMap, bool pageMapVal, string pageSize, bool adobeDeVal, // 3. page_map
+          bool useBroken, bool useBrokenVal,                                  // 4. images: use_broken
+          bool useRemoveTransp, bool removeTranspVal,                         // 5. images: remove_transparency
+          string scaleFactor,                                                 // 6. images: scale_factor
+          bool optimizeVal,                                                   // 7. images: optimize
+          bool useJpegQuality, string jpegQuality,                            // 8. images: jpeg_quality_level
+          bool customSize, string width, string height, string dpi,           // 9. images: screen
+          bool useGenCover, bool genCoverVal, string coverPath,               // 10. images: cover: generate
+          bool useResizeCover, string resizeCover,                            // 11. images: cover: resize
+          bool useNotesMode, string notesMode,                                // 12. footnotes: mode
+          bool useAnnEnable, bool annEnableVal,                               // 13. annotation: enable
+          bool useAnnInToc, bool annInTocVal,                                 // 14. annotation: in_toc
+          bool useTocPlacement, string tocPlacement,                          // 15. toc_page: placement
+          bool useInclNoTitle, bool inclNoTitleVal,                           // 16. include_chapters_without_title
+          bool useVignettes, bool vignettesVal, bool[] vignettesItems,        // 17. vignettes
+          bool useDropcaps, bool dropcapsVal,                                 // 18. dropcaps: enable
+
           bool useLogLevel, string logLevel,
           bool useLogName, string logNameTmpl,
           bool usePanicLogName, string panicLogNameTmpl,
@@ -658,53 +712,48 @@ namespace fb2cng_FullConfig.Services
                 if (useCss)
                 {
                     lines = ReplaceYamlValueLine(lines, "stylesheet_path", string.IsNullOrWhiteSpace(cssPath) ? "" : $"\"{cssPath}\"", true);
-                }
-
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useCoverMode)
                 {
                     lines = ReplaceYamlValueLine(lines, "toc_type", $"\"{coverMode}\"");
-                }
-
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (saveFixZip)
                 {
                     lines = ReplaceYamlValueLine(lines, "fix_zip", fixZipVal ? "true" : "false");
-                }
-
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (saveOpenCover)
                 {
                     lines = ReplaceYamlValueLine(lines, "open_from_cover", openCoverVal ? "true" : "false");
-                }
-
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (saveTranslit)
                 {
                     lines = ReplaceYamlValueLine(lines, "file_name_transliterate", translitVal ? "true" : "false");
-                }
 
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
-
                 string templateBlock = "";
 
                 if (useDefaultName)
@@ -736,30 +785,45 @@ namespace fb2cng_FullConfig.Services
 
                 //==================
                 //metainformation:
-                if (customSize)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "width", width);
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "height", height);
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "dpi", dpi);
-                }
-                if (useNotesMode)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["footnotes:"], "mode", $"\"{notesMode}\"");
-                }
-
-                if (lines == null)
-                {
-                    return false;
-                }
-
                 if (useSoftHyphen)
                 {
                     lines = ReplaceYamlValueLine(lines, "insert_soft_hyphen", softHyphenVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (usePageMap)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "enable", pageMapVal ? "true" : "false");
+                    lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "size", pageSize);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "adobe_de", adobeDeVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                // images
+                if (useBroken)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "use_broken", useBrokenVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useRemoveTransp)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "remove_transparency", removeTranspVal ? "true" : "false");
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "scale_factor", scaleFactor);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "optimize", optimizeVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useJpegQuality)
@@ -779,13 +843,32 @@ namespace fb2cng_FullConfig.Services
                     }
 
                     lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "jpeg_quality_level", finalQuality);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                // screen
+                if (customSize)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "width", width);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "height", height);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "dpi", dpi);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useGenCover)
                 {
                     // 1. Спочатку оновлюємо статус generate
                     lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "generate", genCoverVal ? "true" : "false");
-                    if (lines == null) return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
 
                     // 2. Викликаємо нову логіку для шляху до картинки
                     lines = HandleCoverPathLogic(lines, coverPath);
@@ -798,26 +881,72 @@ namespace fb2cng_FullConfig.Services
                 if (useResizeCover)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "resize", $"\"{resizeCover}\"");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useNotesMode)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["footnotes:"], "mode", $"\"{notesMode}\"");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useAnnEnable)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["annotation:"], "enable", annEnableVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useAnnInToc)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["annotation:"], "in_toc", annInTocVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useTocPlacement)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["toc_page:"], "placement", $"\"{tocPlacement}\"");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
+                if (useInclNoTitle)
+                {
+                    lines = ReplaceYamlValueLine(lines!, "include_chapters_without_title", inclNoTitleVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useVignettes)
+                {
+                    lines = ProcessVignettes(lines!, vignettesVal, vignettesItems);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
                 if (useDropcaps)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["dropcaps:"], "enable", dropcapsVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 //===============
@@ -826,21 +955,20 @@ namespace fb2cng_FullConfig.Services
                 if (useLogLevel)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, fileSec, "level", logLevel);
-                }
 
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 if (useLogMode)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, fileSec, "mode", logMode);
-                }
-
-                if (lines == null)
-                {
-                    return false;
+                    if (lines == null)
+                    {
+                        return false;
+                    }
                 }
 
                 // визначення префікса папки logs/ для шаблонів логів, якщо чекбокс активний
@@ -862,7 +990,7 @@ namespace fb2cng_FullConfig.Services
 
                 if (useLogName)
                 {
-                    lines = ReplaceYamlSectionValueLine(lines, fileSec, "destination_template", $"\"{prefix}{logNameTmpl}\"");
+                    lines = ReplaceYamlSectionValueLine(lines!, fileSec, "destination_template", $"\"{prefix}{logNameTmpl}\"");
                     if (lines == null)
                     {
                         return false;
@@ -870,7 +998,7 @@ namespace fb2cng_FullConfig.Services
                 }
                 if (usePanicLogName)
                 {
-                    lines = ReplaceYamlSectionValueLine(lines, fileSec, "panic_destination_template", $"\"{prefix}{panicLogNameTmpl}\"");
+                    lines = ReplaceYamlSectionValueLine(lines!, fileSec, "panic_destination_template", $"\"{prefix}{panicLogNameTmpl}\"");
                     if (lines == null)
                     {
                         return false;
@@ -880,7 +1008,7 @@ namespace fb2cng_FullConfig.Services
                 // 2. Викликаємо заміну в YAML (тільки один раз!)
                 if (!string.IsNullOrEmpty(templateBlock))
                 {
-                    lines = ReplaceOutputTemplateBlockSafely(lines, templateBlock);
+                    lines = ReplaceOutputTemplateBlockSafely(lines!, templateBlock);
                 }
 
                 // 3. Перевірка на помилку (якщо ключ не знайдено)

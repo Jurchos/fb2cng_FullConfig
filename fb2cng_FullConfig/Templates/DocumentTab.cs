@@ -60,7 +60,7 @@ namespace fb2cng_FullConfig.Templates
             Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
             btn.FlatAppearance.BorderSize = 0;
 
-            // Викликаємо наш новий єдиний метод малювання (він у UiStyles, додаєм UiStyles. перед назвою)
+            // Викликаємо наш новий єдиний метод малювання (він у UiStyles)
             UiStyles.SetupIconButtonDrawing(btn, icon, chk, UiStyles.InactiveIconMatrix);
 
             // Зв'язуємо стан доступності тексту та кнопки із чекбоксом
@@ -82,7 +82,6 @@ namespace fb2cng_FullConfig.Templates
             // забороняєм горизонтальний скрол
             scrollMenuPanel = new Panel { Dock = DockStyle.Fill };
             Controls.Add(scrollMenuPanel);
-
             UiStyles.DisableHorizontalScroll(scrollMenuPanel);
 
             grpOutName = new GroupBox { Text = "" };
@@ -94,17 +93,19 @@ namespace fb2cng_FullConfig.Templates
             langComboBox.Items.AddRange(["English", "Українська", "Русский"]);
             btnReset = new Button
             {
-                Image = UiStyles.ResizeImage(Properties.Resources.icon_reset, m.IconSize + UiStyles.GetScaled(3), m.IconSize + UiStyles.GetScaled(3)),
-                ImageAlign = ContentAlignment.MiddleCenter, // Вирівнюємо іконку чітко по центру
-                FlatStyle = FlatStyle.Flat
+                Image = UiStyles.ResizeImage(Properties.Resources.icon_reset, m.IconSize, m.IconSize),
+                ImageAlign = ContentAlignment.MiddleCenter,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent
             };
+            UiStyles.MakeButtonRounded(btnReset, m.BtnRadius);
             scrollMenuPanel.Controls.AddRange([lblLang, langComboBox, btnReset]);
 
             btnDumpConfig = new Button();
             scrollMenuPanel.Controls.Add(btnDumpConfig);
 
             lblConfigName = new Label { AutoSize = true };
-            txtConfigName = new TextBox { Text = "Data/config.yaml" };
+            txtConfigName = new TextBox { Text = Config.DefaultConfigPath };
             scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
             ControlGroup yamlGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
@@ -118,7 +119,11 @@ namespace fb2cng_FullConfig.Templates
             cmbTocType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbTocType.Items.AddRange(["normal", "old_kindle", "flat"]);
             cmbTocType.SelectedIndex = 0;
-            chkCover.CheckedChanged += (s, e) => { cmbTocType.Enabled = chkCover.Checked; (ParentForm as Form1)?.ApplyTheme(); };
+            chkCover.CheckedChanged += (s, e) =>
+            {
+                cmbTocType.Enabled = chkCover.Checked;
+                ApplyThemeViaForm();
+            };
             scrollMenuPanel.Controls.AddRange([chkCover, cmbTocType]);
 
             // Fix ZIP, Open From Cover, Translit (радіо-кнопки)
@@ -163,16 +168,15 @@ namespace fb2cng_FullConfig.Templates
             int nextY = m.StartY;
             // Позиціонування елементів
             int yamlTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5) - m.SidePadding;
-            int spacing = UiStyles.GetScaled(6); // Масштабований відступ між полем мови і кнопкою
             lblLang.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.LabelHeight);
-            langComboBox.ItemHeight = m.FieldHeight - 6;
+            langComboBox.ItemHeight = m.FieldHeight - m.ElementSpacing;
             langComboBox.SetBounds(m.XLeft + m.TextLabelWidth, nextY, yamlTxtWidth, m.FieldHeight);
-            int resetWidth = m.BrowseBtnWidth - UiStyles.GetScaled(24);
+            int resetWidth = m.BrowseBtnWidth - m.IconSize;
             int resetX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth + UiStyles.GetScaled(18);
             btnReset.SetBounds(resetX, nextY - UiStyles.GetScaled(2), resetWidth, m.FieldHeight + UiStyles.GetScaled(3));
 
             nextY = btnReset.Bottom + m.BlockMargin + UiStyles.GetScaled(2);
-            btnDumpConfig.SetBounds(m.XLeft + m.SidePadding, nextY, m.FieldWidth - UiStyles.GetScaled(6), m.FieldHeight + UiStyles.GetScaled(4));
+            btnDumpConfig.SetBounds(m.XLeft + m.SidePadding, nextY, m.FieldWidth - m.ElementSpacing, m.FieldHeight + UiStyles.GetScaled(4));
 
             nextY = btnDumpConfig.Bottom + m.BlockMargin;
             lblConfigName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.LabelHeight);
@@ -180,7 +184,7 @@ namespace fb2cng_FullConfig.Templates
 
             nextY = txtConfigName.Bottom + m.BlockMargin;
             // 1. Блок Custom YAML (новий)
-            int browseX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth - UiStyles.GetScaled(6);
+            int browseX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth - m.ElementSpacing;
             chkCustomYaml.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             txtCustomYamlPath.Multiline = true;
             txtCustomYamlPath.SetBounds(m.XLeft + m.TextLabelWidth, nextY, yamlTxtWidth, m.FieldHeight);
@@ -196,7 +200,7 @@ namespace fb2cng_FullConfig.Templates
 
             nextY = txtCssPath.Bottom + m.BlockMargin;
             chkCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            cmbTocType.ItemHeight = m.FieldHeight - 6;
+            cmbTocType.ItemHeight = m.FieldHeight - m.ElementSpacing;
             cmbTocType.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             nextY = cmbTocType.Bottom + m.BlockMargin;
@@ -212,7 +216,7 @@ namespace fb2cng_FullConfig.Templates
             nextY = chkOpenFromCover.Bottom + m.BlockMargin;
             // Позиціонуємо Translit
             chkTranslit.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            pnlTranslit.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(140), m.FieldHeight);
+            pnlTranslit.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
             nextY = chkTranslit.Bottom + m.BlockMargin;
             // Позиціонуємо Fb2Name (Він займає всю ширину, бо не має радіобатонів)
@@ -235,7 +239,7 @@ namespace fb2cng_FullConfig.Templates
             {
                 if (cmbOutFields != null && chkAsFolder != null)
                 {
-                    cmbOutFields[i].ItemHeight = m.FieldHeight - 6;
+                    cmbOutFields[i].ItemHeight = m.FieldHeight - m.ElementSpacing;
                     cmbOutFields[i].SetBounds(UiStyles.GetScaled(10), itemY, comboWidth, m.FieldHeight);
                     chkAsFolder[i].SetBounds(cmbOutFields[i].Right + UiStyles.GetScaled(15), itemY + UiStyles.GetScaled(1), checkFoldWidth, m.CheckBoxHeight);
                     itemY += rowHeight;
@@ -245,6 +249,13 @@ namespace fb2cng_FullConfig.Templates
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
             lblScrollAnchor.SetBounds(0, grpOutName.Bottom + UiStyles.GetScaled(10), 1, 1);
             scrollMenuPanel.Controls.Add(lblScrollAnchor);
+        }
+        private void ApplyThemeViaForm()
+        {
+            if (FindForm() is Form1 mainForm)
+            {
+                mainForm.ApplyTheme();
+            }
         }
     }
 }

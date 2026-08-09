@@ -9,6 +9,11 @@ namespace fb2cng_FullConfig
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
         private static readonly Lock _fileLock = new();
 
+        public const string DataFolder = "Data";
+        public const string ConfigFileName = "config.yaml";
+        public const string DefaultConfigPath = "Data/config.yaml";
+        public const string LogErrorFile = "logs/conf_errors.log";
+
         // 2. ПОТІМ ЙДУТЬ МЕТОДИ
         // Метод ініціалізації (викликається при старті в Program.cs)
         public static void Initialize(IConfiguration config)
@@ -20,13 +25,15 @@ namespace fb2cng_FullConfig
         {
             try
             {
-                string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                if (!Directory.Exists(logsDir))
+                string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogErrorFile);
+
+                // Дістаємо назву папки з повного шляху до файлу, для створення
+                string? logsDir = Path.GetDirectoryName(logFile);
+                if (!string.IsNullOrEmpty(logsDir) && !Directory.Exists(logsDir))
                 {
                     _ = Directory.CreateDirectory(logsDir);
                 }
 
-                string logFile = Path.Combine(logsDir, "conf_errors.log");
                 string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
 
                 if (ex != null)
@@ -35,9 +42,8 @@ namespace fb2cng_FullConfig
                     string firstTraceLine = "";
                     if (!string.IsNullOrEmpty(ex.StackTrace))
                     {
-                        // Розбиваємо на рядки та беремо перший
                         firstTraceLine = ex.StackTrace.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-                                                     .FirstOrDefault()?.Trim() ?? "";
+                                                             .FirstOrDefault()?.Trim() ?? "";
                     }
 
                     logMessage += $" | Exception: {ex.Message}";
@@ -94,7 +100,7 @@ namespace fb2cng_FullConfig
         }
 
         // Шлях до файлу конфігурації
-        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conf_config.json");
+        private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DataFolder, "Conf_config.json");
 
         // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
         public static Dictionary<string, Dictionary<string, string>> Localization { get; } = new()
@@ -111,17 +117,23 @@ namespace fb2cng_FullConfig
                "• Visual Builder: Intuitively customize the structure and formatting rules for your converted books.\n" +
                "• Quick Result: Choose your preferences and click 'Save' — the app will assemble your user.yaml automatically.\n\n" +
                "Developed by: Jurchos & Gemini\n" +
-               "Version: 1.4",
+               "Version: 1.5",
                 ["Theme"] = "Theme",
                 ["Ok"] = "Save",
                 ["Cancel"] = "Cancel",
                 ["Yes"] = "Yes",
                 ["No"] = "No",
                 ["Language"] = "Language:",
-                ["DumpConfig"] = "Load Default config.yaml",
+                ["DumpConfig"] = $"Load Default {ConfigFileName}",
                 ["ConfigName"] = "Custom template name:",
                 ["CustomYamlEnable"] = "Edit user.yaml",
-                ["CssEnable"] = "Use Custom CSS Stylesheet",
+                ["CssEnable"] = "Use custom CSS stylesheet",
+                ["TocType"] = "Navigation type (TOC):",
+                ["Opt_Toc_Normal"] = "Normal (nested)",
+                ["Opt_Toc_OldKindle"] = "Compatible (old Kindle)",
+                ["Opt_Toc_Flat"] = "Flat (single level)",
+                ["OpenCover"] = "Open book from the cover",
+                ["FixZip"] = "Remove data descriptor (Fix ZIP)",
                 ["Fb2Name"] = "Use source fb2 name for the output file",
                 ["DefaultName"] = "Reference name for the output file",
                 ["OutNameTitle"] = "Output filename structure",
@@ -160,13 +172,24 @@ namespace fb2cng_FullConfig
                 ["Opt_TocPlace_None"] = "None",
                 ["Opt_TocPlace_Before"] = "Before content",
                 ["Opt_TocPlace_After"] = "After content",
+                ["PageMapEnable"] = "Generate page map",
+                ["PageMapSize"] = "Page size(min: 500)",
+                ["AdobeDe"] = "Adobe RMSDK/ADE support",
+                ["UseBroken"] = "Process invalid images",
+                ["ScaleFactor"] = "Image scale factor",
+                ["ImgOptimize"] = "Optimize images",
+                ["InclNoTitle"] = "Untitled chapters in TOC",
+                ["Vignettes"] = "Vignettes",
+                ["Vig_Options"] = "Options",
+                ["Vig_B_T"] = "Book Title (Top)",
+                ["Vig_B_B"] = "Book Title (Bottom)",
+                ["Vig_C_T"] = "Chapter Title (Top)",
+                ["Vig_C_B"] = "Chapter Title (Bottom)",
+                ["Vig_C_E"] = "Chapter End",
+                ["Vig_S_T"] = "Section Title (Top)",
+                ["Vig_S_B"] = "Section Title (Bottom)",
+                ["Vig_S_E"] = "Section End",
                 ["Dropcaps"] = "Automatic dropcap styling",
-                ["TocType"] = "Navigation type (TOC):",
-                ["Opt_Toc_Normal"] = "Normal (nested)",
-                ["Opt_Toc_OldKindle"] = "Compatible (old Kindle)",
-                ["Opt_Toc_Flat"] = "Flat (single level)",
-                ["OpenCover"] = "Open book from the cover",
-                ["FixZip"] = "Remove data descriptor (Fix ZIP)",
                 ["LogLevel"] = "Logging level:",
                 ["Opt_Log_None"] = "Disabled (none)",
                 ["Opt_Log_Normal"] = "Standard (normal)",
@@ -192,9 +215,9 @@ namespace fb2cng_FullConfig
                 ["SaveSuccessTitle"] = "Success",
                 ["SaveSuccess"] = "Configuration successfully saved to {0}!",
                 ["YamlTitle"] = "YAML Error",
-                ["YamlErr"] = "Error: Key '{0}' not found in template config.yaml!",
+                ["YamlErr"] = $"Error: Key '{{0}}' not found in template {ConfigFileName}!",
                 ["GenTitle"] = "Success",
-                ["GenSuccess"] = "File config.yaml successfully saved to the 'Data' folder."
+                ["GenSuccess"] = "File {0} successfully saved to the 'Data' folder."
             },
 
             // 2. УКРАЇНСЬКА ЛОКАЛІЗАЦІЯ
@@ -208,17 +231,23 @@ namespace fb2cng_FullConfig
                "• Візуальний конструктор: інтуїтивно налаштовуйте структуру та правила форматування ваших готових книг.\n" +
                "• Швидкий результат: оберіть потрібні параметри та натисніть «Зберегти» — програма сама сформує ваш user.yaml .\n\n" +
                "Розробка: Jurchos & Gemini\n" +
-               "Версія: 1.4",
+               "Версія: 1.5",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Зберегти",
                 ["Cancel"] = "Скасувати",
                 ["Yes"] = "Так",
                 ["No"] = "Ні",
                 ["Language"] = "Мова:",
-                ["DumpConfig"] = "Завантажити дефолтний config.yaml",
+                ["DumpConfig"] = $"Завантажити дефолтний {ConfigFileName}",
                 ["ConfigName"] = "Назва для власного шаблона:",
                 ["CustomYamlEnable"] = "Редагувати user.yaml",
                 ["CssEnable"] = "CSS-таблиця стилів",
+                ["TocType"] = "Тип навігації (TOC):",
+                ["Opt_Toc_Normal"] = "Стандартна (багаторівнева)",
+                ["Opt_Toc_OldKindle"] = "Сумісна (старі Kindle)",
+                ["Opt_Toc_Flat"] = "Спрощена (один рівень)",
+                ["OpenCover"] = "Відкривати книгу з обкладинки",
+                ["FixZip"] = "Вилучити дескриптор даних (Fix ZIP)",
                 ["Fb2Name"] = "Використати назву fb2 для вихідного файлу",
                 ["DefaultName"] = "Еталонна назва для вихідного файлу",
                 ["OutNameTitle"] = "Структура назви вихідного файлу",
@@ -257,13 +286,24 @@ namespace fb2cng_FullConfig
                 ["Opt_TocPlace_None"] = "Не створювати",
                 ["Opt_TocPlace_Before"] = "На початку книги",
                 ["Opt_TocPlace_After"] = "В кінці книги",
+                ["PageMapEnable"] = "Генерація карти сторінок",
+                ["PageMapSize"] = "Розмір сторінки (min: 500)",
+                ["AdobeDe"] = "Підтримка Adobe RMSDK/ADE",
+                ["UseBroken"] = "Обробка невалідних зображень",
+                ["ScaleFactor"] = "Коефіцієнт розміру картинки",
+                ["ImgOptimize"] = "Оптимізація зображень",
+                ["InclNoTitle"] = "Безіменні розділи в змісті",
+                ["Vignettes"] = "Віньєтки",
+                ["Vig_Options"] = "Опції",
+                ["Vig_B_T"] = "Зверху назви книги",
+                ["Vig_B_B"] = "Знизу назви книги",
+                ["Vig_C_T"] = "Зверху назви розділу",
+                ["Vig_C_B"] = "Знизу назви розділу",
+                ["Vig_C_E"] = "В кінці розділу",
+                ["Vig_S_T"] = "Зверху назви підрозділу",
+                ["Vig_S_B"] = "Знизу назви підрозділу",
+                ["Vig_S_E"] = "В кінці підрозділу",
                 ["Dropcaps"] = "Автоматична стилізація буквиць",
-                ["TocType"] = "Тип навігації (TOC):",
-                ["Opt_Toc_Normal"] = "Стандартна (багаторівнева)",
-                ["Opt_Toc_OldKindle"] = "Сумісна (старі Kindle)",
-                ["Opt_Toc_Flat"] = "Спрощена (один рівень)",
-                ["OpenCover"] = "Відкривати книгу з обкладинки",
-                ["FixZip"] = "Вилучити дескриптор даних (Fix ZIP)",
                 ["LogLevel"] = "Рівень логування:",
                 ["Opt_Log_None"] = "Вимкнено (none)",
                 ["Opt_Log_Normal"] = "Звичайний (normal)",
@@ -289,9 +329,9 @@ namespace fb2cng_FullConfig
                 ["SaveSuccessTitle"] = "Успіх",
                 ["SaveSuccess"] = "Конфігурацію успішно збережено у файл {0}!",
                 ["YamlTitle"] = "Помилка YAML",
-                ["YamlErr"] = "Помилка: Ключ '{0}' не знайдено у файлі config.yaml!",
+                ["YamlErr"] = $"Помилка: Ключ '{{0}}' не знайдено у файлі {ConfigFileName}!",
                 ["GenTitle"] = "Успіх",
-                ["GenSuccess"] = "Файл config.yaml успішно збережено в папку 'Data'."
+                ["GenSuccess"] = "Файл {0} успішно збережено в папку 'Data'."
             },
 
             // 3. РОСІЙСЬКА ЛОКАЛІЗАЦІЯ
@@ -305,17 +345,23 @@ namespace fb2cng_FullConfig
                "• Визуальный конструктор: интуитивно настраивайте структуру и правила форматирования ваших готовых книг.\n" +
                "• Быстрый результат: выберите нужные параметры и нажмите «Сохранить» — программа сама сформирует ваш user.yaml .\n\n" +
                "Разработка: Jurchos & Gemini\n" +
-               "Версия: 1.4",
+               "Версия: 1.5",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Сохранить",
                 ["Cancel"] = "Отмена",
                 ["Yes"] = "Да",
                 ["No"] = "Нет",
                 ["Language"] = "Язык:",
-                ["DumpConfig"] = "Загрузить дефолтный config.yaml",
+                ["DumpConfig"] = $"Загрузить дефолтный {ConfigFileName}",
                 ["ConfigName"] = "Имя пользовательского шаблона:",
                 ["CustomYamlEnable"] = "Редактировать user.yaml",
                 ["CssEnable"] = "CSS-таблица стилей",
+                ["TocType"] = "Тип навигации (TOC):",
+                ["Opt_Toc_Normal"] = "Стандартная (многоуровневая)",
+                ["Opt_Toc_OldKindle"] = "Совместимая (старые Kindle)",
+                ["Opt_Toc_Flat"] = "Упрощенная (один уровень)",
+                ["OpenCover"] = "Открывать книгу с обложки",
+                ["FixZip"] = "Удалить дескриптор данных (Fix ZIP)",
                 ["Fb2Name"] = "Использовать имя fb2 для выходного файла",
                 ["DefaultName"] = "Эталонное имя для выходного файла",
                 ["OutNameTitle"] = "Структура имени выходного файла",
@@ -354,13 +400,24 @@ namespace fb2cng_FullConfig
                 ["Opt_TocPlace_None"] = "Не создавать",
                 ["Opt_TocPlace_Before"] = "В начале книги",
                 ["Opt_TocPlace_After"] = "В конце книги",
+                ["PageMapEnable"] = "Генерация карты страниц",
+                ["PageMapSize"] = "Размер страницы (min: 500)",
+                ["AdobeDe"] = "Поддержка Adobe RMSDK/ADE",
+                ["UseBroken"] = "Обработка невалидных изображений",
+                ["ScaleFactor"] = "Коэффициент размера картинки",
+                ["ImgOptimize"] = "Оптимизация изображений",
+                ["InclNoTitle"] = "Безымянные разделы в содержании",
+                ["Vignettes"] = "Виньетки",
+                ["Vig_Options"] = "Опции",
+                ["Vig_B_T"] = "Сверху названия книги",
+                ["Vig_B_B"] = "Снизу названия книги",
+                ["Vig_C_T"] = "Сверху названия раздела",
+                ["Vig_C_B"] = "Снизу названия раздела",
+                ["Vig_C_E"] = "В конце раздела",
+                ["Vig_S_T"] = "Сверху названия подраздела",
+                ["Vig_S_B"] = "Снизу названия подраздела",
+                ["Vig_S_E"] = "В конце подраздела",
                 ["Dropcaps"] = "Автоматическая стилизация буквиц",
-                ["TocType"] = "Тип навигации (TOC):",
-                ["Opt_Toc_Normal"] = "Стандартная (многоуровневая)",
-                ["Opt_Toc_OldKindle"] = "Совместимая (старые Kindle)",
-                ["Opt_Toc_Flat"] = "Упрощенная (один уровень)",
-                ["OpenCover"] = "Открывать книгу с обложки",
-                ["FixZip"] = "Удалить дескриптор данных (Fix ZIP)",
                 ["LogLevel"] = "Уровень логирования:",
                 ["Opt_Log_None"] = "Выключено (none)",
                 ["Opt_Log_Normal"] = "Стандартный (normal)",
@@ -386,9 +443,9 @@ namespace fb2cng_FullConfig
                 ["SaveSuccessTitle"] = "Успех",
                 ["SaveSuccess"] = "Конфигурация успешно сохранена в файл {0}!",
                 ["YamlTitle"] = "Ошибка YAML",
-                ["YamlErr"] = "Ошибка: Ключ '{0}' не найден в файле config.yaml!",
+                ["YamlErr"] = $"Ошибка: Ключ '{{0}}' не найден в файле {ConfigFileName}!",
                 ["GenTitle"] = "Успех",
-                ["GenSuccess"] = "Файл config.yaml успешно сохранен в папку 'Data'."
+                ["GenSuccess"] = "Файл {0} успешно сохранен в папку 'Data'."
             }
         };
     }

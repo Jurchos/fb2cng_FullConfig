@@ -39,7 +39,7 @@ namespace fb2cng_FullConfig.Templates
             chkLogLevel.CheckedChanged += (s, e) =>
             {
                 cmbLogLevel.Enabled = chkLogLevel.Checked;
-                (ParentForm as Form1)?.ApplyTheme();
+                ApplyThemeViaForm();
             };
 
             // 2. Назва звичайних логів
@@ -50,7 +50,7 @@ namespace fb2cng_FullConfig.Templates
             chkLogName.CheckedChanged += (s, e) =>
             {
                 cmbLogName.Enabled = chkLogName.Checked;
-                (ParentForm as Form1)?.ApplyTheme();
+                ApplyThemeViaForm();
             };
 
             // 3. Назва логів збоїв (Panic)
@@ -61,7 +61,7 @@ namespace fb2cng_FullConfig.Templates
             chkPanicLogName.CheckedChanged += (s, e) =>
             {
                 cmbPanicLogName.Enabled = chkPanicLogName.Checked;
-                (ParentForm as Form1)?.ApplyTheme();
+                ApplyThemeViaForm();
             };
 
             // 4. Режим логування
@@ -71,7 +71,7 @@ namespace fb2cng_FullConfig.Templates
             chkLogMode.CheckedChanged += (s, e) =>
             {
                 pnlLogMode.Enabled = chkLogMode.Checked;
-                (ParentForm as Form1)?.ApplyTheme();
+                ApplyThemeViaForm();
             };
 
             // 5. Папка для логів
@@ -81,7 +81,7 @@ namespace fb2cng_FullConfig.Templates
             chkLogFolder.CheckedChanged += (s, e) =>
             {
                 pnlLogFolder.Enabled = chkLogFolder.Checked;
-                (ParentForm as Form1)?.ApplyTheme();
+                ApplyThemeViaForm();
             };
 
             Controls.AddRange([
@@ -97,19 +97,19 @@ namespace fb2cng_FullConfig.Templates
 
             // 1. Log Level
             chkLogLevel.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            cmbLogLevel.ItemHeight = m.FieldHeight - 6;
+            cmbLogLevel.ItemHeight = m.FieldHeight - UiStyles.GetScaled(6);
             cmbLogLevel.SetBounds(m.XLeft + m.TextLabelWidth, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 2. Log Name
             nextY = cmbLogLevel.Bottom + m.BlockMargin;
             chkLogName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            cmbLogName.ItemHeight = m.FieldHeight - 6;
+            cmbLogName.ItemHeight = m.FieldHeight - UiStyles.GetScaled(6);
             cmbLogName.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 3. Panic Log Name
             nextY = cmbLogName.Bottom + m.BlockMargin;
             chkPanicLogName.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            cmbPanicLogName.ItemHeight = m.FieldHeight - 6;
+            cmbPanicLogName.ItemHeight = m.FieldHeight - UiStyles.GetScaled(6);
             cmbPanicLogName.SetBounds(m.XLeft + m.TextLabelWidth, nextY, m.ValueFieldWidth, m.FieldHeight);
 
             // 4. Log Mode
@@ -122,6 +122,13 @@ namespace fb2cng_FullConfig.Templates
             nextY = chkLogMode.Bottom + bigBlockMargin;
             chkLogFolder.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             pnlLogFolder.SetBounds(m.SizeInputX, nextY, UiStyles.GetScaled(180), m.FieldHeight);
+        }
+        private void ApplyThemeViaForm()
+        {
+            if (FindForm() is Form1 mainForm)
+            {
+                mainForm.ApplyTheme();
+            }
         }
     }
 }

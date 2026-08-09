@@ -19,7 +19,7 @@ namespace fb2cng_FullConfig
         private Button btnOk = null!;
         private Button btnCancel = null!;
 
-        // Кеш для збереження вкладок (щоб при перемиканні назад дані користувача не стиралися)
+        // Кеш для збереження вкладок (щоб при перемиканні вкладок дані користувача не стиралися)
         private readonly Dictionary<string, UserControl> _tabsCache = [];
         private string _currentActiveTab = "document:";
 
@@ -62,6 +62,16 @@ namespace fb2cng_FullConfig
                 _ = MessageBox.Show($"Критичний збій ініціалізації вікна:\n\n{ex.Message}",
                                 "Startup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // список для відстеження створених Bitmaps у Form1
+        private readonly List<Bitmap> _generatedBitmaps = [];
+
+        private Bitmap? GetResizedIcon(Image source, int w, int h)
+        {
+            Bitmap? bmp = UiStyles.ResizeImage(source, w, h);
+            if (bmp != null) _generatedBitmaps.Add(bmp);
+            return bmp;
         }
 
         private void SetupMainFramework()
@@ -129,16 +139,16 @@ namespace fb2cng_FullConfig
             btnHelp = new Button
             {
                 Text = "Help",
-                Image = UiStyles.ResizeImage(Properties.Resources.icon_info, m.IconSize, m.IconSize),
+                Image = GetResizedIcon(Properties.Resources.icon_info, m.IconSize, m.IconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding(UiStyles.GetScaled(2), 0, 0, 0)
+                Padding = new Padding(0)
             };
             btnTheme = new Button
             {
                 Text = "Theme",
-                Image = UiStyles.ResizeImage(Properties.Resources.day_night, m.IconSize, m.IconSize),
+                Image = GetResizedIcon(Properties.Resources.day_night, m.IconSize, m.IconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
@@ -157,7 +167,7 @@ namespace fb2cng_FullConfig
                 };
                 if (Properties.Resources.icon_GUI != null)
                 {
-                    btGui.Image = UiStyles.ResizeImage(Properties.Resources.icon_GUI, m.IconSize, m.IconSize);
+                    btGui.Image = GetResizedIcon(Properties.Resources.icon_GUI, m.IconSize, m.IconSize);
                 }
                 // Прив'язуємо подію відразу тут, де ми впевнені, що кнопка не null
                 btGui.Click += BtGui_Click;
@@ -207,7 +217,7 @@ namespace fb2cng_FullConfig
 
             // --- АДАПТАЦІЯ ГЕОМЕТРІЇ ПРИ ВЕЛИКОМУ МАСШТАБІ (200-225%) ---
             int finalHeight = footerPanel.Bottom + UiStyles.GetScaled(8);
-            int maxAllowedHeight = Screen.PrimaryScreen!.WorkingArea.Height - UiStyles.GetScaled(40);
+            int maxAllowedHeight = Screen.FromControl(this).WorkingArea.Height - UiStyles.GetScaled(40);
 
             if (finalHeight > maxAllowedHeight)
             {
@@ -226,8 +236,8 @@ namespace fb2cng_FullConfig
             // Центрування на моніторі
             StartPosition = FormStartPosition.Manual;
             Location = new Point(
-                Screen.PrimaryScreen.WorkingArea.Left + ((Screen.PrimaryScreen.WorkingArea.Width - Width) / 2),
-                Screen.PrimaryScreen.WorkingArea.Top + ((Screen.PrimaryScreen.WorkingArea.Height - Height) / 2)
+                Screen.FromControl(this).WorkingArea.Left + ((Screen.FromControl(this).WorkingArea.Width - Width) / 2),
+                Screen.FromControl(this).WorkingArea.Top + ((Screen.FromControl(this).WorkingArea.Height - Height) / 2)
             );
         }
 
@@ -254,7 +264,7 @@ namespace fb2cng_FullConfig
 
             try // Додаємо блок відстеження помилок
             {
-                // 1. Сховати всі наявні вкладки
+                // Сховати всі наявні вкладки
                 foreach (Control ctrl in pnlContent.Controls) ctrl.Visible = false;
 
                 // 1. ПЕРЕВІРЯЄМО, ЧИ Є ВКЛАДКА В КЕШІ
@@ -285,6 +295,11 @@ namespace fb2cng_FullConfig
                     pnlContent.Controls.Add(tabControl);
                 }
 
+                // 3. ПОКАЗУЄМО ВКЛАДКУ
+                _tabsCache[tabName].Visible = true;
+                _tabsCache[tabName].BringToFront();
+                UpdateLocalization();
+
                 // 2. ЯКЩО ЦЕ ПЕРШИЙ ЗАПУСК ВКЛАДКИ — СИНХРОНІЗУЄМО ЇЇ З ПОТОЧНИМ YAML
                 if (isFirstLoad)
                 {
@@ -295,10 +310,6 @@ namespace fb2cng_FullConfig
                     }
                 }
 
-                // 3. ПОКАЗУЄМО ВКЛАДКУ
-                _tabsCache[tabName].Visible = true;
-                _tabsCache[tabName].BringToFront();
-                UpdateLocalization();
                 ApplyTheme();
             }
 
@@ -308,7 +319,7 @@ namespace fb2cng_FullConfig
                 Config.LogError($"Error while switching to tab: {tabName}", ex);
 
                 // Повідомляємо користувача (опціонально)
-                _ = MessageBox.Show($"Failed to load tab: {tabName}.\nCheck logs/Conf_errors.log for details.",
+                _ = MessageBox.Show($"Failed to load tab: {tabName}.\nCheck {Config.LogErrorFile} for details.",
                         "Interface Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
@@ -320,7 +331,7 @@ namespace fb2cng_FullConfig
 
         private void InitializeDocumentTabEvents(DocumentTab docTab)
         {
-            // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ ТРЬОХ КНОПОК
+            // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ КНОПОК
             UiStyles.MakeButtonRounded(docTab.btnBrowseCss, UiStyles.GetScaled(4));
             UiStyles.MakeButtonRounded(docTab.btnDumpConfig, UiStyles.GetScaled(4));
             UiStyles.MakeButtonRounded(docTab.btnBrowseCustomYaml, UiStyles.GetScaled(4));
@@ -332,6 +343,20 @@ namespace fb2cng_FullConfig
             docTab.btnDumpConfig.Click += BtnDumpConfig_Click;
             docTab.btnReset.Click += BtnReset_Click;
 
+            // Налаштування малювання іконок для кнопок Папка
+            UiStyles.SetupIconButtonDrawing(
+            docTab.btnBrowseCss,
+            Properties.Resources.folder,
+            docTab.chkCss,
+            UiStyles.InactiveIconMatrix
+            );
+
+            UiStyles.SetupIconButtonDrawing(
+            docTab.btnBrowseCustomYaml,
+            Properties.Resources.folder,
+            docTab.chkCustomYaml,
+            UiStyles.InactiveIconMatrix
+            );
             // 3. РЕШТА ПОДІЙ
             docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
             docTab.chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
@@ -419,7 +444,12 @@ namespace fb2cng_FullConfig
                 dataTab.chkSoftHyphen, dataTab.chkRemoveTransp,
                 dataTab.chkJpegQuality, dataTab.chkGenerateCover,
                 dataTab.chkResizeCover, dataTab.chkAnnEnable,
-                dataTab.chkAnnInToc, dataTab.chkTocPlacement, dataTab.chkDropcaps
+                dataTab.chkAnnInToc, dataTab.chkTocPlacement,
+                dataTab.chkPageMapSize, dataTab.chkScaleFactor,
+                dataTab.chkPageMapEnable, dataTab.chkAdobeDe,
+                dataTab.chkUseBroken, dataTab.chkImgOptimize,
+                dataTab.chkInclNoTitle, dataTab.chkVignettes,
+                dataTab.chkDropcaps
             ];
 
             foreach (CheckBox chk in metaChecks)
@@ -439,6 +469,12 @@ namespace fb2cng_FullConfig
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+            // 1. Очищуємо всі створені нами бітмапи
+            foreach (var bmp in _generatedBitmaps)
+            {
+                bmp.Dispose();
+            }
+            _generatedBitmaps.Clear();
 
             // Повідомляє середовище виконання .NET про необхідність чистого закриття
             // усіх фонових потоків, зняття блокувань з файлів та вивантаження додатку.

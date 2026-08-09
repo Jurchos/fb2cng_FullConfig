@@ -98,17 +98,15 @@ namespace fb2cng_FullConfig.Utils
                             }
                             break;
 
-                        case MessageBoxIcon.None:
-                            break;
-
                         default:
                             break;
                     }
                 }
 
                 picIcon.Image = bmp;
+                picIcon.Disposed += (s, e) => bmp.Dispose();
                 msgForm.Controls.Add(picIcon);
-                textTopOffset = picIcon.Bottom + UiStyles.GetScaled(6);
+                textTopOffset = picIcon.Bottom + m.ElementSpacing;
             }
 
             RichTextBox rtbText = new()
@@ -129,6 +127,7 @@ namespace fb2cng_FullConfig.Utils
             rtbText.DeselectAll();
             rtbText.MouseDown += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); _ = msgForm.Focus(); };
             rtbText.GotFocus += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); };
+            rtbText.Enter += (s, e) => { _ = Win32Api.HideCaret(rtbText.Handle); };
             msgForm.Controls.Add(rtbText);
 
             int lastCharIndex = rtbText.TextLength > 0 ? rtbText.TextLength - 1 : 0;
@@ -226,8 +225,11 @@ namespace fb2cng_FullConfig.Utils
 
             msgForm.ClientSize = new Size(m.TotalSize.Width, (primaryButton?.Bottom ?? buttonsY) + paddingBottom);
 
-            // Використовуємо PrimaryScreen, оскільки у статичному класі немає доступу до "this"
-            Rectangle screenBounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+            // Замість Screen.PrimaryScreen краще знайти вікно, яке зараз у фокусі
+            Form? activeForm = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Visible);
+            Screen currentScreen = activeForm != null ? Screen.FromControl(activeForm) : Screen.PrimaryScreen ?? Screen.AllScreens[0];
+
+            Rectangle screenBounds = currentScreen.WorkingArea; // WorkingArea краще ніж Bounds (не перекриває панель завдань)
             msgForm.Location = new Point(
                 screenBounds.Left + ((screenBounds.Width - msgForm.Width) / 2),
                 screenBounds.Top + ((screenBounds.Height - msgForm.Height) / 2)
@@ -263,7 +265,7 @@ namespace fb2cng_FullConfig.Utils
                 }
                 catch { }
 
-                _ = (primaryButton?.Focus());
+                _ = primaryButton?.Focus();
                 _ = msgForm.BeginInvoke(new Action(() => { _ = Win32Api.HideCaret(rtbText.Handle); }));
             };
 

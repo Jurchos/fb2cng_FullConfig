@@ -55,6 +55,14 @@ namespace fb2cng_FullConfig.Services
                     }
 
                     SetControlsTheme(activeTab, foreColor, disabledColor, backColor, folderColor, isDark, tabsCache);
+                    if (activeTab is MetadataTab metaTab)
+                    {
+                        // Кольори для списку всередині поп-апу
+                        metaTab.clbVignettesItems.BackColor = backColor;
+                        metaTab.clbVignettesItems.ForeColor = isDark ? textWhite : SystemColors.ControlText;
+                        // ДОДАТИ: Фарбуємо контейнер відступу в той же колір
+                        metaTab.vignettePopupContainer.BackColor = backColor;
+                    }
                 }
                 if (!_isFirstLaunchApplied && tabsCache.TryGetValue("document:", out UserControl? mainTab) && mainTab is DocumentTab documentTab)
                 {
@@ -132,23 +140,16 @@ namespace fb2cng_FullConfig.Services
                         btn.FlatStyle = FlatStyle.Flat;
                         btn.FlatAppearance.BorderSize = 0;
 
-                        bool isBrowseBtn = (docTab != null) && (btn == docTab.btnBrowseCss || btn == docTab.btnBrowseCustomYaml);
-                        bool isParentChecked = (docTab != null) && (
-                            (btn == docTab.btnBrowseCss && isCssChecked) ||
-                            (btn == docTab.btnBrowseCustomYaml && docTab.chkCustomYaml.Checked)
-                        );
-
                         if (isDark)
                         {
-                            btn.BackColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(40, 40, 42) : Color.FromArgb(45, 45, 48);
-                            btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : foreColor;
-                            btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.FromArgb(55, 55, 58) : Color.FromArgb(100, 100, 105);
+                            btn.ForeColor = btn.Enabled ? foreColor : disabledColor;
+                            // Для кнопки OK/Save не робимо яскравого фону, якщо вона просто активна
+                            btn.BackColor = btn.Enabled ? Color.FromArgb(45, 45, 48) : Color.FromArgb(40, 40, 42);
                         }
                         else
                         {
+                            btn.ForeColor = btn.Enabled ? SystemColors.ControlText : disabledColor;
                             btn.BackColor = SystemColors.Control;
-                            btn.ForeColor = (isBrowseBtn && !isParentChecked) ? disabledColor : SystemColors.ControlText;
-                            btn.FlatAppearance.BorderColor = (isBrowseBtn && !isParentChecked) ? Color.LightGray : Color.DarkGray;
                         }
                         break;
 
@@ -175,6 +176,11 @@ namespace fb2cng_FullConfig.Services
                         {
                             cb.DrawItem += ComboBox_DrawItem;
                         }
+                        break;
+
+                    case CheckedListBox clb:
+                        clb.BackColor = backColor;
+                        clb.ForeColor = isControlDisabled ? disabledColor : foreColor;
                         break;
 
                     default:
