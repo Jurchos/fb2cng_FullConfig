@@ -350,7 +350,7 @@ namespace fb2cng_FullConfig.Templates
 
             // Якір для скролу
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
-            lblScrollAnchor.SetBounds(0, nextY + m.RowHeight + UiStyles.GetScaled(10), 1, 1);
+            lblScrollAnchor.SetBounds(0, nextY + m.RowHeight + m.BlockMargin, 1, 1);
             scrollMetadataPanel.Controls.Add(lblScrollAnchor);
         }
         private void ApplyThemeViaForm()

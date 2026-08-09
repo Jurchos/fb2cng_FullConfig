@@ -1,4 +1,5 @@
 ﻿using fb2cng_FullConfig.Utils;
+using static System.Windows.Forms.AxHost;
 namespace fb2cng_FullConfig.Templates
 {
 
@@ -36,6 +37,8 @@ namespace fb2cng_FullConfig.Templates
         public Label lblLang = null!;
         public Label lblConfigName = null!;
         public Label lblOutNameTitle = null!;
+        // константа для кількості полів, для змін в майбутньому
+        private const int OutFieldsCount = 7;
 
         public DocumentTab()
         {
@@ -139,11 +142,11 @@ namespace fb2cng_FullConfig.Templates
             chkFb2Name = new CheckBox { AutoSize = true };
             chkDefaultName = new CheckBox { AutoSize = true };
             lblOutNameTitle = new Label { AutoSize = true };
-            // Конструктор структури назви (7 елементів)
-            cmbOutFields = new ComboBox[7];
-            chkAsFolder = new CheckBox[7];
+            // Конструктор структури назви (кількість в константі)
+            cmbOutFields = new ComboBox[OutFieldsCount];
+            chkAsFolder = new CheckBox[OutFieldsCount];
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < cmbOutFields.Length; i++)
             {
                 int index = i;
                 cmbOutFields[index] = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Tag = i };
@@ -206,12 +209,12 @@ namespace fb2cng_FullConfig.Templates
             nextY = cmbTocType.Bottom + m.BlockMargin;
             // Позиціонуємо FixZip
             chkFixZip.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            pnlFixZip.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(150), m.FieldHeight);
+            pnlFixZip.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
             nextY = chkFixZip.Bottom + m.BlockMargin;
             // Позиціонуємо OpenFromCover
             chkOpenFromCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
-            pnlOpenCover.SetBounds(m.RadioX, nextY, UiStyles.GetScaled(150), m.FieldHeight);
+            pnlOpenCover.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
             nextY = chkOpenFromCover.Bottom + m.BlockMargin;
             // Позиціонуємо Translit
@@ -226,28 +229,28 @@ namespace fb2cng_FullConfig.Templates
             chkDefaultName.SetBounds(m.XLeft, nextY, m.FieldWidth, m.CheckBoxHeight);
 
             // Налаштування групи структури назви файлу
-            int OutNameTopPadding = UiStyles.GetScaled(10);// Відступ зверху для групи структури назви файлу
-            int rowHeight = m.FieldHeight + UiStyles.GetScaled(5);// Висота одного рядка з комбо та чекбоксом
-            int grpOutHeight = (rowHeight * 7) + UiStyles.GetScaled(25);// Висота групи з 8 рядків + заголовок групи
-            grpOutName.SetBounds(m.XLeft, chkDefaultName.Bottom + OutNameTopPadding, m.FieldWidth, grpOutHeight);
+            int rowHeight = m.FieldHeight + m.HeaderTopPadding;                           // Висота рядка (поле + відступ)
+            int grpOutHeight = (rowHeight * cmbOutFields.Length) + UiStyles.GetScaled(32);// Висота групи (рядки + заголовок)
+            grpOutName.SetBounds(m.XLeft, chkDefaultName.Bottom + m.BlockMargin, m.FieldWidth, grpOutHeight);
 
-            int comboWidth = (int)(grpOutName.Width * 0.76f);
-            int checkFoldWidth = grpOutName.Width - comboWidth - UiStyles.GetScaled(15);
-            int itemY = UiStyles.GetScaled(20);
+            int innerPadding = UiStyles.GetScaled(10);                                    // Внутрішній відступ від країв GroupBox
+                                                                                          // Ширина ComboBox (ширина "as fold"= ширині кнопок футера 90)
+            int comboWidth = grpOutName.Width - m.FooterBtnWidth - m.BlockMargin - (innerPadding * 2);
+            int itemY = m.StartY * 2;                                                     // Початкова позиція Y під заголовком групи
 
-            for (int i = 0; i < 7; i++)
+            if (cmbOutFields != null && chkAsFolder != null)
             {
-                if (cmbOutFields != null && chkAsFolder != null)
+                for (int i = 0; i < cmbOutFields.Length; i++)
                 {
                     cmbOutFields[i].ItemHeight = m.FieldHeight - m.ElementSpacing;
-                    cmbOutFields[i].SetBounds(UiStyles.GetScaled(10), itemY, comboWidth, m.FieldHeight);
-                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + UiStyles.GetScaled(15), itemY + UiStyles.GetScaled(1), checkFoldWidth, m.CheckBoxHeight);
+                    cmbOutFields[i].SetBounds(innerPadding, itemY, comboWidth, m.FieldHeight);
+                    chkAsFolder[i].SetBounds(cmbOutFields[i].Right + m.BlockMargin, itemY + UiStyles.GetScaled(1), m.FooterBtnWidth, m.CheckBoxHeight);
                     itemY += rowHeight;
                 }
             }
             // Правильне роздільне створення об'єкта та встановлення його координат
             Label lblScrollAnchor = new() { BackColor = Color.Transparent };
-            lblScrollAnchor.SetBounds(0, grpOutName.Bottom + UiStyles.GetScaled(10), 1, 1);
+            lblScrollAnchor.SetBounds(0, grpOutName.Bottom + m.BlockMargin, 1, 1);
             scrollMenuPanel.Controls.Add(lblScrollAnchor);
         }
         private void ApplyThemeViaForm()
