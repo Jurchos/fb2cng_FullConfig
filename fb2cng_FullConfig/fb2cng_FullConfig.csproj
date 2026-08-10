@@ -1,22 +1,38 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Тип проєкту та платформа -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <RootNamespace>fb2cng_FullConfig</RootNamespace>
-    <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-	  <!-- Оце налаштування каже .NET самому керувати DPI на найвищому рівні PerMonitorV2 -->
-	<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-	  <!-- Дозволити Unsafe код у проєкті (Виправляє SYSLIB1062 та CS0227) -->
-	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	  <ImplicitUsings>enable</ImplicitUsings>
-	  <PublishSingleFile>true</PublishSingleFile>
-	  <SelfContained>false</SelfContained>
-	  <!-- Програма використовуватиме встановлений .NET 10 на ПК, тому файл буде маленьким -->
-	  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-	  <AssemblyName>fb2cng_Configurator</AssemblyName>
-	  <ApplicationIcon>icon_yaml.ico</ApplicationIcon>
+    <!-- Назви та ідентифікація -->
+    <AssemblyName>fb2cng_Configurator</AssemblyName>
+    <RootNamespace>fb2cng_FullConfig</RootNamespace>
+    <!-- Компіляція та безпека типів -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Дозволити Unsafe код у проєкті (Виправляє SYSLIB1062 та CS0227) -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Керування DPI на рівні системи (PerMonitorV2) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Публікація (Залежна від встановленого .NET 10 на цільовому ПК) -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <!-- Програма використовуватиме встановлений .NET 10 на ПК, тому файл буде маленьким -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Метадані файлу (Відображення у Властивості -> Деталі) -->
+    <!-- Вимикаємо додавання коміту Git до версії -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Version>1.5</Version>
+    <FileVersion>1.5.1.0</FileVersion>
+    <Product>Toolkit for fb2cng</Product>
+    <!-- ОПИС: Саме цей тег AssemblyTitle у Windows показує в полі "Опис файлу" -->
+    <AssemblyTitle>YAML Configurator for fb2cng</AssemblyTitle>
+    <Description>YAML Configurator for fb2cng</Description>
+    <Company>Jurchos</Company>
+    <Copyright>© 2026  Jurchos &amp; Gemini</Copyright>
+    <!-- Ресурси -->
+    <ApplicationIcon>icon_yaml.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
