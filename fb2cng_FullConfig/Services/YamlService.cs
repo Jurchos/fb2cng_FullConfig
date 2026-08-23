@@ -387,15 +387,24 @@ namespace fb2cng_FullConfig.Services
                         string cleanLogic = """
                                         {{- $title := .Title -}}
                                         {{- $title = replace "[litres]" "" $title -}}
+                                        {{- $title = replace "_litres" "" $title -}}
+                                        {{- $title = replace "[Литрес]" "" $title -}}
                                         {{- $title = replace "(flibusta)" "" $title -}}
+                                        {{- $title = replace "_flibusta" "" $title -}}
                                         {{- $title = replace "(Самиздат)" "" $title -}}
                                         {{- $title = replace "[author.today]" "" $title -}}
                                         {{- $title = replace "[mybook]" "" $title -}}
                                         {{- $title = replace "[ficbook]" "" $title -}}
                                         {{- $title = replace "[knigogo.net]" "" $title -}}
                                         {{- $title = replace "_royal_lib_ru" "" $title -}}
+                                        {{- $title = replace "CoolLib_net" "" $title -}}
+                                        {{- $title = replace "lib_ru" "" $title -}}
                                         {{- $title = replace "_fb2" "" $title -}}
                                         {{- $title = replace ".fb2" "" $title -}}
+                                        {{- $title = replace "(fb2)" "" $title -}}
+                                        {{- $title = replace ".zip" "" $title -}}
+                                        {{- $title = replace "[L]" "" $title -}}
+                                        {{- $title = replace "_full" "" $title -}}
                                         {{- $title = replace "___" " " $title -}}
                                         {{- $title = replace "__" " " $title -}}
                                         {{- $title = trim $title -}}
@@ -780,7 +789,61 @@ namespace fb2cng_FullConfig.Services
                 }
                 else
                 {
-                    templateBlock = useFb2Name ? "        {{- .OriginalFileName -}}" : BuildGoTemplateFromUI(fieldIndexes, folderFlags);
+                    if (useFb2Name)
+                    {
+                        templateBlock = """
+                                 {{- $name := .SourceFile | base -}}
+                                 {{- $prefix := printf "%.37s" $name -}}
+                                 {{- if eq (len $prefix) 37 -}}
+                                 {{-   if eq (len (replace "-" "" $prefix)) 33 -}}
+                                 {{-     $name = replace $prefix "" $name -}}
+                                 {{-   end -}}
+                                 {{- end -}}
+                                 {{- $name = replace ".fb2" "" $name -}}
+                                 {{- $name = replace ".zip" "" $name -}}
+                                 {{- $name = replace "_fb2" "" $name -}}
+                                 {{- $name = replace "(fb2)" "" $name -}}
+                                 {{- $name = replace "[litres]" "" $name -}}
+                                 {{- $name = replace "[Литрес]" "" $name -}}
+                                 {{- $name = replace "_litres" "" $name -}}
+                                 {{- $name = replace "(flibusta)" "" $name -}}
+                                 {{- $name = replace "_flibusta" "" $name -}}
+                                 {{- $name = replace "(Самиздат)" "" $name -}}
+                                 {{- $name = replace "[author.today]" "" $name -}}
+                                 {{- $name = replace "[mybook]" "" $name -}}
+                                 {{- $name = replace "[ficbook]" "" $name -}}
+                                 {{- $name = replace "[knigogo.net]" "" $name -}}
+                                 {{- $name = replace "_royal_lib_ru" "" $name -}}
+                                 {{- $name = replace "CoolLib_net" "" $name -}}
+                                 {{- $name = replace "lib_ru" "" $name -}}
+                                 {{- $name = replace "[L]" "" $name -}}
+                                 {{- $name = replace "_full" "" $name -}}
+                                 {{- $name = replace "(v1.0)" "" $name -}}
+                                 {{- $name = replace "(v2.0)" "" $name -}}
+                                 {{- $name = replace "_ru" "" $name -}}
+                                 {{- $name = replace "_en" "" $name -}}
+                                 {{- $name = replace "_ua" "" $name -}}
+                                 {{- $name = replace "_uk" "" $name -}}
+                                 {{- $parts := splitList "_" $name -}}
+                                 {{- if gt (len $parts) 1 -}}
+                                 {{-   $lastPart := last $parts -}}
+                                 {{-   $lpLen := len $lastPart -}}
+                                 {{-     if and (ge $lpLen 5) (le $lpLen 8) -}}
+                                 {{-     if and (ge $lastPart "0") (le $lastPart "99999999") -}}
+                                 {{-     $name = join "_" (initial $parts) -}}
+                                 {{-     end -}}
+                                 {{-   end -}}
+                                 {{- end -}}
+                                 {{- $name = replace "_" " " $name -}}
+                                 {{- $name = replace "  " " " $name -}}
+                                 {{- $name = trim $name -}}
+                                 {{- $name -}}
+                         """;
+                    }
+                    else
+                    {
+                        templateBlock = BuildGoTemplateFromUI(fieldIndexes, folderFlags);
+                    }
                 }
 
                 //==================

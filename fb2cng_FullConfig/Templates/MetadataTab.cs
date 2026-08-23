@@ -1,12 +1,13 @@
-﻿using fb2cng_FullConfig.Utils;
+﻿using fb2cng_FullConfig.Services;
+using fb2cng_FullConfig.Utils;
 namespace fb2cng_FullConfig.Templates
 {
-    public partial class MetadataTab : UserControl
+    public partial class MetadataTab : UserControl, IThemableTab
     {
+
         public Panel scrollMetadataPanel = null!;
 
-        // Елементи інтерфейсу
-
+        // --- Елементи інтерфейсу / Контроли ---
         public CheckBox chkSoftHyphen = null!;
         public RadioButton rbSoftHyphenYes = null!, rbSoftHyphenNo = null!;
 
@@ -57,12 +58,21 @@ namespace fb2cng_FullConfig.Templates
         public CheckBox chkDropcaps = null!;
         public RadioButton rbDropcapsYes = null!, rbDropcapsNo = null!;
 
-
+        // --- Конструктор ---
         public MetadataTab()
         {
             DoubleBuffered = true;
             AutoScaleMode = AutoScaleMode.None;
             SetupInterface();
+        }
+
+        // --- Інтерфейс ---
+        public void ApplyTheme(bool isDark, Color foreColor, Color backColor, Color disabledColor)
+        {
+            // Кольори для списку всередині поп-апу
+            clbVignettesItems.BackColor = backColor;
+            clbVignettesItems.ForeColor = isDark ? Color.FromArgb(245, 245, 245) : SystemColors.ControlText;
+            vignettePopupContainer.BackColor = backColor;
         }
 
         private void SetupInterface()
@@ -73,7 +83,6 @@ namespace fb2cng_FullConfig.Templates
             // забороняєм горизонтальний скрол
             scrollMetadataPanel = new Panel { Dock = DockStyle.Fill };
             Controls.Add(scrollMetadataPanel);
-
             UiStyles.DisableHorizontalScroll(scrollMetadataPanel);
 
             // 1. Soft Hyphen
@@ -250,9 +259,9 @@ namespace fb2cng_FullConfig.Templates
                 chkTocPlacement, cmbTocPlacement, chkInclNoTitle, pnlINT, chkVignettes, btnVignetteSettings, pnlVig, chkDropcaps, pnlDC
             ]);
 
-            // ========================================================
-            // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ ВСЕРЕДИНІ USERCONTROL
-            // ========================================================
+            // ===================================
+            // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ
+            // ===================================
             Size = m.TotalSize;
 
             // Створюємо змінну для крокування вниз (вона починається зі стартового Y)

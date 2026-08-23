@@ -1,17 +1,21 @@
-﻿using fb2cng_FullConfig.Utils;
-using static System.Windows.Forms.AxHost;
+﻿using fb2cng_FullConfig.Services;
+using fb2cng_FullConfig.Utils;
 namespace fb2cng_FullConfig.Templates
 {
 
-    public partial class DocumentTab : UserControl
+    public partial class DocumentTab : UserControl, IThemableTab
     {
-        // Елементи інтерфейсу вкладки 
+        // --- 1. Поля стану та константи ---
+        private bool _isFirstLaunchApplied;
+        private const int OutFieldsCount = 7;
+        // --- Елементи інтерфейсу (Публічні) ---
         public Panel scrollMenuPanel = null!;
         public ComboBox langComboBox = null!;
         public Button btnReset = null!;
         public Button btnDumpConfig = null!;
         public TextBox txtConfigName = null!;
-
+        public Label lblLang = null!;
+        public Label lblConfigName = null!;
         public CheckBox chkCustomYaml = null!;
         public TextBox txtCustomYamlPath = null!;
         public Button btnBrowseCustomYaml = null!;
@@ -34,12 +38,7 @@ namespace fb2cng_FullConfig.Templates
         public ComboBox[]? cmbOutFields;
         public CheckBox[]? chkAsFolder;
 
-        public Label lblLang = null!;
-        public Label lblConfigName = null!;
-        public Label lblOutNameTitle = null!;
-        // константа для кількості полів, для змін в майбутньому
-        private const int OutFieldsCount = 7;
-
+        // --- Конструктор ---
         public DocumentTab()
         {
             DoubleBuffered = true;
@@ -49,48 +48,53 @@ namespace fb2cng_FullConfig.Templates
             SetupInterface();
         }
 
-        public class ControlGroup
+        // --- Реалізація IThemableTab ---
+        public void ApplyTheme(bool isDark, Color foreColor, Color backColor, Color disabledColor)
         {
-            public required CheckBox CheckBox { get; set; }
-            public required TextBox TextBox { get; set; }
-            public required Button Button { get; set; }
-        }
+            // 1. Фарбуємо власні унікальні елементи
+            scrollMenuPanel.BackColor = BackColor;
+            grpOutName.BackColor = BackColor;
 
-        private static ControlGroup SetupToggleGroup(Image icon, Panel parentPanel)
-        {
-            CheckBox chk = new() { AutoSize = true };
-            TextBox txt = new() { Enabled = false };
-            Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
-            btn.FlatAppearance.BorderSize = 0;
+            bool isNamingLocked = chkFb2Name.Checked || chkDefaultName.Checked;
 
-            // Викликаємо наш новий єдиний метод малювання (він у UiStyles)
-            UiStyles.SetupIconButtonDrawing(btn, icon, chk, UiStyles.InactiveIconMatrix);
+            // ВАЖЛИВО: Ми НЕ пишемо grpOutName.Enabled = false, щоб Windows не малювала чорним.
+            // Замість цього ми ставимо мітку в Tag
+            grpOutName.Tag = isNamingLocked ? "ForceDisabled" : null;
 
-            // Зв'язуємо стан доступності тексту та кнопки із чекбоксом
-            chk.CheckedChanged += (s, e) =>
+            // Вимикаємо елементи всередині групи вручну, щоб вони стали сірими через рекурсію менеджера
+            if (cmbOutFields != null && chkAsFolder != null)
             {
-                txt.Enabled = chk.Checked;
-                btn.Enabled = chk.Checked;
-            };
+                for (int i = 0; i < cmbOutFields.Length; i++)
+                {
+                    // Якщо naming locked — елементи вимкнені. 
+                    // Якщо ні — їх стан залежить від логіки Form1_Logic (яка вже там є)
+                    if (isNamingLocked)
+                    {
+                        cmbOutFields[i].Enabled = false;
+                        chkAsFolder[i].Enabled = false;
+                    }
+                }
+            }
 
-            parentPanel.Controls.AddRange([chk, txt, btn]);
-
-            return new ControlGroup { CheckBox = chk, TextBox = txt, Button = btn };
+            if (!_isFirstLaunchApplied)
+            {
+                if (!chkCustomYaml.Checked) { chkCustomYaml.Checked = true; chkCustomYaml.Checked = false; }
+                _isFirstLaunchApplied = true;
+            }
         }
+
+        // --- Ініціалізація інтерфейсу --- 
         private void SetupInterface()
         {
             // Отримуємо всі готові прораховані метрики в один рядок
             UiStyles.LayoutMetrics m = new(UiStyles.Scale);
 
-            // забороняєм горизонтальний скрол
+            // Панель скролу, забороняєм горизонтальний скрол
             scrollMenuPanel = new Panel { Dock = DockStyle.Fill };
             Controls.Add(scrollMenuPanel);
             UiStyles.DisableHorizontalScroll(scrollMenuPanel);
 
-            grpOutName = new GroupBox { Text = "" };
-            scrollMenuPanel.Controls.Add(grpOutName);
-
-            // 2. Створення елементів верхнього блоку (у scrollMenuPanel)
+            // Блок мови та ресет
             lblLang = new Label { Text = "Language:", AutoSize = true };
             langComboBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
             langComboBox.Items.AddRange(["English", "Українська", "Русский"]);
@@ -102,22 +106,19 @@ namespace fb2cng_FullConfig.Templates
                 BackColor = Color.Transparent
             };
             UiStyles.MakeButtonRounded(btnReset, m.BtnRadius);
-            scrollMenuPanel.Controls.AddRange([lblLang, langComboBox, btnReset]);
 
+            // Блок конфігу та дампу
             btnDumpConfig = new Button();
-            scrollMenuPanel.Controls.Add(btnDumpConfig);
-
             lblConfigName = new Label { AutoSize = true };
             txtConfigName = new TextBox { Text = Config.DefaultConfigPath };
-            scrollMenuPanel.Controls.AddRange([lblConfigName, txtConfigName]);
 
+            // Групи вибору файлів (Custom YAML, CSS)
             ControlGroup yamlGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
             chkCustomYaml = yamlGroup.CheckBox; txtCustomYamlPath = yamlGroup.TextBox; btnBrowseCustomYaml = yamlGroup.Button;
-
-            // Налаштування CSS та кнопки з малюванням іконки
             ControlGroup cssGroup = SetupToggleGroup(Properties.Resources.folder, scrollMenuPanel);
             chkCss = cssGroup.CheckBox; txtCssPath = cssGroup.TextBox; btnBrowseCss = cssGroup.Button;
 
+            // Навігація та бінарні налаштування
             chkCover = new CheckBox { AutoSize = true }; // обкладинка
             cmbTocType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbTocType.Items.AddRange(["normal", "old_kindle", "flat"]);
@@ -127,8 +128,6 @@ namespace fb2cng_FullConfig.Templates
                 cmbTocType.Enabled = chkCover.Checked;
                 ApplyThemeViaForm();
             };
-            scrollMenuPanel.Controls.AddRange([chkCover, cmbTocType]);
-
             // Fix ZIP, Open From Cover, Translit (радіо-кнопки)
             chkFixZip = new CheckBox { AutoSize = true };
             Panel pnlFixZip = UiStyles.CreateRadioGroup(out rbFixZipYes, out rbFixZipNo);
@@ -141,11 +140,11 @@ namespace fb2cng_FullConfig.Templates
 
             chkFb2Name = new CheckBox { AutoSize = true };
             chkDefaultName = new CheckBox { AutoSize = true };
-            lblOutNameTitle = new Label { AutoSize = true };
-            // Конструктор структури назви (кількість в константі)
+
+            // Конструктор структури назви
             cmbOutFields = new ComboBox[OutFieldsCount];
             chkAsFolder = new CheckBox[OutFieldsCount];
-
+            grpOutName = new GroupBox { Text = "", Name = "grpOutName" };
             for (int i = 0; i < cmbOutFields.Length; i++)
             {
                 int index = i;
@@ -160,11 +159,14 @@ namespace fb2cng_FullConfig.Templates
 
                 grpOutName.Controls.AddRange([cmbOutFields[index], chkAsFolder[index]]);
             }
-            scrollMenuPanel.Controls.AddRange([chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover,
+            scrollMenuPanel.Controls.AddRange([lblLang, langComboBox, btnReset, btnDumpConfig, lblConfigName,
+                txtConfigName, chkCover, cmbTocType, chkFixZip, pnlFixZip, chkOpenFromCover, pnlOpenCover,
                 chkTranslit, pnlTranslit, chkFb2Name, chkDefaultName, grpOutName]);
-            // ========================================================
-            // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ ВСЕРЕДИНІ USERCONTROL
-            // ========================================================
+
+            // ====================================
+            // ГЕОМЕТРІЯ ТА РОЗСТАНОВКА ЕЛЕМЕНТІВ 
+            // ====================================
+
             Size = m.TotalSize;
 
             // Створюємо змінну для крокування вниз (вона починається зі стартового Y)
@@ -253,6 +255,30 @@ namespace fb2cng_FullConfig.Templates
             lblScrollAnchor.SetBounds(0, grpOutName.Bottom + m.BlockMargin, 1, 1);
             scrollMenuPanel.Controls.Add(lblScrollAnchor);
         }
+
+        // --- Допоміжні методи ---
+        private static ControlGroup SetupToggleGroup(Image icon, Panel parentPanel)
+        {
+            CheckBox chk = new() { AutoSize = true };
+            TextBox txt = new() { Enabled = false };
+            Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            btn.FlatAppearance.BorderSize = 0;
+
+            // Викликаємо наш новий єдиний метод малювання (він у UiStyles)
+            UiStyles.SetupIconButtonDrawing(btn, icon, chk, UiStyles.InactiveIconMatrix);
+
+            // Зв'язуємо стан доступності тексту та кнопки із чекбоксом
+            chk.CheckedChanged += (s, e) =>
+            {
+                txt.Enabled = chk.Checked;
+                btn.Enabled = chk.Checked;
+            };
+
+            parentPanel.Controls.AddRange([chk, txt, btn]);
+
+            return new ControlGroup { CheckBox = chk, TextBox = txt, Button = btn };
+        }
+
         private void ApplyThemeViaForm()
         {
             if (FindForm() is Form1 mainForm)
@@ -260,5 +286,13 @@ namespace fb2cng_FullConfig.Templates
                 mainForm.ApplyTheme();
             }
         }
+
+        public class ControlGroup
+        {
+            public required CheckBox CheckBox { get; set; }
+            public required TextBox TextBox { get; set; }
+            public required Button Button { get; set; }
+        }
+
     }
 }

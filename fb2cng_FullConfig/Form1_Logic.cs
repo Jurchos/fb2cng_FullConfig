@@ -20,23 +20,12 @@ namespace fb2cng_FullConfig
         private static readonly string[] _placementValues = ["none", "before", "after"];
         private static readonly string[] _logLevels = ["none", "normal", "debug"];
 
-        // 1. Керування мовою та локалізацією
-        internal void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        //=====================================
+        // --- 1. Тема та Локалізація ---
+        public void ApplyTheme()
         {
-            // Оскільки langComboBox тепер лежить всередині вкладки DocumentTab, 
-            // дістаємо посилання на нього через кеш вкладок
-            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
-            {
-                Config.Settings.CurrentLanguage = docTab.langComboBox.SelectedIndex switch
-                {
-                    1 => "Ukrainian",
-                    2 => "Russian",
-                    _ => "English",
-                };
-                UpdateLocalization();
-                ApplyTheme();
-                Config.SaveSettings(); // Миттєве збереження обраної мови
-            }
+            // Тепер менеджеру не потрібен словник кешу, він сам знайде вкладки в pnlContent.Controls
+            ThemeManager.Apply(this, headerPanel, footerPanel, pnlContent);
         }
 
         private void UpdateLocalization()
@@ -48,7 +37,11 @@ namespace fb2cng_FullConfig
             {
                 int selected = combo.SelectedIndex;
                 combo.Items.Clear();
-                foreach (var key in keys) combo.Items.Add(loc.GetValueOrDefault(key, key));
+                foreach (string key in keys)
+                {
+                    _ = combo.Items.Add(loc.GetValueOrDefault(key, key));
+                }
+
                 combo.SelectedIndex = selected >= 0 ? selected : 0;
             }
 
@@ -64,6 +57,9 @@ namespace fb2cng_FullConfig
             btnOk.Text = GetText("Ok", "OK");
             btnCancel.Text = GetText("Cancel", "Cancel");
             btGui?.Text = GetText("Gui", "GUI");
+            // Локалізація кнопок ТАК/НІ для всіх груп
+            string yes = GetText("Yes", "Yes");
+            string no = GetText("No", "No");
 
             // ЛОКАЛІЗАЦІЯ ВКЛАДОК
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
@@ -89,7 +85,6 @@ namespace fb2cng_FullConfig
                 docTab.chkFb2Name.Text = GetText("Fb2Name", "Use Original FB2 Name");
                 docTab.chkDefaultName.Text = GetText("DefaultName", "Default Filename");
 
-                docTab.lblOutNameTitle.SetTextIfNotNull(GetText("OutNameTitle", "Output Name Template Constructor"));
                 docTab.grpOutName.Text = GetText("OutNameTitle", "Output Structure");
                 docTab.chkAsFolder.SetTextForAllIfNotNull(GetText("AsFolder", "Fold"));
 
@@ -166,13 +161,13 @@ namespace fb2cng_FullConfig
                 dataTab.clbVignettesItems.Items.Clear();
                 dataTab.clbVignettesItems.Items.AddRange([
                     GetText("Vig_B_T", "Book Top"),
-        GetText("Vig_B_B", "Book Bottom"),
-        GetText("Vig_C_T", "Chapter Top"),
-        GetText("Vig_C_B", "Chapter Bottom"),
-        GetText("Vig_C_E", "Chapter End"),
-        GetText("Vig_S_T", "Section Top"),
-        GetText("Vig_S_B", "Section Bottom"),
-        GetText("Vig_S_E", "Section End")
+                    GetText("Vig_B_B", "Book Bottom"),
+                    GetText("Vig_C_T", "Chapter Top"),
+                    GetText("Vig_C_B", "Chapter Bottom"),
+                    GetText("Vig_C_E", "Chapter End"),
+                    GetText("Vig_S_T", "Section Top"),
+                    GetText("Vig_S_B", "Section Bottom"),
+                    GetText("Vig_S_E", "Section End")
                 ]);
 
                 // 3. Відновлюємо галочки, якщо вони були
@@ -184,10 +179,6 @@ namespace fb2cng_FullConfig
                     }
                 }
                 dataTab.clbVignettesItems.EndUpdate();
-
-                // Локалізація кнопок ТАК/НІ для всіх груп
-                string yes = GetText("Yes", "Yes");
-                string no = GetText("No", "No");
 
                 dataTab.rbSoftHyphenYes.Text = dataTab.rbPageMapYes.Text = dataTab.rbAdobeDeYes.Text =
                 dataTab.rbUseBrokenYes.Text = dataTab.rbRemoveTranspYes.Text = dataTab.rbImgOptimizeYes.Text =
@@ -213,6 +204,9 @@ namespace fb2cng_FullConfig
                 logTab.rbLogModeOldNew.Text = GetText("LogMode_OldNew", "old+new");
                 logTab.rbLogFolderYes.Text = GetText("Yes", "Yes");
                 logTab.rbLogFolderNo.Text = GetText("No", "No");
+                logTab.lblShowTips.Text = GetText("ShowTooltips", "* Увімкнути спливаючі підказки");
+                logTab.rbTipsYes.Text = GetText("Yes", "Yes");
+                logTab.rbTipsNo.Text = GetText("No", "No");
 
                 string[] logOptions = [
                     GetText("LogOpt_Default", "default"),
@@ -235,101 +229,27 @@ namespace fb2cng_FullConfig
                 logTab.cmbPanicLogName.Items.AddRange(logOptions);
                 logTab.cmbPanicLogName.SelectedIndex = selPanic >= 0 ? selPanic : 0;
                 logTab.cmbPanicLogName.EndUpdate();
+
             }
         }
 
-        public void ApplyTheme()
+        //=====================================================
+        // --- 2. Логіка взаємодії елементів (DocumentTab) ---
+        internal void LangComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            // Передаємо саму форму, хідер, футер, контент-панель та кеш вкладок
-            ThemeManager.Apply(this, headerPanel, footerPanel, pnlContent, _tabsCache);
-        }
-
-        internal void BtnReset_Click(object? sender, EventArgs e)
-        {
-            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
-
-            string msgTitle = langDict?.GetValueOrDefault("ResetTitle", "Reset Settings") ?? "Reset Settings";
-            string msgText = langDict?.GetValueOrDefault("ResetConfirm", "Are you sure you want to reset all settings?") ?? "Are you sure you want to reset all settings?";
-
-            // Викликаємо кастомне вікно
-            DialogResult result = ShowCustomMessageBox(msgText, msgTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result == DialogResult.Yes)
-            {
-                try
-                {
-                    string currentExePath = Environment.ProcessPath
-                        ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe");
-
-                    // Використовуємо cmd для затримки в 1 секунду перед запуском нової копії
-                    // Це дасть поточній програмі час закритися і звільнити М'ютекс
-                    string cmdArgs = $"/c timeout /t 1 && start \"\" \"{currentExePath}\"";
-
-                    _ = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = cmdArgs,
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    });
-
-                    Application.Exit(); // Коректне завершення роботи WinForms
-                }
-                catch (Exception ex)
-                {
-                    Config.LogError("Application reset/restart failed", ex); // Додаємо логування
-                    string errTitle = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
-                    _ = ShowCustomMessageBox($"Reset Error:\n\n{ex.Message}\n\nDetails can be found in {Config.LogErrorFile}",
-                        errTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
-        // Метод вибору YAML файлу:
-        internal void BtnBrowseCustomYaml_Click(object? sender, EventArgs e)
-        {
+            // Оскільки langComboBox тепер лежить всередині вкладки DocumentTab, 
+            // дістаємо посилання на нього через кеш вкладок
             if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
             {
-                if (!docTab.chkCustomYaml.Checked)
+                Config.Settings.CurrentLanguage = docTab.langComboBox.SelectedIndex switch
                 {
-                    return;
-                }
-
-                using OpenFileDialog ofd = new();
-                ofd.Filter = "YAML Files (*.yaml;*.yml)|*.yaml;*.yml|All Files (*.*)|*.*";
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                    string selectedFile = ofd.FileName;
-                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
-                    // Встановлюємо шлях
-                    docTab.txtCustomYamlPath.Text = relativePath.Replace('\\', '/');
-
-                    // ЯВНО ВИКЛИКАЄМО СИНХРОНІЗАЦІЮ ТУТ
-                    SyncConfigNameWithYaml(docTab);
-                }
-            }
-        }
-
-        internal void BtnBrowseCss_Click(object? sender, EventArgs e)
-        {
-            // Дістаємо посилання на вкладку документа для роботи з її полями
-            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
-            {
-                if (!docTab.chkCss.Checked)
-                {
-                    return;
-                }
-
-                using OpenFileDialog ofd = new();
-                ofd.Filter = "CSS Files (*.css)|*.css";
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                    string selectedFile = ofd.FileName;
-                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
-                    docTab.txtCssPath.Text = relativePath.Replace('\\', '/');
-                }
+                    1 => "Ukrainian",
+                    2 => "Russian",
+                    _ => "English",
+                };
+                UpdateLocalization();
+                ApplyTheme();
+                Config.SaveSettings(); // Миттєве збереження обраної мови
             }
         }
 
@@ -356,13 +276,13 @@ namespace fb2cng_FullConfig
                     // 1. Блокуємо чекбокс "Назва за замовчуванням"
                     docTab.chkDefaultName.Enabled = !isFb2Enabled;
 
-                    docTab.grpOutName.Enabled = true;
+                    ApplyTheme();
 
                     // 2. Вимикаємо тільки елементи всередині GroupBox, якщо FB2 Name увімкнено
                     for (int i = 0; i < docTab.cmbOutFields.Length; i++)
                     {
                         docTab.cmbOutFields[i].Enabled = !isFb2Enabled;
-                        docTab.chkAsFolder![i].Enabled = !isFb2Enabled;
+                        docTab.chkAsFolder[i].Enabled = !isFb2Enabled;
 
                         if (isFb2Enabled)
                         {
@@ -485,6 +405,49 @@ namespace fb2cng_FullConfig
             }
         }
 
+        //==========================================================
+        // --- 3. Обробники дій вкладок (Browse, Reset, Dump) ---
+        internal void BtnReset_Click(object? sender, EventArgs e)
+        {
+            _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
+
+            string msgTitle = langDict?.GetValueOrDefault("ResetTitle", "Reset Settings") ?? "Reset Settings";
+            string msgText = langDict?.GetValueOrDefault("ResetConfirm", "Are you sure you want to reset all settings?") ?? "Are you sure you want to reset all settings?";
+
+            // Викликаємо кастомне вікно
+            DialogResult result = ShowCustomMessageBox(msgText, msgTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    string currentExePath = Environment.ProcessPath
+                        ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe");
+
+                    // Використовуємо cmd для затримки в 1 секунду перед запуском нової копії
+                    // Це дасть поточній програмі час закритися і звільнити М'ютекс
+                    string cmdArgs = $"/c timeout /t 1 && start \"\" \"{currentExePath}\"";
+
+                    _ = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = cmdArgs,
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    });
+
+                    Application.Exit(); // Коректне завершення роботи WinForms
+                }
+                catch (Exception ex)
+                {
+                    Config.LogError("Application reset/restart failed", ex); // Додаємо логування
+                    string errTitle = langDict?.GetValueOrDefault("ErrTitle", "Error") ?? "Error";
+                    _ = ShowCustomMessageBox($"Reset Error:\n\n{ex.Message}\n\nDetails can be found in {Config.LogErrorFile}",
+                        errTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
         internal async void BtnDumpConfig_Click(object? sender, EventArgs e)
         {
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
@@ -514,11 +477,10 @@ namespace fb2cng_FullConfig
                 if (success)
                 {
                     // Оновлюємо інтерфейс відразу після генерації файлу
-
-                        SyncTocTypeWithCustomYaml(docTab);
-                        SyncBinarySettingsWithYaml(docTab);
-                        SyncLoggingSettingsWithYaml(docTab);
-                        SyncMetadataWithYaml(docTab); // Тепер метадані оновляться при створенні файлу
+                    SyncTocTypeWithCustomYaml(docTab);
+                    SyncBinarySettingsWithYaml(docTab);
+                    SyncLoggingSettingsWithYaml(docTab);
+                    SyncMetadataWithYaml(docTab); // Тепер метадані оновляться при створенні файлу
 
                     string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
                     string msg = langDict?.GetValueOrDefault("GenSuccess", "{0} successfully generated!") ?? "{0} successfully generated!";
@@ -529,6 +491,68 @@ namespace fb2cng_FullConfig
             }
         }
 
+        internal void BtnBrowseCustomYaml_Click(object? sender, EventArgs e)
+        {
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
+            {
+                if (!docTab.chkCustomYaml.Checked)
+                {
+                    return;
+                }
+
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "YAML Files (*.yaml;*.yml)|*.yaml;*.yml|All Files (*.*)|*.*";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string selectedFile = ofd.FileName;
+                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
+                    // Встановлюємо шлях
+                    docTab.txtCustomYamlPath.Text = relativePath.Replace('\\', '/');
+                    // ЯВНО ВИКЛИКАЄМО СИНХРОНІЗАЦІЮ ТУТ
+                    SyncConfigNameWithYaml(docTab);
+                }
+            }
+        }
+
+        internal void BtnBrowseCss_Click(object? sender, EventArgs e)
+        {
+            // Дістаємо посилання на вкладку документа для роботи з її полями
+            if (_tabsCache.TryGetValue("document:", out UserControl? tab) && tab is DocumentTab docTab)
+            {
+                if (!docTab.chkCss.Checked)
+                {
+                    return;
+                }
+
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "CSS Files (*.css)|*.css";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string selectedFile = ofd.FileName;
+                    string relativePath = Path.GetRelativePath(appPath, selectedFile);
+                    docTab.txtCssPath.Text = relativePath.Replace('\\', '/');
+                }
+            }
+        }
+
+        internal void BtnBrowseCover_Click(object? sender, EventArgs e)
+        {
+            if (_tabsCache.TryGetValue("metadata:", out UserControl? tab) && tab is MetadataTab dataTab)
+            {
+                using OpenFileDialog ofd = new();
+                ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    dataTab.txtCoverPath.Text = Path.GetRelativePath(appPath, ofd.FileName).Replace('\\', '/');
+                }
+            }
+        }
+
+        //===========================================
+        // --- 4. Синхронізація з YAML (Читання) ---
         private static void SyncConfigNameWithYaml(DocumentTab docTab)
         {
             if (docTab.chkCustomYaml.Checked)
@@ -729,12 +753,11 @@ namespace fb2cng_FullConfig
 
                     // 2. Логіка віньєток (незалежна)
                     string vigRaw = YamlService.ReadYamlValue(yamlPath, "vignettes:");
-                    // Використовуємо одинарні лапки '#'
                     bool vigRoot = !string.IsNullOrEmpty(vigRaw) && !vigRaw.StartsWith('#');
                     dataTab.rbVignettesYes.Checked = vigRoot;
                     dataTab.rbVignettesNo.Checked = !vigRoot;
 
-                    // 3. Зчитування галочок віньєток (Оптимізовано під зауваження VS)
+                    // 3. Зчитування галочок віньєток 
                     string[] lines = File.ReadAllLines(yamlPath);
 
                     // Додаємо двокрапки відразу в масив, щоб прибрати "+" у циклі
@@ -775,7 +798,6 @@ namespace fb2cng_FullConfig
                 }
             }
             // Дефолти
-
             dataTab.rbSoftHyphenNo.Checked = true;
             dataTab.rbPageMapYes.Checked = true;      // за замовчуванням Так
             dataTab.txtPageMapSize.Text = "2300";    // за замовчуванням 2300
@@ -800,9 +822,6 @@ namespace fb2cng_FullConfig
             dataTab.rbDropcapsNo.Checked = true;
         }
 
-        // ========================================================
-        // СИНХРОНІЗАЦІЯ LOGGING З YAML
-        // ========================================================
         private void SyncLoggingSettingsWithYaml(DocumentTab docTab)
         {
             // Отримуємо посилання на вкладку логів
@@ -881,56 +900,8 @@ namespace fb2cng_FullConfig
             logTab.rbLogFolderNo.Checked = true;
         }
 
-        internal void BtnBrowseCover_Click(object? sender, EventArgs e)
-        {
-            if (_tabsCache.TryGetValue("metadata:", out UserControl? tab) && tab is MetadataTab dataTab)
-            {
-                using OpenFileDialog ofd = new();
-                ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                    dataTab.txtCoverPath.Text = Path.GetRelativePath(appPath, ofd.FileName).Replace('\\', '/');
-                }
-            }
-        }
-
-        private void BtGui_Click(object? sender, EventArgs e)
-         {
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
-    
-             try
-            {
-                Process[] runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
-                if (runningProcesses.Length > 0)
-                {
-                    IntPtr hWnd = runningProcesses[0].MainWindowHandle;
-                    if (hWnd != IntPtr.Zero)
-                    {
-                        if (Win32Api.IsIconic(hWnd))
-                        {
-                            _ = Win32Api.ShowWindow(hWnd, 9);
-                        }
-
-                        _ = Win32Api.SetForegroundWindow(hWnd);
-                        return;
-                    }
-                }
-
-                // ВАЖЛИВО: додаємо WorkingDirectory, щоб GUI не вилітав!
-                _ = Process.Start(new ProcessStartInfo(exePath)
-                {
-                    UseShellExecute = true,
-                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
-                });
-            }
-            catch (Exception ex)
-            {
-                // Логуємо, чому не вдалося відкрити графічний інтерфейс
-                Config.LogError("Failed to start fb2cng_GUI.exe", ex);
-            }
-        }
-
+        //================================
+        // --- 5. Збереження (Запис) ---
         private void SaveYamlConfiguration()
         {
             if (!_tabsCache.TryGetValue("document:", out UserControl? doc) || doc is not DocumentTab docTab)
@@ -940,7 +911,7 @@ namespace fb2cng_FullConfig
 
             MetadataTab? dataTab = _tabsCache.TryGetValue("metadata:", out UserControl? data) ? data as MetadataTab : null;
             LoggingTab? logTab = _tabsCache.TryGetValue("logging:", out UserControl? log) ? log as LoggingTab : null;
-            // 1. ПЕРЕВІРКА НА NULL (Один раз на початку)
+            // ПЕРЕВІРКА НА NULL (Один раз на початку)
             if (docTab.cmbOutFields == null || docTab.chkAsFolder == null)
             {
                 return;
@@ -954,7 +925,7 @@ namespace fb2cng_FullConfig
                 folderFlags[i] = docTab.chkAsFolder[i].Checked;
             }
 
-            // 3. ФОРМУВАННЯ МАСИВУ ВІНЬЄТОК (Динамічно)
+            // ФОРМУВАННЯ МАСИВУ ВІНЬЄТОК (Динамічно)
             // Визначаємо розмір масиву на основі кількості пунктів у списку
             int vigCount = dataTab?.clbVignettesItems.Items.Count ?? 0;
             bool[] vignettesArray = new bool[vigCount];
@@ -966,7 +937,6 @@ namespace fb2cng_FullConfig
                     vignettesArray[i] = dataTab.clbVignettesItems.GetItemChecked(i);
                 }
             }
-            // ---------------------------------------------------------------
 
             try
             {
@@ -1048,14 +1018,66 @@ namespace fb2cng_FullConfig
             }
         }
 
+        //================================
+        // --- 6. Утиліти (Help, GUI) ---
         private static void ShowHelp()
         {
+            // 1. Отримуємо словник локалізації для поточної мови
             _ = Config.Localization.TryGetValue(Config.Settings.CurrentLanguage, out Dictionary<string, string>? langDict);
 
-            string caption = langDict?.GetValueOrDefault("Help", "Help / Довідка") ?? "Help / Довідка";
-            string msg = langDict?.GetValueOrDefault("HelpText", "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.") ?? "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.";
+            // 2. Отримуємо заголовок (Help або Допомога)
+            string caption = langDict?.GetValueOrDefault("Help") ?? "Help";
 
+            // 3. Отримуємо сирий текст шаблону з плейсхолдерами {0} та {1}
+            // Якщо ключа немає, використовуємо дефолтний текст (бажано теж із плейсхолдерами)
+            string rawMsg = langDict?.GetValueOrDefault("HelpText") ??
+                            "fb2cng Template Configurator\nCreated for fb2cng GUI toolset.\n{0}\nVersion: {1}";
+
+            // 4. Отримуємо дані про програму
+            string version = AppInfo.GetSimpleVersion();
+            string copyright = AppInfo.GetCopyright();
+
+            // 5. Форматуємо рядок (підставляємо copyright замість {0} та version замість {1})
+            string msg = string.Format(rawMsg, copyright, version);
+
+            // 6. Виводимо результат
             _ = ShowCustomMessageBox(msg, caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void BtGui_Click(object? sender, EventArgs e)
+        {
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
+
+            try
+            {
+                Process[] runningProcesses = Process.GetProcessesByName("fb2cng_GUI");
+                if (runningProcesses.Length > 0)
+                {
+                    IntPtr hWnd = runningProcesses[0].MainWindowHandle;
+                    if (hWnd != IntPtr.Zero)
+                    {
+                        if (Win32Api.IsIconic(hWnd))
+                        {
+                            _ = Win32Api.ShowWindow(hWnd, 9);
+                        }
+
+                        _ = Win32Api.SetForegroundWindow(hWnd);
+                        return;
+                    }
+                }
+
+                // ВАЖЛИВО: додаємо WorkingDirectory, щоб GUI не вилітав!
+                _ = Process.Start(new ProcessStartInfo(exePath)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
+                });
+            }
+            catch (Exception ex)
+            {
+                // Логуємо, чому не вдалося відкрити графічний інтерфейс
+                Config.LogError("Failed to start fb2cng_GUI.exe", ex);
+            }
         }
     }
 }

@@ -1,8 +1,14 @@
-﻿using fb2cng_FullConfig.Utils;
+﻿using fb2cng_FullConfig.Services;
+using fb2cng_FullConfig.Utils;
 namespace fb2cng_FullConfig.Templates
 {
-    public partial class LoggingTab : UserControl
+    public partial class LoggingTab : UserControl, IThemableTab
     {
+        public void ApplyTheme(bool isDark, Color foreColor, Color backColor, Color disabledColor)
+        {
+            scrollLoggingPanel.BackColor = BackColor;
+        }
+        public Panel scrollLoggingPanel = null!;
         // Чекбокси та елементи вибору для Logging
         public CheckBox chkLogLevel = null!;
         public ComboBox cmbLogLevel = null!;
@@ -18,6 +24,8 @@ namespace fb2cng_FullConfig.Templates
 
         public CheckBox chkLogFolder = null!;
         public RadioButton rbLogFolderYes = null!, rbLogFolderNo = null!;
+        public Label lblShowTips = null!;
+        public RadioButton rbTipsYes = null!, rbTipsNo = null!;
 
         public LoggingTab()
         {
@@ -30,6 +38,10 @@ namespace fb2cng_FullConfig.Templates
         {
             // Отримуємо всі готові прораховані метрики в один рядок
             UiStyles.LayoutMetrics m = new(UiStyles.Scale);
+            // забороняєм горизонтальний скрол
+            scrollLoggingPanel = new Panel { Dock = DockStyle.Fill };
+            Controls.Add(scrollLoggingPanel);
+            UiStyles.DisableHorizontalScroll(scrollLoggingPanel);
 
             // 1. Рівень логування
             chkLogLevel = new CheckBox { AutoSize = true };
@@ -83,14 +95,27 @@ namespace fb2cng_FullConfig.Templates
                 pnlLogFolder.Enabled = chkLogFolder.Checked;
                 ApplyThemeViaForm();
             };
+            //Підказки
+            lblShowTips = new Label { AutoSize = true };
+            Panel pnlTips = UiStyles.CreateRadioGroup(out rbTipsYes, out rbTipsNo);
+            pnlTips.Enabled = true;// ВАЖЛИВО: Робимо панель активною, оскільки чекбокса немає
 
-            Controls.AddRange([
+            scrollLoggingPanel.Controls.AddRange([
                 chkLogLevel, cmbLogLevel,
                 chkLogName, cmbLogName,
                 chkPanicLogName, cmbPanicLogName,
                 chkLogMode, pnlLogMode,
-                chkLogFolder, pnlLogFolder
+                chkLogFolder, pnlLogFolder,
+                lblShowTips, pnlTips
             ]);
+
+            // 2. Логіка і ініціалізація роботи перемикача
+            rbTipsYes.Checked = Config.Settings.ShowTooltips;
+            rbTipsNo.Checked = !Config.Settings.ShowTooltips;
+            rbTipsYes.CheckedChanged += (s, e) => {
+                Config.Settings.ShowTooltips = rbTipsYes.Checked;
+                Config.SaveSettings();
+            };
 
             // Геометрія розставлення
             int nextY = m.StartY;
@@ -122,6 +147,16 @@ namespace fb2cng_FullConfig.Templates
             nextY = chkLogMode.Bottom + bigBlockMargin;
             chkLogFolder.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             pnlLogFolder.SetBounds(m.SizeInputX, nextY, UiStyles.GetScaled(180), m.FieldHeight);
+             
+            //Підказки
+            int bottomY = pnlLogFolder.Bottom + UiStyles.GetScaled(405);
+            lblShowTips.SetBounds(m.XLeft, bottomY, m.TextLabelWidth, m.LabelHeight);
+            pnlTips.SetBounds(m.SizeInputX, bottomY, UiStyles.GetScaled(180), m.FieldHeight);
+
+            // Якір для скролу
+            Label lblScrollAnchor = new() { BackColor = Color.Transparent };
+            lblScrollAnchor.SetBounds(0, lblShowTips.Bottom + m.CheckBoxHeight, 1, 1);
+            scrollLoggingPanel.Controls.Add(lblScrollAnchor);
         }
         private void ApplyThemeViaForm()
         {

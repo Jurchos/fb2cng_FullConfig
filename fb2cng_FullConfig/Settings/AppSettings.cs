@@ -4,6 +4,6 @@
     {
         public string CurrentLanguage { get; set; } = "English";
         public bool IsDarkTheme { get; set; }
-        // Сюди можна додавати нові параметри в майбутньому
+        public bool ShowTooltips { get; set; } = true;
     }
 }

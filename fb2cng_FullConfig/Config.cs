@@ -5,7 +5,7 @@ namespace fb2cng_FullConfig
 {
     public static class Config
     {
-        // 1. СПОЧАТКУ ОГОЛОШУЄМО ВСІ ПОЛЯ ТА КЕШОВАНИЙ ДИЗАЙН (Тепер усе на своєму місці)
+        // 1. ОГОЛОШУЄМО ВСІ ПОЛЯ ТА КЕШОВАНИЙ ДИЗАЙН
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
         private static readonly Lock _fileLock = new();
 
@@ -14,7 +14,7 @@ namespace fb2cng_FullConfig
         public const string DefaultConfigPath = "Data/config.yaml";
         public const string LogErrorFile = "logs/conf_errors.log";
 
-        // 2. ПОТІМ ЙДУТЬ МЕТОДИ
+        // 2. ПОТІМ МЕТОДИ
         // Метод ініціалізації (викликається при старті в Program.cs)
         public static void Initialize(IConfiguration config)
         {
@@ -83,7 +83,7 @@ namespace fb2cng_FullConfig
                 }
             }
         }
-        // 1. Посилання на сам об'єкт налаштувань (для нових фіч)
+        // 1. Посилання на сам об'єкт налаштувань
         public static AppSettings Settings { get; private set; } = new AppSettings();
 
         // 2. Властивості-перехідники (Маскування під старий код, щоб прибрати всі помилки)
@@ -102,7 +102,7 @@ namespace fb2cng_FullConfig
         // Шлях до файлу конфігурації
         private static readonly string settingsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DataFolder, "Conf_config.json");
 
-        // Публічна властивість для читання (семантика коду у всій програмі НЕ зміниться, Config.Localization[...] працюватиме як і раніше)
+        // Публічна властивість для читання
         public static Dictionary<string, Dictionary<string, string>> Localization { get; } = new()
 
         {
@@ -111,13 +111,11 @@ namespace fb2cng_FullConfig
             {
                 ["Title"] = "fb2cng Template Configurator",
                 ["Help"] = "Help",
-                ["HelpText"] = "“fb2cng Template Configurator”\nDeveloped for the fb2cng GUI toolkit.\n\n" +
+                ["HelpText"] = "“fb2cng Template Configurator”\nDeveloped for the fb2cng GUI toolkit.\n======######======\n" +
                "If you are too lazy to manually edit YAML files and learn Go template syntax:\n" +
                "• Configuration Management: Extract the default template, create custom settings from scratch, or edit previously created YAML files.\n" +
                "• Visual Builder: Intuitively customize the structure and formatting rules for your converted books.\n" +
-               "• Quick Result: Choose your preferences and click 'Save' — the app will assemble your user.yaml automatically.\n\n" +
-               "Developed by: Jurchos & Gemini\n" +
-               "Version: 1.5",
+               "• Quick Result: Choose your preferences and click 'Save' — the app will assemble your user.yaml automatically.\n======######======\n{0}\nVersion: {1}",
                 ["Theme"] = "Theme",
                 ["Ok"] = "Save",
                 ["Cancel"] = "Cancel",
@@ -129,9 +127,9 @@ namespace fb2cng_FullConfig
                 ["CustomYamlEnable"] = "Edit user.yaml",
                 ["CssEnable"] = "Use custom CSS stylesheet",
                 ["TocType"] = "Navigation type (TOC):",
-                ["Opt_Toc_Normal"] = "Normal (nested)",
+                ["Opt_Toc_Normal"] = "Standard (multi-level)",
                 ["Opt_Toc_OldKindle"] = "Compatible (old Kindle)",
-                ["Opt_Toc_Flat"] = "Flat (single level)",
+                ["Opt_Toc_Flat"] = "Simplified (single-level)",
                 ["OpenCover"] = "Open book from the cover",
                 ["FixZip"] = "Remove data descriptor (Fix ZIP)",
                 ["Fb2Name"] = "Use source fb2 name for the output file",
@@ -204,6 +202,7 @@ namespace fb2cng_FullConfig
                 ["LogOpt_NameTag"] = "name + tag",
                 ["LogMode_OnlyNew"] = "Replace",
                 ["LogMode_OldNew"] = "Append",
+                ["ShowTooltips"] = "* Enable tooltips",
                 ["ResetTitle"] = "Application Restart",
                 ["ResetConfirm"] = "Are you sure you want to reset the configuration settings to defaults?\n(Language and theme settings will be preserved)",
                 ["SaveErrorTitle"] = "Save Error",
@@ -225,13 +224,11 @@ namespace fb2cng_FullConfig
             {
                 ["Title"] = "Конфігуратор шаблона fb2cng",
                 ["Help"] = "Довідка",
-                ["HelpText"] = "«Конфігуратор шаблона fb2cng»\nРозроблено для набору інструментів fb2cng GUI.\n\n" +
+                ["HelpText"] = "«Конфігуратор шаблона fb2cng»\nРозроблено для набору інструментів fb2cng GUI.\n======######======\n" +
                "Якщо ліньки вручну редагувати YAML-файли та вивчати шаблони мови Go:\n" +
                "• Керуйте конфігурацією: завантажуйте дефолтний шаблон, створюйте власні налаштування на базі стандартних або редагуйте раніше створені YAML-файли.\n" +
                "• Візуальний конструктор: інтуїтивно налаштовуйте структуру та правила форматування ваших готових книг.\n" +
-               "• Швидкий результат: оберіть потрібні параметри та натисніть «Зберегти» — програма сама сформує ваш user.yaml .\n\n" +
-               "Розробка: Jurchos & Gemini\n" +
-               "Версія: 1.5",
+               "• Швидкий результат: оберіть потрібні параметри та натисніть «Зберегти» — програма сама сформує ваш user.yaml .\n======######======\n{0}\nВерсія: {1}",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Зберегти",
                 ["Cancel"] = "Скасувати",
@@ -318,6 +315,7 @@ namespace fb2cng_FullConfig
                 ["LogOpt_NameTag"] = "назва + мітка",
                 ["LogMode_OnlyNew"] = "Заміна",
                 ["LogMode_OldNew"] = "Дозапис",
+                ["ShowTooltips"] = "* Увімкнути спливаючі підказки",
                 ["ResetTitle"] = "Перезапуск програми",
                 ["ResetConfirm"] = "Ви впевнені, що хочете скинути налаштування конфігурації до початкового стану?\n(Параметри мови та теми будуть збережені)",
                 ["SaveErrorTitle"] = "Помилка збереження",
@@ -339,13 +337,11 @@ namespace fb2cng_FullConfig
             {
                 ["Title"] = "Конфигуратор шаблона fb2cng",
                 ["Help"] = "Справка",
-                ["HelpText"] = "«Конфигуратор шаблона fb2cng»\nРазработано для набора инструментов fb2cng GUI.\n\n" +
+                ["HelpText"] = "«Конфигуратор шаблона fb2cng»\nРазработано для набора инструментов fb2cng GUI.\n======######======\n" +
                "Если лень вручную редактировать YAML-файлы и изучать шаблоны языка Go:\n" +
                "• Управление конфигурацией: извлекайте дефолтный шаблон, создавайте свои настройки на базе стандартных или редактируйте ранее созданные YAML-файлы.\n" +
                "• Визуальный конструктор: интуитивно настраивайте структуру и правила форматирования ваших готовых книг.\n" +
-               "• Быстрый результат: выберите нужные параметры и нажмите «Сохранить» — программа сама сформирует ваш user.yaml .\n\n" +
-               "Разработка: Jurchos & Gemini\n" +
-               "Версия: 1.5",
+               "• Быстрый результат: выберите нужные параметры и нажмите «Сохранить» — программа сама сформирует ваш user.yaml .\n======######======\n{0}\nВерсия: {1}",
                 ["Theme"] = "Тема",
                 ["Ok"] = "Сохранить",
                 ["Cancel"] = "Отмена",
@@ -432,6 +428,7 @@ namespace fb2cng_FullConfig
                 ["LogOpt_NameTag"] = "имя + метка",
                 ["LogMode_OnlyNew"] = "Замена",
                 ["LogMode_OldNew"] = "Дозапись",
+                ["ShowTooltips"] = "* Показывать подсказки",
                 ["ResetTitle"] = "Перезапуск программы",
                 ["ResetConfirm"] = "Вы уверены, что хотите сбросить настройки конфигурации до начального состояния?\n(Язык и тема будут сохранены)",
                 ["ErrTitle"] = "Ошибка конфигурации",

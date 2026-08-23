@@ -1,26 +1,25 @@
 ﻿
-using fb2cng_FullConfig.Templates;
-
 namespace fb2cng_FullConfig.Services
 {
+    // Інтерфейс для вкладок, які мають унікальні елементи для фарбування
+    public interface IThemableTab
+    {
+        void ApplyTheme(bool isDark, Color foreColor, Color backColor, Color disabledColor);
+    }
     public static class ThemeManager
     {
         private static bool _isThemeApplying;
-        private static bool _isFirstLaunchApplied;
 
-        public static void Apply(Form form, Panel header, Panel footer, Panel content, Dictionary<string, UserControl> tabsCache)
+        public static void Apply(Form form, Panel header, Panel footer, Panel content)
         {
-            if (_isThemeApplying)
-            {
-                return;
-            }
-
+            if (_isThemeApplying) return;
             _isThemeApplying = true;
 
             form.SuspendLayout();
             try
             {
                 bool isDark = Config.IsDarkTheme;
+                // Визначення палітри
                 Color darkBg = Color.FromArgb(37, 37, 38);
                 Color elementBg = Color.FromArgb(45, 45, 48);
                 Color textWhite = Color.FromArgb(245, 245, 245);
@@ -33,46 +32,27 @@ namespace fb2cng_FullConfig.Services
                 Color backColor = isDark ? elementBg : SystemColors.Window;
                 Color folderColor = isDark ? limeAccent : SystemColors.HotTrack;
 
-                // Основний фон вікна
+                // 1. Фарбування основного фону вікна
                 form.BackColor = isDark ? darkBg : SystemColors.Control;
-
                 header.BackColor = isDark ? elementBg : SystemColors.ControlLight;
                 footer.BackColor = isDark ? elementBg : SystemColors.ControlLight;
 
-                // Фарбуємо Хідер та Футер
-                SetControlsTheme(header, foreColor, disabledColor, backColor, folderColor, isDark, tabsCache);
-                SetControlsTheme(footer, foreColor, disabledColor, backColor, folderColor, isDark, tabsCache);
+                // 2. Фарбування статичних панелей (Header/Footer)
+                SetControlsThemeRecursive(header, foreColor, disabledColor, backColor, folderColor, isDark);
+                SetControlsThemeRecursive(footer, foreColor, disabledColor, backColor, folderColor, isDark);
 
-                // Фарбуємо всі закешовані вкладки
+                // 3. Фарбування динамічного контенту (вкладок)
                 foreach (Control activeTab in content.Controls)
                 {
                     activeTab.BackColor = isDark ? darkBg : SystemColors.Window;
 
-                    if (activeTab is DocumentTab docTab)
+                    // Викликаємо індивідуальне фарбування таба, якщо він підтримує інтерфейс
+                    if (activeTab is IThemableTab customTab)
                     {
-                        docTab.scrollMenuPanel.BackColor = activeTab.BackColor;
-                        docTab.grpOutName.BackColor = activeTab.BackColor;
+                        customTab.ApplyTheme(isDark, foreColor, backColor, disabledColor);
                     }
 
-                    SetControlsTheme(activeTab, foreColor, disabledColor, backColor, folderColor, isDark, tabsCache);
-                    if (activeTab is MetadataTab metaTab)
-                    {
-                        // Кольори для списку всередині поп-апу
-                        metaTab.clbVignettesItems.BackColor = backColor;
-                        metaTab.clbVignettesItems.ForeColor = isDark ? textWhite : SystemColors.ControlText;
-                        // ДОДАТИ: Фарбуємо контейнер відступу в той же колір
-                        metaTab.vignettePopupContainer.BackColor = backColor;
-                    }
-                }
-                if (!_isFirstLaunchApplied && tabsCache.TryGetValue("document:", out UserControl? mainTab) && mainTab is DocumentTab documentTab)
-                {
-                    if (!documentTab.chkCustomYaml.Checked)
-                    {
-                        documentTab.chkCustomYaml.Checked = true;
-                        documentTab.chkCustomYaml.Checked = false;
-                    }
-                    // Кажемо програмі: "Перший запуск оброблено, більше сюди не заходь!"
-                    _isFirstLaunchApplied = true;
+                    SetControlsThemeRecursive(activeTab, foreColor, disabledColor, backColor, folderColor, isDark);
                 }
             }
             finally
@@ -82,43 +62,30 @@ namespace fb2cng_FullConfig.Services
             }
         }
 
-        private static void SetControlsTheme(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark, Dictionary<string, UserControl> tabsCache)
+        // --- Рекурсивний обхід контролів ---
+        private static void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor, bool isDark)
         {
-            DocumentTab? docTab = tabsCache.TryGetValue("document:", out UserControl? tab) ? tab as DocumentTab : null;
-
-            bool isFb2NameChecked = docTab?.chkFb2Name.Checked ?? false;
-            bool isDefaultNameChecked = docTab?.chkDefaultName.Checked ?? false;
-            bool isNamingLocked = isFb2NameChecked || isDefaultNameChecked;
-            bool isCssChecked = docTab?.chkCss.Checked ?? false;
-
-            SetControlsThemeRecursive(parent, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
-        }
-
-        private static void SetControlsThemeRecursive(Control parent, Color foreColor, Color disabledColor, Color backColor, Color folderColor,
-            bool isDark, DocumentTab? docTab, bool isNamingLocked, bool isCssChecked)
-        {
-            Control? currentBrowseCssBtn = docTab?.btnBrowseCss;
-            Control? currentGrpOutName = docTab?.grpOutName;
-
-            // Оптимізація: Обчислюємо стан GrpOutName один раз перед циклом, а не для кожного контролу
-            bool isOutNameDisabled = isNamingLocked || (currentGrpOutName != null && !currentGrpOutName.Enabled);
-
             foreach (Control c in parent.Controls)
             {
-                // Оптимізація: Перевірку батьківських елементів робимо через локальні змінні, уникаючи глибоких null-conditional перевірок у циклі
-                Control? p = c.Parent;
-                bool isInsideGrpOutName = currentGrpOutName != null && (p == currentGrpOutName || (p != null && p.Parent == currentGrpOutName));
+                // Визначаємо стан заблокованості чисто за властивістю Enabled самого контрола
+                bool isControlDisabled = !c.Enabled;
 
-                bool isControlDisabled = !c.Enabled
-                    || (isInsideGrpOutName && isOutNameDisabled)
-                    || (isDark && c == currentBrowseCssBtn && !isCssChecked);
-
-                // Використовуємо Pattern Matching для чистоти та швидкості
                 switch (c)
                 {
                     case GroupBox gb:
                         gb.BackColor = parent.BackColor;
-                        gb.ForeColor = isNamingLocked && gb.Name == "grpOutName" ? disabledColor : (isDark ? foreColor : SystemColors.ControlText);
+
+                        // ПЕРЕВІРКА: якщо є мітка ForceDisabled або контроль реально вимкнено
+                        if (gb.Tag?.ToString() == "ForceDisabled" || !gb.Enabled)
+                        {
+                            gb.ForeColor = disabledColor; // Тут буде наш правильний сірий (140, 140, 140)
+                        }
+                        else
+                        {
+                            gb.ForeColor = isDark ? foreColor : SystemColors.ControlText;
+                        }
+
+                        gb.Invalidate();
                         break;
 
                     case Label lbl:
@@ -139,11 +106,9 @@ namespace fb2cng_FullConfig.Services
                     case Button btn:
                         btn.FlatStyle = FlatStyle.Flat;
                         btn.FlatAppearance.BorderSize = 0;
-
                         if (isDark)
                         {
                             btn.ForeColor = btn.Enabled ? foreColor : disabledColor;
-                            // Для кнопки OK/Save не робимо яскравого фону, якщо вона просто активна
                             btn.BackColor = btn.Enabled ? Color.FromArgb(45, 45, 48) : Color.FromArgb(40, 40, 42);
                         }
                         else
@@ -163,37 +128,24 @@ namespace fb2cng_FullConfig.Services
                         cb.ForeColor = isControlDisabled ? disabledColor : foreColor;
                         cb.FlatStyle = isDark ? FlatStyle.Flat : FlatStyle.Standard;
 
-                        // Безпечне перемикання режимів малювання без дублювання подій
-                        DrawMode targetMode = isDark ? DrawMode.OwnerDrawFixed : DrawMode.Normal;
-                        if (cb.DrawMode != targetMode)
-                        {
-                            cb.DrawMode = targetMode;
-                        }
+                        if (cb.DrawMode != (isDark ? DrawMode.OwnerDrawFixed : DrawMode.Normal))
+                            cb.DrawMode = isDark ? DrawMode.OwnerDrawFixed : DrawMode.Normal;
 
-                        // Перепідписуємо подію лише для темної теми
                         cb.DrawItem -= ComboBox_DrawItem;
-                        if (isDark)
-                        {
-                            cb.DrawItem += ComboBox_DrawItem;
-                        }
+                        if (isDark) cb.DrawItem += ComboBox_DrawItem;
                         break;
 
                     case CheckedListBox clb:
                         clb.BackColor = backColor;
                         clb.ForeColor = isControlDisabled ? disabledColor : foreColor;
                         break;
-
-                    default:
-                        break;
                 }
 
-                if (c.HasChildren)
-                {
-                    SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark, docTab, isNamingLocked, isCssChecked);
-                }
+                if (c.HasChildren) SetControlsThemeRecursive(c, foreColor, disabledColor, backColor, folderColor, isDark);
             }
         }
 
+        // --- Малювання ComboBox (Темна тема) ---
         private static void ComboBox_DrawItem(object? sender, DrawItemEventArgs e)
         {
             if (e.Index < 0 || sender is not ComboBox cb)

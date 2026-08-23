@@ -1,9 +1,17 @@
 ﻿using System.Drawing.Drawing2D;
+using System.Runtime.CompilerServices;
 namespace fb2cng_FullConfig.Utils
 {
     internal static class UiStyles
     {
-        internal static float Scale => Win32Api.GetDpiScale();
+        // 1. Кешуємо Scale (це безпечно і швидко)
+        private static float? _cachedScale;
+        internal static float Scale => _cachedScale ??= Win32Api.GetDpiScale();
+
+        // 2. Створюємо "невидимий" реєстр стилізованих кнопок. 
+        // Він не заважає властивості Tag і автоматично чиститься, коли кнопка видаляється.
+        private static readonly ConditionalWeakTable<Button, object> _styledButtons = [];
+
         internal static int GetScaled(int value)
         {
             return (int)(value * Scale);
@@ -124,7 +132,7 @@ namespace fb2cng_FullConfig.Utils
                 HeaderPaddingRight = Scale(14); // Відступ справа для останньої кнопки
                 BetweenButtons = Scale(6);
 
-                ContentHeight = Scale(625); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
+                ContentHeight = Scale(630); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
 
                 FooterHeight = Scale(24) + Scale(14);// Висота футера з урахуванням відступів
                 FooterBtnWidth = Scale(90);
@@ -153,7 +161,7 @@ namespace fb2cng_FullConfig.Utils
         {
             if (btn == null || dependencyCheckBox == null) return;
 
-            // Ми прибрали звідси Paint фону, залишаємо ТІЛЬКИ малювання іконки
+            // прибрали Paint фону, залишаємо ТІЛЬКИ малювання іконки
             btn.Paint += (s, e) =>
             {
                 if (icon != null)
@@ -182,6 +190,14 @@ namespace fb2cng_FullConfig.Utils
 
         internal static void MakeButtonRounded(Button btn, int radius)
         {
+            //  Запобігаємо повторному накладанню подій, перевіряємо реєстр
+            if (_styledButtons.TryGetValue(btn, out _))
+            {
+                return;
+            }
+
+            _styledButtons.Add(btn, new object());
+
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 0;
             btn.FlatAppearance.MouseOverBackColor = Color.Transparent;
