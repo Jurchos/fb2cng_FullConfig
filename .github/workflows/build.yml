@@ -1,0 +1,47 @@
+name: Build WinForms App
+
+on:
+  push:
+    tags:
+      - 'v*' # Спрацює, коли ви створите тег версії (наприклад v1.0.3)
+
+permissions:
+  contents: write
+
+jobs:
+  build_apps:
+    runs-on: windows-latest # Запуск на чистому Windows-сервері GitHub
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4 # Копіюємо ваш код із репозиторію
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x' # Версія SDK інструменту збірки
+
+    # 1. Збірка для x64 в окрему папку
+    - name: Publish x64
+      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x64
+
+    # 2. Збірка для x86 в окрему папку
+    - name: Publish x86
+      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x86 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x86
+
+    # 3. Пакування папок у ZIP-архіви з додаванням розрядності до назви архіву
+    - name: Create ZIP Archives
+      shell: pwsh
+      run: |
+        Compress-Archive -Path "./publish/x64/*" -DestinationPath "./publish/fb2cng_Configurator_x64.zip"
+        Compress-Archive -Path "./publish/x86/*" -DestinationPath "./publish/fb2cng_Configurator_x86.zip"
+
+    # 4. Створення релізу на GitHub та завантаження туди ZIP-архівів
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ./fb2cng_Configurator_x64.zip
+          ./fb2cng_Configurator_x86.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
