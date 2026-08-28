@@ -10,7 +10,7 @@ namespace fb2cng_FullConfig
         [STAThread]
         private static void Main()
         {
-            // 1. ГЛОБАЛЬНА ОБРОБКА ПОМИЛОК (ставимо на самому початку)
+            // 1. ГЛОБАЛЬНА ОБРОБКА ПОМИЛОК
             // Обробка помилок у потоці інтерфейсу (WinForms)
             Application.ThreadException += static (s, e) =>
             {

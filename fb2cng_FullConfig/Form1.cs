@@ -19,7 +19,7 @@ namespace fb2cng_FullConfig
         private Button btnHelp = null!;
         private Button btnTheme = null!;
         private Button btGui = null!;
-        private Button btnOk = null!;
+        public Button btnOk = null!;
         private Button btnCancel = null!;
         // Кеш для збереження вкладок (щоб при перемиканні вкладок дані користувача не стиралися)
         private readonly Dictionary<string, UserControl> _tabsCache = [];
@@ -177,6 +177,7 @@ namespace fb2cng_FullConfig
             {
                 SwitchToTab(tabName);
                 ApplyTheme(); // Перезапускаємо тему, щоб кольори нових вкладок оновилися миттєво
+                _ = btnOk.Focus();
             }
         }
 
@@ -261,191 +262,6 @@ namespace fb2cng_FullConfig
             }
         }
 
-        //==============================================================
-        // --- 5. Ініціалізація подій вкладок (Initialize...Events) ---
-        private void InitializeDocumentTabEvents(DocumentTab docTab)
-        {
-            // 1. ЗАОКРУГЛЕННЯ ДЛЯ ВСІХ КНОПОК
-            UiStyles.MakeButtonRounded(docTab.btnBrowseCss, UiStyles.GetScaled(4));
-            UiStyles.MakeButtonRounded(docTab.btnDumpConfig, UiStyles.GetScaled(4));
-            UiStyles.MakeButtonRounded(docTab.btnBrowseCustomYaml, UiStyles.GetScaled(4));
-            UiStyles.MakeButtonRounded(docTab.btnReset, UiStyles.GetScaled(4));
-
-            // 2. ПРИВ'ЯЗКА КЛІКІВ
-            docTab.btnBrowseCss.Click += BtnBrowseCss_Click;
-            docTab.btnBrowseCustomYaml.Click += BtnBrowseCustomYaml_Click;
-            docTab.btnDumpConfig.Click += BtnDumpConfig_Click;
-            docTab.btnReset.Click += BtnReset_Click;
-
-            // Налаштування малювання іконок для кнопок Папка
-            UiStyles.SetupIconButtonDrawing(
-            docTab.btnBrowseCss,
-            Properties.Resources.folder,
-            docTab.chkCss,
-            UiStyles.InactiveIconMatrix
-            );
-
-            UiStyles.SetupIconButtonDrawing(
-            docTab.btnBrowseCustomYaml,
-            Properties.Resources.folder,
-            docTab.chkCustomYaml,
-            UiStyles.InactiveIconMatrix
-            );
-            // 3. РЕШТА ПОДІЙ
-            docTab.langComboBox.SelectedIndexChanged += LangComboBox_SelectedIndexChanged;
-            docTab.chkFb2Name.CheckedChanged += ChkFb2Name_CheckedChanged;
-            docTab.chkDefaultName.CheckedChanged += ChkDefaultName_CheckedChanged;
-
-            // Синхронізація при активації CSS
-            docTab.chkCss.CheckedChanged += (s, e) =>
-            {
-                if (docTab.chkCss.Checked)
-                {
-                    SyncCssWithCustomYaml(docTab);
-                }
-                ApplyTheme();
-            };
-            // Синхронізація імені конфігу при зміні стану чекбокса
-            docTab.chkCustomYaml.CheckedChanged += (s, e) =>
-            {
-                SyncConfigNameWithYaml(docTab);
-                SyncCssWithCustomYaml(docTab);
-                SyncTocTypeWithCustomYaml(docTab);
-                SyncBinarySettingsWithYaml(docTab);
-                SyncMetadataWithYaml(docTab);
-                SyncLoggingSettingsWithYaml(docTab);
-                // Також викликаємо оновлення теми, бо зміна стану чекбокса впливає на візуал
-                ApplyTheme();
-            };
-
-            // Додаємо обробник для зміни шляху YAML (якщо змінили файл, оновлюємо CSS)
-            docTab.txtCustomYamlPath.TextChanged += (s, e) =>
-            {
-                SyncConfigNameWithYaml(docTab);
-                SyncCssWithCustomYaml(docTab); // Можна теж додати про всяк випадок
-                SyncTocTypeWithCustomYaml(docTab);
-                SyncBinarySettingsWithYaml(docTab);
-                SyncMetadataWithYaml(docTab);
-                SyncLoggingSettingsWithYaml(docTab);
-            };
-
-            if (docTab.cmbOutFields != null)
-            {
-                for (int i = 0; i < docTab.cmbOutFields.Length; i++)
-                {
-                    int index = i;
-                    docTab.cmbOutFields[i].SelectedIndexChanged += (s, e) => CmbOutFields_SelectedIndexChanged(index);
-                }
-            }
-            // fix_zip
-            docTab.chkFixZip.CheckedChanged += (s, e) =>
-            {
-                if (docTab.rbFixZipYes?.Parent != null)
-                {
-                    docTab.rbFixZipYes.Parent.Enabled = docTab.chkFixZip.Checked;
-                }
-
-                ApplyTheme();
-            };
-            docTab.chkOpenFromCover.CheckedChanged += (s, e) =>
-            {
-                if (docTab.rbOpenCoverYes?.Parent != null)
-                {
-                    docTab.rbOpenCoverYes.Parent.Enabled = docTab.chkOpenFromCover.Checked;
-                }
-
-                ApplyTheme();
-            };
-            docTab.chkTranslit.CheckedChanged += (s, e) =>
-            {
-                if (docTab.rbTranslitYes?.Parent != null)
-                {
-                    docTab.rbTranslitYes.Parent.Enabled = docTab.chkTranslit.Checked;
-                }
-
-                ApplyTheme();
-            };
-            TooltipManager.Attach(docTab.lblConfigName, "ConfigName");
-            TooltipManager.Attach(docTab.chkCustomYaml, "CustomYamlEnable");
-            TooltipManager.Attach(docTab.chkCss, "CssEnable");
-            TooltipManager.Attach(docTab.chkCover, "TocType");
-            TooltipManager.Attach(docTab.chkFixZip, "FixZip");
-            TooltipManager.Attach(docTab.chkOpenFromCover, "OpenCover");
-            TooltipManager.Attach(docTab.chkTranslit, "Translit");
-            TooltipManager.Attach(docTab.chkFb2Name, "Fb2Name");
-            TooltipManager.Attach(docTab.chkDefaultName, "DefaultName");
-            TooltipManager.Attach(docTab.grpOutName, "OutNameTitle");
-        }
-
-        private void InitializeMetadataTabEvents(MetadataTab dataTab)
-        {
-            UiStyles.MakeButtonRounded(dataTab.btnBrowseCover, UiStyles.GetScaled(4));
-            dataTab.btnBrowseCover.Click += BtnBrowseCover_Click;
-
-            // ВИКЛИК ApplyTheme ДО УСІХ ЧЕКБОКСІВ МЕТАДАНИХ
-            CheckBox[] metaChecks = [
-                dataTab.chkReaderSize, dataTab.chkNotes,
-                dataTab.chkSoftHyphen, dataTab.chkRemoveTransp,
-                dataTab.chkJpegQuality, dataTab.chkGenerateCover,
-                dataTab.chkResizeCover, dataTab.chkAnnEnable,
-                dataTab.chkAnnInToc, dataTab.chkTocPlacement,
-                dataTab.chkPageMapSize, dataTab.chkScaleFactor,
-                dataTab.chkPageMapEnable, dataTab.chkAdobeDe,
-                dataTab.chkUseBroken, dataTab.chkImgOptimize,
-                dataTab.chkInclNoTitle, dataTab.chkVignettes,
-                dataTab.chkDropcaps
-            ];
-
-            foreach (CheckBox chk in metaChecks)
-            {
-                chk.CheckedChanged += (s, e) => ApplyTheme();
-            }
-
-            // спільний метод малювання! Оскільки матриця InactiveIconMatrix лежить у UiStyles, передаємо її через клас
-            UiStyles.SetupIconButtonDrawing(
-                dataTab.btnBrowseCover,
-                Properties.Resources.folder,
-                dataTab.chkGenerateCover,
-                UiStyles.InactiveIconMatrix
-            );
-            TooltipManager.Attach(dataTab.chkSoftHyphen, "SoftHyphen");
-            TooltipManager.Attach(dataTab.chkPageMapEnable, "PageMapEnable");
-            TooltipManager.Attach(dataTab.chkPageMapSize, "PageMapSize");
-            TooltipManager.Attach(dataTab.chkAdobeDe, "AdobeDe");
-            TooltipManager.Attach(dataTab.chkUseBroken, "UseBroken");
-            TooltipManager.Attach(dataTab.chkRemoveTransp, "RemoveTransp");
-            TooltipManager.Attach(dataTab.chkScaleFactor, "ScaleFactor");
-            TooltipManager.Attach(dataTab.chkImgOptimize, "ImgOptimize");
-            TooltipManager.Attach(dataTab.chkJpegQuality, "JpegQuality");
-            TooltipManager.Attach(dataTab.chkReaderSize, "ReaderSize");
-            TooltipManager.Attach(dataTab.chkGenerateCover, "GenCover");
-            TooltipManager.Attach(dataTab.chkResizeCover, "ResizeCover");
-            TooltipManager.Attach(dataTab.chkNotes, "FootnotesMode");
-            TooltipManager.Attach(dataTab.chkAnnEnable, "AnnEnable");
-            TooltipManager.Attach(dataTab.chkAnnInToc, "AnnInToc");
-            TooltipManager.Attach(dataTab.chkTocPlacement, "TocPlacement");
-            TooltipManager.Attach(dataTab.chkInclNoTitle, "InclNoTitle");
-            TooltipManager.Attach(dataTab.chkVignettes, "Vignettes");
-            TooltipManager.Attach(dataTab.chkDropcaps, "Dropcaps");
-        }
-
-        private void InitializeLoggingTabEvents(LoggingTab logTab)
-        {
-            // Всі події логування тепер тут (ініціалізуються один раз)
-            logTab.chkLogLevel.CheckedChanged += (s, e) => ApplyTheme();
-            logTab.chkLogName.CheckedChanged += (s, e) => ApplyTheme();
-            logTab.chkPanicLogName.CheckedChanged += (s, e) => ApplyTheme();
-            logTab.chkLogMode.CheckedChanged += (s, e) => ApplyTheme();
-            logTab.chkLogFolder.CheckedChanged += (s, e) => ApplyTheme();
-
-            TooltipManager.Attach(logTab.chkLogLevel, "LogLevel");
-            TooltipManager.Attach(logTab.chkLogName, "LogName");
-            TooltipManager.Attach(logTab.chkPanicLogName, "LogPanicName");
-            TooltipManager.Attach(logTab.chkLogMode, "LogMode");
-            TooltipManager.Attach(logTab.chkLogFolder, "LogFolder");
-            TooltipManager.Attach(logTab.lblShowTips, "ShowTooltips");
-        }
-
         private void InitializeFooterButtons(UiStyles.LayoutMetrics m)
         {
             string guiPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_GUI.exe");
@@ -457,8 +273,10 @@ namespace fb2cng_FullConfig
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding(0)
+                Padding = new Padding(0),
+                TabStop = false
             };
+
             btnTheme = new Button
             {
                 Text = "Theme",
@@ -466,7 +284,8 @@ namespace fb2cng_FullConfig
                 ImageAlign = ContentAlignment.MiddleCenter,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Padding = new Padding(UiStyles.GetScaled(10), 0, 0, 0)
+                Padding = new Padding(UiStyles.GetScaled(10), 0, 0, 0),
+                TabStop = false
             };
             // 3. Створюємо кнопку GUI ТІЛЬКИ якщо файл існує
             if (guiExists)
@@ -477,7 +296,8 @@ namespace fb2cng_FullConfig
                     ImageAlign = ContentAlignment.MiddleCenter,
                     TextAlign = ContentAlignment.MiddleCenter,
                     TextImageRelation = TextImageRelation.ImageBeforeText,
-                    Padding = new Padding(UiStyles.GetScaled(3), 0, 0, 0)
+                    Padding = new Padding(UiStyles.GetScaled(3), 0, 0, 0),
+                    TabStop = false
                 };
                 if (Properties.Resources.icon_GUI != null)
                 {
@@ -501,9 +321,17 @@ namespace fb2cng_FullConfig
             footerPanel.Controls.Add(btnCancel);
 
             // 5. Прив'язка подій для статичних кнопок
-            btnTheme.Click += (s, e) => { Config.IsDarkTheme = !Config.IsDarkTheme; ApplyTheme(); Config.SaveSettings(); };
+            btnTheme.Click += (s, e) =>
+            {
+                Config.IsDarkTheme = !Config.IsDarkTheme; ApplyTheme(); Config.SaveSettings();
+                _ = btnOk.Focus();
+            };
             btnCancel.Click += (s, e) => Close();
-            btnHelp.Click += (s, e) => ShowHelp();
+            btnHelp.Click += (s, e) =>
+            {
+                ShowHelp();
+                _ = btnOk.Focus();
+            };
             btnOk.Click += (s, e) => SaveYamlConfiguration();
             AcceptButton = btnOk;                    // Натискання Enter тепер викликає збереження (OK)
             CancelButton = btnCancel;                // Натискання Esc тепер закриває вікно (Cancel)
@@ -530,7 +358,8 @@ namespace fb2cng_FullConfig
             UiStyles.MakeButtonRounded(btnCancel, m.BtnRadius);
         }
 
-        // --- 6. Системні методи ---
+        //===============================
+        // --- 5. Системні методи ---
 
         private Bitmap? GetResizedIcon(Image source, int w, int h)
         {
@@ -561,8 +390,8 @@ namespace fb2cng_FullConfig
             // та засвітити іконку на панелі завдань без перестворення дескрипторів
             _ = Win32Api.SetForegroundWindow(Handle);
 
-            // Передаємо фокус введення всередину програми
-            _ = Focus();
+            // Передаємо фокус на кнопку збереження
+            _ = btnOk.Focus();
         }
     }
 }

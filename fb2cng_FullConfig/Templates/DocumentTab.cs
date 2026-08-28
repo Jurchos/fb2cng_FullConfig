@@ -103,7 +103,8 @@ namespace fb2cng_FullConfig.Templates
                 Image = UiStyles.ResizeImage(Properties.Resources.icon_reset, m.IconSize, m.IconSize),
                 ImageAlign = ContentAlignment.MiddleCenter,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                TabStop = false
             };
             UiStyles.MakeButtonRounded(btnReset, m.BtnRadius);
 
@@ -261,7 +262,7 @@ namespace fb2cng_FullConfig.Templates
         {
             CheckBox chk = new() { AutoSize = true };
             TextBox txt = new() { Enabled = false };
-            Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false };
+            Button btn = new() { Text = string.Empty, FlatStyle = FlatStyle.Flat, Enabled = false, TabStop = false };
             btn.FlatAppearance.BorderSize = 0;
 
             // Викликаємо наш новий єдиний метод малювання (він у UiStyles)

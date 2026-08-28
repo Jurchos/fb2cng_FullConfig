@@ -23,11 +23,11 @@ jobs:
 
     # 1. Збірка для x64 в окрему папку
     - name: Publish x64
-      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x64
+      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x64
 
     # 2. Збірка для x86 в окрему папку
     - name: Publish x86
-      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x86 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x86
+      run: dotnet publish fb2cng_FullConfig/fb2cng_FullConfig.csproj -c Release -r win-x86 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o ./publish/x86
 
     # 3. Пакування папок у ZIP-архіви з додаванням розрядності до назви архіву
     - name: Create ZIP Archives
@@ -38,10 +38,10 @@ jobs:
 
     # 4. Створення релізу на GitHub та завантаження туди ZIP-архівів
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: |
-          ./fb2cng_Configurator_x64.zip
-          ./fb2cng_Configurator_x86.zip
+          ./fb2cng_Configurator_noRtoR_x64.zip
+          ./fb2cng_Configurator_noRtoR_x86.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

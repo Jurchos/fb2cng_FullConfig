@@ -82,9 +82,10 @@
                 "For Amazon formats, this function is always active by default.",
 
                 ["ResizeCover"] = "Method for fitting the cover to the screen resolution:\n" +
-                "None ('none') — do nothing (for Kindle output, treated as 'keepAR');\n" +
+                "Original size ('none') — do nothing (for Kindle output, treated as 'keepAR');\n" +
                 "Keep Aspect Ratio ('keepAR') — scales the image to the device height while preserving proportions;\n" +
-                "Stretch ('stretch') — stretches the image to fill the entire screen, ignoring the original aspect ratio.",
+                "Stretch to fill ('stretch') — stretches the image to fill the entire screen, ignoring the original aspect ratio;\n" +
+                "Fit to screen ('fit') — resize up or down to fit specified screen width and height while keeping aspect ratio.",
 
                 ["FootnotesMode"] = "Footnote processing method:\n" +
                 "Standard ('default') — regular links at the end of the book;\n" +
@@ -220,7 +221,8 @@
                 ["ResizeCover"] = "Метод підгонки обкладинки під роздільну здатність екрана:\n" +
                 "Не змінювати ('none') — нічого не робити (для вихідного формату Kindle розцінюється як 'keepAR');\n" +
                 "Зберегти пропорції ('keepAR') — масштабує зображення по висоті пристрою зі збереженням пропорцій;\n" +
-                "Розтягнути на екран ('stretch') — розтягує картинку на весь екран без врахування оригінального співвідношення сторін.",
+                "Розтягнути на екран ('stretch') — розтягує картинку на весь екран без врахування оригінального співвідношення сторін;\n" +
+                "Вписати в екран ('fit') — масштабує (збільшує або зменшує) зображення так, щоб воно повністю вписалося в екран із збереженням пропорцій.",
 
                 ["FootnotesMode"] = "Метод обробки виносок:\n" +
                 "Стандартний ('default') — звичайні посилання в кінці книги;\n" +
@@ -353,7 +355,8 @@
                 ["ResizeCover"] = "Метод подгонки обложки под разрешение экрана:\n" +
                 "Не изменять ('none') — ничего не делать (для выходного формата Kindle расценивается как 'keepAR');\n" +
                 "Сохранить пропорции ('keepAR') — масштабирует изображение по высоте устройства с сохранением пропорций;\n" +
-                "Растянуть на экран ('stretch') — растягивает картинку на весь экран без учета оригинального соотношения сторон.",
+                "Растянуть на экран ('stretch') — растягивает картинку на весь экран без учета оригинального соотношения сторон;\n" +
+                "Вписать в экран ('fit') — масштабирует (увеличивает или уменьшает) изображение так, чтобы оно полностью вписалось в экран с сохранением пропорций.",
 
                 ["FootnotesMode"] = "Метод обработки сносок:\n" +
                 "Стандартный ('default') — обычные ссылки в конце книги;\n" +

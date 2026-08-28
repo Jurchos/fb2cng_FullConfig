@@ -24,7 +24,7 @@
     <!-- Вимикаємо додавання коміту Git до версії -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Version>1.6</Version>
-    <FileVersion>1.6.0.0</FileVersion>
+    <FileVersion>1.6.2.0</FileVersion>
     <Product>Toolkit for fb2cng</Product>
     <!-- ОПИС: Саме цей тег AssemblyTitle у Windows показує в полі "Опис файлу" -->
     <AssemblyTitle>YAML Configurator for fb2cng</AssemblyTitle>

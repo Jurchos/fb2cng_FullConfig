@@ -679,8 +679,7 @@ namespace fb2cng_FullConfig.Services
 
             if (useCustomYaml && !string.IsNullOrWhiteSpace(customYamlPath))
             {
-                string f = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, customYamlPath);
-                if (File.Exists(f)) activeSourcePath = f;
+                activeSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, customYamlPath);
             }
 
             // 2. Перевіряємо наявність шаблону. Якщо немає — робимо дамп у Data/config.yaml

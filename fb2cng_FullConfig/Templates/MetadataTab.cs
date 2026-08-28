@@ -132,12 +132,12 @@ namespace fb2cng_FullConfig.Templates
             // Cover Path
             txtCoverPath = new TextBox { Enabled = false };
             int coverTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5);
-            btnBrowseCover = new Button { FlatStyle = FlatStyle.Flat, Text = "", Enabled = false };
+            btnBrowseCover = new Button { FlatStyle = FlatStyle.Flat, Text = "", Enabled = false, TabStop = false };
 
             // 8. Resize Mode
             chkResizeCover = new CheckBox { AutoSize = true };
             cmbResizeCover = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            cmbResizeCover.Items.AddRange(["none", "keepAR", "stretch"]);
+            cmbResizeCover.Items.AddRange(["none", "keepAR", "stretch", "fit"]);
             cmbResizeCover.SelectedIndex = 2;
 
             // 9. Footnotes
@@ -172,7 +172,8 @@ namespace fb2cng_FullConfig.Templates
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 AutoSize = false, // Важливо
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                TabStop = false
             };
             UiStyles.MakeButtonRounded(btnVignetteSettings, m.BtnRadius);
 
@@ -208,10 +209,23 @@ namespace fb2cng_FullConfig.Templates
             };
             _ = vignettePopup.Items.Add(host);
 
+            // Коли поп-ап закривається — повертаємо фокус на головну кнопку ОК
+            vignettePopup.Closed += (s, e) => {
+                if (FindForm() is Form1 mainForm)
+                {
+                    _ = mainForm.btnOk.Focus();
+                }
+            };
+
             btnVignetteSettings.Click += (s, e) =>
             {
                 // Відкриваємо вверх (Y = -висота списку)
                 vignettePopup.Show(btnVignetteSettings, new Point(0, -clbVignettesItems.Height));
+                // Після кліку по кнопці відразу прибираємо з неї фокус
+                if (FindForm() is Form1 mainForm)
+                {
+                    _ = mainForm.btnOk.Focus();
+                }
             };
 
             // 12. Dropcaps
