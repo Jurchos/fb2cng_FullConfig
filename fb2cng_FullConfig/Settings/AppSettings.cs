@@ -5,5 +5,6 @@
         public string CurrentLanguage { get; set; } = "English";
         public bool IsDarkTheme { get; set; }
         public bool ShowTooltips { get; set; } = true;
+        public int TooltipDelayMs { get; set; } = 500;
     }
 }

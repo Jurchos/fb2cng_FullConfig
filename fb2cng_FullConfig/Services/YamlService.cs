@@ -326,27 +326,30 @@ namespace fb2cng_FullConfig.Services
                 switch (selIndex)
                 {
                     case 1: // Автор
-                            // Залишаємо ваш оригінальний рядок (зберігаємо кожну лапку та кожен пробіл відступу)
-                        string baseTemplate = "        {{- $author := \"\" -}}\n" +
-                                              "        {{- if gt (len .Authors) 0 -}}\n" +
-                                              "        {{-   with first .Authors -}}\n" +
-                                              "        {{-     if .LastName -}}\n" +
-                                              "        {{-       $author = .LastName -}}\n" +
-                                              "        {{-       if .FirstName }}{{ $author = printf \"%s %s\" $author .FirstName }}{{ end -}}\n" +
-                                              "        {{-       if .MiddleName }}{{ $author = printf \"%s %s\" $author .MiddleName }}{{ end -}}\n" +
-                                              "        {{-     else if .Nickname -}}\n" +
-                                              "        {{-       $author = .Nickname -}}\n" +
-                                              "        {{-     end -}}\n" +
-                                              "        {{-   end -}}\n" +
-                                              "        {{-   if gt (len .Authors) 1 -}}\n" +
-                                              "        {{-     if eq .Language \"ru\" -}}\n" +
-                                              "        {{-       $author = printf \"%s %s\" $author \"и др\" -}}\n" +
-                                              "        {{-     else -}}\n" +
-                                              "        {{-       $author = printf \"%s %s\" $author \", et al\" -}}\n" +
-                                              "        {{-     end -}}\n" +
-                                              "        {{-   end -}}\n" +
-                                              "        {{- end -}}\n" +
-                                              "        {{- if $author }}{{ printf \"%s\" $author }}{{ end }}";
+                        string baseTemplate = """
+                                        {{- $author := "" -}}
+                                        {{- if gt (len .Authors) 0 -}}
+                                        {{-   with first .Authors -}}
+                                        {{-     if .LastName -}}
+                                        {{-       $author = .LastName -}}
+                                        {{-       if .FirstName }}{{ $author = printf "%s %s" $author .FirstName }}{{ end -}}
+                                        {{-       if .MiddleName }}{{ $author = printf "%s %s" $author .MiddleName }}{{ end -}}
+                                        {{-     else if .Nickname -}}
+                                        {{-       $author = .Nickname -}}
+                                        {{-     end -}}
+                                        {{-   end -}}
+                                        {{-   if gt (len .Authors) 1 -}}
+                                        {{-     if eq .Language "ru" -}}
+                                        {{-       $author = printf "%s %s" $author "и др" -}}
+                                        {{-     else -}}
+                                        {{-       $author = printf "%s %s" $author ", et al" -}}
+                                        {{-     end -}}
+                                        {{-   end -}}
+                                        {{- end -}}
+                                        {{- $author = replace "/" "\u2215" $author -}}
+                                        {{- $author = replace "\\" "\u2215" $author -}}
+                                        {{- if $author }}{{ printf "%s" $author }}{{ end }}
+                                """;
 
                         // Якщо це папка, ми міняємо конкретне місце на версію зі слешем
                         chunk = isFolder
@@ -355,26 +358,32 @@ namespace fb2cng_FullConfig.Services
                         break;
 
                     case 2: // Серія
-                            // Якщо серія є останньою в списку полів, ми ПОВНІСТЮ прибираємо дефіс з блоку {{- else -}}
-                        string elseBlock = isLastField ? "        {{-   printf \"\" -}}\n" : "        {{-   printf \" - \" -}}\n";
+                            // Якщо серія є останньою в списку полів, ми повністю прибираємо дефіс з блоку {{- else -}}
+                        string elseBlock = isLastField
+                         ? """        {{-   printf "" -}}""" + "\n"
+                         : """        {{-   printf " - " -}}""" + "\n";
 
-                        string fullTemplate = "        {{- if gt (len .Series) 0 -}}\n" +
-                                              "        {{-   with first .Series -}}\n" +
-                                              "        {{-     printf \" {%s} \" .Name -}}\n" +
-                                              "        {{-   end -}}\n" +
-                                              "        {{- else -}}\n" +
-                                              elseBlock +
-                                              "        {{- end -}}";
+                        string fullTemplate = """
+                                      {{- if gt (len .Series) 0 -}}
+                                      {{-   with first .Series -}}
+                                      {{-     $seriesName := replace "/" "\u2215" .Name -}}
+                                      {{-     $seriesName = replace "\\" "\u2215" $seriesName -}}
+                                      {{-     printf " {%s} " $seriesName -}}
+                                      {{-   end -}}
+                                      {{- else -}}
+                              """ + "\n" + elseBlock + """        {{- end -}}""";
 
                         if (isFolder)
                         {
-                            string updated = fullTemplate.Replace("printf \" {%s} \"", "printf \"%s/\"");
-                            chunk = updated.Replace("        {{- else -}}\n" + elseBlock, string.Empty);
+                            // Міняємо формат виведення для папки (прибираємо пробіли та дужки, додаємо слеш)
+                            string updated = fullTemplate.Replace("""printf " {%s} " $seriesName""", """printf "%s/" $seriesName""");
+                            chunk = updated.Replace("""        {{- else -}}""" + "\n" + elseBlock, string.Empty);
                         }
                         else if (isFirst)
                         {
-                            string updated = fullTemplate.Replace("printf \" {%s} \"", "printf \"{%s} \"");
-                            chunk = updated.Replace("        {{- else -}}\n" + elseBlock, string.Empty);
+                            // Міняємо формат виведення, якщо це перше поле (прибираємо початковий пробіл перед дужкою)
+                            string updated = fullTemplate.Replace("""printf " {%s} " $seriesName""", """printf "{%s} " $seriesName""");
+                            chunk = updated.Replace("""        {{- else -}}""" + "\n" + elseBlock, string.Empty);
                         }
                         else
                         {
@@ -407,50 +416,88 @@ namespace fb2cng_FullConfig.Services
                                         {{- $title = replace "_full" "" $title -}}
                                         {{- $title = replace "___" " " $title -}}
                                         {{- $title = replace "__" " " $title -}}
+                                        {{- $title = replace "/" "\u2215" $title -}}
+                                        {{- $title = replace "\\" "\u2215" $title -}}
                                         {{- $title = trim $title -}}
                                 """;
-
-                        chunk = cleanLogic + "\n" +
-                                "        {{- if gt (len .Series) 0 -}}\n" +
-                                "        {{-   with first .Series -}}\n" +
-                                "        {{-     if .Number -}}\n" +
-                                "        {{-       printf \"%02d \" .Number -}}\n" +
-                                "        {{-     end -}}\n" +
-                                "        {{-   end -}}\n" +
-                                "        {{- end -}}\n" +
+                        string seriesLogic = """
+                                        {{- if gt (len .Series) 0 -}}
+                                        {{-   with first .Series -}}
+                                        {{-     if .Number -}}
+                                        {{-       printf "%02d " .Number -}}
+                                        {{-     end -}}
+                                        {{-   end -}}
+                                        {{- end -}}
+                                """;
+                        chunk = cleanLogic + "\n" + seriesLogic + "\n" +
                                 (isFolder ? "        {{- printf \"%s/\" $title -}}" : "        {{- $title -}}");
                         break;
 
                     case 4: // Назва книги Title (без номера серії)
-                        chunk = isFolder ? "        {{- printf \"%s/\" .Title -}}" : "        {{- .Title -}}";
+                        if (isFolder)
+                        {
+                            chunk = """
+                                        {{- $title := replace "/" "\u2215" .Title -}}
+                                        {{- $title = replace "\\" "\u2215" $title -}}
+                                        {{- printf "%s/" $title -}}
+                                """;
+                        }
+                        else
+                        {
+                            chunk = """
+                                        {{- $title := replace "/" "\u2215" .Title -}}
+                                        {{- $title = replace "\\" "\u2215" $title -}}
+                                        {{- $title -}}
+                                """;
+                        }
                         break;
 
                     case 5: // Мова
-                        chunk = isFolder ? "        {{- printf \"%s/\" .Language -}}" : "        {{- .Language -}}";
+                        chunk = isFolder
+                           ? """        {{- printf "%s/" .Language -}}"""
+                           : """        {{- .Language -}}""";
                         break;
 
                     case 6: // Жанр
-                            // Динамічно формуємо внутрішній рядок виводу жанру
+                            // Витягуємо перший жанр у змінну та чистимо від слешів
                         string genreValue = isFolder
-                            ? "        {{-   printf \"%s/\" (index .Genres 0) -}}\n"
-                            : "        {{-   index .Genres 0 -}}\n";
+                            ? """
+                                        {{- $genre := index .Genres 0 -}}
+                                        {{- $genre = replace "/" "\u2215" $genre -}}
+                                        {{- $genre = replace "\\" "\u2215" $genre -}}
+                                        {{- printf "%s/" $genre -}}
 
-                        // Збираємо фінальний шаблон, не дублюючи перевірку довжини масиву
-                        chunk = "        {{- if gt (len .Genres) 0 -}}\n" +
+                                """
+                            : """
+                                        {{- $genre := index .Genres 0 -}}
+                                        {{- $genre = replace "/" "\u2215" $genre -}}
+                                        {{- $genre = replace "\\" "\u2215" $genre -}}
+                                        {{- $genre -}}
+
+                                """;
+
+                        // Збираємо фінальний шаблон
+                        chunk = """        {{- if gt (len .Genres) 0 -}}""" + "\n" +
                                 genreValue +
-                                "        {{- end -}}";
+                                """        {{- end -}}""";
                         break;
 
                     case 7: // Дата
-                        chunk = isFolder ? "        {{- printf \"%s/\" .Date -}}" : "        {{- .Date -}}";
+                        chunk = isFolder
+                           ? """        {{- printf "%s/" .Date -}}"""
+                           : """        {{- .Date -}}""";
                         break;
 
                     case 8: // Джерело
-                        chunk = isFolder ? "        {{- printf \"%s/\" .SourceFile -}}" : "        {{- .SourceFile -}}";
+                        chunk = isFolder
+                           ? """        {{- printf "%s/" .SourceFile -}}"""
+                           : """        {{- .SourceFile -}}""";
                         break;
 
                     case 9: // Книжковий UUID
-                        chunk = isFolder ? "        {{- printf \"%s/\" .BookID -}}" : "        {{- .BookID -}}";
+                        chunk = isFolder
+                           ? """        {{- printf "%s/" .BookID -}}"""
+                           : """        {{- .BookID -}}""";
                         break;
 
                     default:
@@ -472,8 +519,10 @@ namespace fb2cng_FullConfig.Services
                             }
                         }
 
-                        if (prevValidIndex >= 0 && sb.Append('\n') != null)
+                        if (prevValidIndex >= 0)
                         {
+                            _ = sb.Append('\n');
+
                             int prevSelIndex = fieldIndexes[prevValidIndex];
                             bool prevIsFolder = folderFlags[prevValidIndex];
 
@@ -482,7 +531,7 @@ namespace fb2cng_FullConfig.Services
                             {
                                 if (selIndex == 9)
                                 {
-                                    _ = sb.Append("        {{- printf \"_\" -}}\n");
+                                    _ = sb.Append("""        {{- printf "_" -}}""").Append('\n');
                                 }
                                 else if ((selIndex == 2 && !isFolder) || (prevSelIndex == 2 && !prevIsFolder))
                                 {
@@ -490,12 +539,13 @@ namespace fb2cng_FullConfig.Services
                                 }
                                 else
                                 {
-                                    _ = sb.Append("        {{- printf \" - \" -}}\n");
+                                    _ = sb.Append("""        {{- printf " - " -}}""").Append('\n');
                                 }
                             }
                         }
                     }
-                    _ = sb.Append(chunk); isFirst = false;
+                    _ = sb.Append(chunk); 
+                    isFirst = false;
                 }
             }
 
@@ -766,25 +816,29 @@ namespace fb2cng_FullConfig.Services
 
                 if (useDefaultName)
                 {
-                    templateBlock =
-                        "        {{- $all := \"\" -}}\n" +
-                        "        {{- if gt (len .Authors) 0 -}}\n" +
-                        "        {{-   with first .Authors -}}\n" +
-                        "        {{-     $all = .LastName -}}\n" +
-                        "        {{-     if .FirstName }}{{ $all = (cat $all .FirstName) }}{{- end -}}\n" +
-                        "        {{-     if .MiddleName }}{{ $all = (cat $all .MiddleName) }}{{- end -}}\n" +
-                        "        {{-     if and (not $all) .Nickname }}{{ $all = .Nickname }}{{- end -}}\n" +
-                        "        {{-   end -}}\n" +
-                        "        {{-   if gt (len .Authors) 1 -}}\n" +
-                        "        {{-     if eq .Language \"ru\" }}{{ $all = (cat $all \"и др\") }}{{- else -}}{{ $all = (printf \"%s%s\" $all \", et al\") }}{{- end -}}\n" +
-                        "        {{-   end -}}\n" +
-                        "        {{-   $all = cat $all \"-\" -}}\n" +
-                        "        {{- end -}}\n" +
-                        "        {{- if $all -}}\n" +
-                        "        {{-   cat $all .Title -}}\n" +
-                        "        {{- else -}}\n" +
-                        "        {{-   .Title -}}\n" +
-                        "        {{- end -}}";
+                    templateBlock = """
+                                        {{- $all := "" -}}
+                                        {{- if gt (len .Authors) 0 -}}
+                                        {{-   with first .Authors -}}
+                                        {{-     $all = .LastName -}}
+                                        {{-     if .FirstName }}{{ $all = (cat $all .FirstName) }}{{- end -}}
+                                        {{-     if .MiddleName }}{{ $all = (cat $all .MiddleName) }}{{- end -}}
+                                        {{-     if and (not $all) .Nickname }}{{ $all = .Nickname }}{{- end -}}
+                                        {{-   end -}}
+                                        {{-   if gt (len .Authors) 1 -}}
+                                        {{-     if eq .Language "ru" }}{{ $all = (cat $all "и др") }}
+                                        {{-     else -}}{{ $all = (printf "%s%s" $all ", et al") }}{{- end -}}
+                                        {{-   end -}}
+                                        {{-   $all = cat $all "-" -}}
+                                        {{- end -}}
+                                        {{- $title := replace "/" "\u2215" .Title -}}
+                                        {{- $title = replace "\\" "\u2215" $title -}}
+                                        {{- if $all -}}
+                                        {{-   cat $all $title -}}
+                                        {{- else -}}
+                                        {{-   $title -}}
+                                        {{- end -}}
+                                """;
                 }
                 else
                 {

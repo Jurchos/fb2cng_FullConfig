@@ -139,7 +139,8 @@
                 "Important: this option is activated (deactivated) only when selected simultaneously with the log name template and/or the panic log template.",
 
                 ["ShowTooltips"] = "Toggle tooltip display.\n" +
-                 "If you are already familiar with all the settings, you can disable them to simplify the interface."
+                "If you are already familiar with all the settings, you can disable them to simplify the interface.\n" +
+                "* Delay time — in \"Data\\Conf_config.json\" (param. 'TooltipDelayMs')."
             },
             ["Ukrainian"] = new()
             {
@@ -272,8 +273,9 @@
                 "всередині робочої директорії програми.\n" +
                 "Важливо: дана опція активується (деактивується) лише при одночасному виборі разом шаблоном назви логу та/або шаблоном панік-логу.",
 
-                ["ShowTooltips"] = "Управління показом спливаючих підказок.\n" +
-                "Якщо ви вже добре знайомі з усіма налаштуваннями, ви можете їх вимкнути для спрощення інтерфейсу."
+                ["ShowTooltips"] = "Керування показом спливаючих підказок.\n" +
+                "Якщо ви вже добре знайомі з усіма налаштуваннями, ви можете їх вимкнути для спрощення інтерфейсу.\n" +
+                "* Час затримки — в \"Data\\Conf_config.json\" (парам. 'TooltipDelayMs')."
             },
             ["Russian"] = new()
             {
@@ -409,8 +411,9 @@
                 "внутри рабочей директории программы.\n" +
                 "Важно: данная опция активируется (деактивируется) только при одновременном выборе вместе с шаблоном имени лога и/или шаблоном паник-лога.",
 
-                ["ShowTooltips"] = "Настройка отображения всплывающих подсказок.\n" +
-                "Если вы уже хорошо знакомы со всеми настройками, вы можете отключить их для упрощения интерфейса."
+                ["ShowTooltips"] = "Управление показом всплывающих подсказок.\n" +
+                "Если вы уже хорошо знакомы со всеми настройками, вы можете отключить их для упрощения интерфейса.\n" +
+                "* Время задержки — в \"Data\\Conf_config.json\" (парам. 'TooltipDelayMs')."
             }
         };
     }
