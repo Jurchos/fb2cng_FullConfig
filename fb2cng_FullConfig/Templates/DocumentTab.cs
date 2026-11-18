@@ -173,12 +173,13 @@ namespace fb2cng_FullConfig.Templates
             // Створюємо змінну для крокування вниз (вона починається зі стартового Y)
             int nextY = m.StartY;
             // Позиціонування елементів
+            int resetWidth = m.BrowseBtnWidth - m.IconSize;
+            int resetX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth + UiStyles.GetScaled(18);
             int yamlTxtWidth = m.ValueFieldWidth - m.BrowseBtnWidth - UiStyles.GetScaled(5) - m.SidePadding;
+
             lblLang.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.LabelHeight);
             langComboBox.ItemHeight = m.FieldHeight - m.ElementSpacing;
             langComboBox.SetBounds(m.XLeft + m.TextLabelWidth, nextY, yamlTxtWidth, m.FieldHeight);
-            int resetWidth = m.BrowseBtnWidth - m.IconSize;
-            int resetX = m.FieldWidth + m.XLeft - m.BrowseBtnWidth + UiStyles.GetScaled(18);
             btnReset.SetBounds(resetX, nextY - UiStyles.GetScaled(2), resetWidth, m.FieldHeight + UiStyles.GetScaled(3));
 
             nextY = btnReset.Bottom + m.BlockMargin + UiStyles.GetScaled(2);
@@ -209,32 +210,32 @@ namespace fb2cng_FullConfig.Templates
             cmbTocType.ItemHeight = m.FieldHeight - m.ElementSpacing;
             cmbTocType.SetBounds(m.SizeInputX, nextY, m.ValueFieldWidth, m.FieldHeight);
 
-            nextY = cmbTocType.Bottom + m.BlockMargin;
+            nextY += m.RowHeight;
             // Позиціонуємо FixZip
             chkFixZip.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             pnlFixZip.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
-            nextY = chkFixZip.Bottom + m.BlockMargin;
+            nextY += m.RowHeight;
             // Позиціонуємо OpenFromCover
             chkOpenFromCover.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             pnlOpenCover.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
-            nextY = chkOpenFromCover.Bottom + m.BlockMargin;
+            nextY += m.RowHeight;
             // Позиціонуємо Translit
             chkTranslit.SetBounds(m.XLeft, nextY, m.TextLabelWidth, m.CheckBoxHeight);
             pnlTranslit.SetBounds(m.RadioX, nextY, m.RadioGroupWidth, m.FieldHeight);
 
-            nextY = chkTranslit.Bottom + m.BlockMargin;
+            nextY += m.RowHeight;
             // Позиціонуємо Fb2Name (Він займає всю ширину, бо не має радіобатонів)
             chkFb2Name.SetBounds(m.XLeft, nextY, m.FieldWidth, m.CheckBoxHeight);
 
-            nextY = chkFb2Name.Bottom + m.BlockMargin;
+            nextY += m.RowHeight;
             chkDefaultName.SetBounds(m.XLeft, nextY, m.FieldWidth, m.CheckBoxHeight);
 
             // Налаштування групи структури назви файлу
-            int rowHeight = m.FieldHeight + m.HeaderTopPadding;                           // Висота рядка (поле + відступ)
-            int grpOutHeight = (rowHeight * cmbOutFields.Length) + UiStyles.GetScaled(32);// Висота групи (рядки + заголовок)
-            grpOutName.SetBounds(m.XLeft, chkDefaultName.Bottom + m.BlockMargin, m.FieldWidth, grpOutHeight);
+            int rowHeightOutName = m.FieldHeight + m.HeaderTopPadding;                           // Висота рядка (поле + відступ)
+            int grpOutHeight = (rowHeightOutName * cmbOutFields.Length) + UiStyles.GetScaled(32);// Висота групи (рядки + заголовок)
+            grpOutName.SetBounds(m.XLeft, chkDefaultName.Bottom + UiStyles.GetScaled(16), m.FieldWidth, grpOutHeight);
 
             int innerPadding = UiStyles.GetScaled(10);                                    // Внутрішній відступ від країв GroupBox
                                                                                           // Ширина ComboBox (ширина "as fold"= ширині кнопок футера 90)
@@ -248,7 +249,7 @@ namespace fb2cng_FullConfig.Templates
                     cmbOutFields[i].ItemHeight = m.FieldHeight - m.ElementSpacing;
                     cmbOutFields[i].SetBounds(innerPadding, itemY, comboWidth, m.FieldHeight);
                     chkAsFolder[i].SetBounds(cmbOutFields[i].Right + m.BlockMargin, itemY + UiStyles.GetScaled(1), m.FooterBtnWidth, m.CheckBoxHeight);
-                    itemY += rowHeight;
+                    itemY += rowHeightOutName;
                 }
             }
             // Правильне роздільне створення об'єкта та встановлення його координат

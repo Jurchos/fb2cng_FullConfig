@@ -87,6 +87,18 @@ namespace fb2cng_FullConfig.Services
             return string.Empty;
         }
 
+        private static bool IsSectionHeader(ReadOnlySpan<char> trimmed, string sectionHeader)
+        {
+            if (trimmed.StartsWith("#") || !trimmed.StartsWith(sectionHeader, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            // Перевіряємо, що після "назва_секції:" немає значення (лише порожнеча або # коментар)
+            ReadOnlySpan<char> rest = trimmed[sectionHeader.Length..].TrimStart();
+            return rest.IsEmpty || rest.StartsWith("#");
+        }
+
         public static string ReadYamlSectionValue(string filePath, string[] sectionPath, string key)
         {
             if (!File.Exists(filePath))
@@ -113,7 +125,7 @@ namespace fb2cng_FullConfig.Services
 
                     if (currentLevel < sectionPath.Length)
                     {
-                        if (trimmed.StartsWith(sectionPath[currentLevel], StringComparison.Ordinal))
+                        if (IsSectionHeader(trimmed, sectionPath[currentLevel]))
                         {
                             currentLevel++;
                             lastIndent = indent;
@@ -158,7 +170,7 @@ namespace fb2cng_FullConfig.Services
 
                 if (currentLevel < sectionPath.Length)
                 {
-                    if (clean.StartsWith(sectionPath[currentLevel], StringComparison.Ordinal))
+                    if (IsSectionHeader(trimmed, sectionPath[currentLevel]))
                     {
                         currentLevel++;
                         lastIndent = indent;
@@ -699,16 +711,13 @@ namespace fb2cng_FullConfig.Services
           bool useDefaultName,
           int[] fieldIndexes, bool[] folderFlags,
 
-          bool useSoftHyphen, bool softHyphenVal,                             // 2. insert_soft_hyphen
-          bool usePageMap, bool pageMapVal, string pageSize, bool adobeDeVal, // 3. page_map
-          bool useBroken, bool useBrokenVal,                                  // 4. images: use_broken
-          bool useRemoveTransp, bool removeTranspVal,                         // 5. images: remove_transparency
-          string scaleFactor,                                                 // 6. images: scale_factor
-          bool optimizeVal,                                                   // 7. images: optimize
-          bool useJpegQuality, string jpegQuality,                            // 8. images: jpeg_quality_level
-          bool customSize, string width, string height, string dpi,           // 9. images: screen
-          bool useGenCover, bool genCoverVal, string coverPath,               // 10. images: cover: generate
-          bool useResizeCover, string resizeCover,                            // 11. images: cover: resize
+          bool useSoftHyphen, bool softHyphenVal,                             // insert_soft_hyphen
+          bool useKfxCompression, string kfxCompression,                      // kfx: compression
+          bool useAzw3Compression, string azw3Compression,                    // azw3: compression
+          bool useAzw3Apnx, string azw3Apnx,                                  // azw3: apnx
+          bool usePdfPageFrame, string pdfPageFrame,                          // pdf: page_frame
+          bool useMarkdownImages, string markdownImages,                      // markdown: images
+          bool usePageMap, bool pageMapVal, string pageSize, bool adobeDeVal, // page_map
           bool useNotesMode, string notesMode,                                // 12. footnotes: mode
           bool useAnnEnable, bool annEnableVal,                               // 13. annotation: enable
           bool useAnnInToc, bool annInTocVal,                                 // 14. annotation: in_toc
@@ -716,6 +725,24 @@ namespace fb2cng_FullConfig.Services
           bool useInclNoTitle, bool inclNoTitleVal,                           // 16. include_chapters_without_title
           bool useVignettes, bool vignettesVal, bool[] vignettesItems,        // 17. vignettes
           bool useDropcaps, bool dropcapsVal,                                 // 18. dropcaps: enable
+          bool useSpeech, bool speechVal,                                     // 19. text_transformations: speech
+          bool useDashes, bool dashesVal,                                     // 20. text_transformations: dashes
+          bool useDialogue, bool dialogueVal,                                 // 21. text_transformations: dialogue
+
+          bool customSize, string width, string height, string dpi,           // images: screen
+          bool useBroken, bool useBrokenVal,                                  // images: use_broken
+          bool useRemoveTransp, bool removeTranspVal,
+          bool useRasterizeSvg, bool rasterizeSvgVal,                         // images: rasterize_svg
+          bool useRasterFormat, string rasterFormat,                          // images: raster_format
+          bool useScaleFactor, string scaleFactor,
+          bool useFitToScreen, bool fitToScreenVal,                           // images: fit_to_screen
+          bool useBaselineJpeg, bool baselineJpegVal,                         // images: baseline_jpeg
+          bool useGrayscale, string grayscale,                                // images: grayscale
+          bool useImgOptimize, bool optimizeVal,                              // images: optimize
+          bool useJpegQuality, string jpegQuality,
+          bool useGenCover, bool genCoverVal, string coverPath,               // images: cover: generate
+          bool useResizeCover, string resizeCover,                            // images: cover: resize
+
 
           bool useLogLevel, string logLevel,
           bool useLogName, string logNameTmpl,
@@ -910,93 +937,43 @@ namespace fb2cng_FullConfig.Services
                     }
                 }
 
+                if (useKfxCompression)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["kfx:"], "compression", $"\"{kfxCompression}\"");
+                    if (lines == null) return false;
+                }
+
+                if (useAzw3Compression)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["azw3:"], "compression", $"\"{azw3Compression}\"");
+                    if (lines == null) return false;
+                }
+
+                if (useAzw3Apnx)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["azw3:"], "apnx", $"\"{azw3Apnx}\"");
+                    if (lines == null) return false;
+                }
+
+                if (usePdfPageFrame)
+                {
+                    string frameVal = string.IsNullOrWhiteSpace(pdfPageFrame) ? "0" : pdfPageFrame.Trim();
+                    lines = ReplaceYamlSectionValueLine(lines!, ["pdf:"], "page_frame", frameVal);
+                    if (lines == null) return false;
+                }
+
+                if (useMarkdownImages)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["markdown:"], "images", $"\"{markdownImages}\"");
+                    if (lines == null) return false;
+                }
+
+
                 if (usePageMap)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "enable", pageMapVal ? "true" : "false");
                     lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "size", pageSize);
                     lines = ReplaceYamlSectionValueLine(lines!, ["page_map:"], "adobe_de", adobeDeVal ? "true" : "false");
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                // images
-                if (useBroken)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "use_broken", useBrokenVal ? "true" : "false");
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                if (useRemoveTransp)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "remove_transparency", removeTranspVal ? "true" : "false");
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "scale_factor", scaleFactor);
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "optimize", optimizeVal ? "true" : "false");
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                if (useJpegQuality)
-                {
-                    // 1. Створюємо змінну для фінального значення, за замовчуванням 95
-                    string finalQuality = "95";
-
-                    // 2. Перевіряємо вхідну змінну jpegQuality (яка прийшла з логіки або параметрів)
-                    // Припускаємо, що jpegQuality — це рядок або число, яке ми намагаємось розпарсити
-                    if (int.TryParse(jpegQuality?.ToString(), out int parsedValue))
-                    {
-                        if (parsedValue is >= 40 and <= 100)
-                        {
-                            finalQuality = parsedValue.ToString();
-                        }
-                        // Якщо не вдалося розпарсити (пусте або текст), не в межах — ігноруємо, залишиться "95"
-                    }
-
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "jpeg_quality_level", finalQuality);
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                // screen
-                if (customSize)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "width", width);
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "height", height);
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "dpi", dpi);
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                if (useGenCover)
-                {
-                    // 1. Спочатку оновлюємо статус generate
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "generate", genCoverVal ? "true" : "false");
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-
-                    // 2. Викликаємо нову логіку для шляху до картинки
-                    lines = HandleCoverPathLogic(lines, coverPath);
-                    if (lines == null)
-                    {
-                        return false;
-                    }
-                }
-
-                if (useResizeCover)
-                {
-                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "resize", $"\"{resizeCover}\"");
                     if (lines == null)
                     {
                         return false;
@@ -1059,6 +1036,151 @@ namespace fb2cng_FullConfig.Services
                 if (useDropcaps)
                 {
                     lines = ReplaceYamlSectionValueLine(lines!, ["dropcaps:"], "enable", dropcapsVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+                if (useSpeech)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["text_transformations:", "speech:"], "enable", speechVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (useDashes)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["text_transformations:", "dashes:"], "enable", dashesVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (useDialogue)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["text_transformations:", "dialogue:"], "enable", dialogueVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                //==================
+                //images:
+                if (customSize)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "width", width);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "height", height);
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "screen:"], "dpi", dpi);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useBroken)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "use_broken", useBrokenVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useRemoveTransp)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "remove_transparency", removeTranspVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useRasterizeSvg)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "rasterize_svg", rasterizeSvgVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (useRasterFormat)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "raster_format", $"\"{rasterFormat}\"");
+                    if (lines == null) return false;
+                }
+
+                if (useScaleFactor)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "scale_factor", scaleFactor);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useFitToScreen)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "fit_to_screen", fitToScreenVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (useBaselineJpeg)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "baseline_jpeg", baselineJpegVal ? "true" : "false");
+                    if (lines == null) return false;
+                }
+
+                if (useGrayscale)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "grayscale", $"\"{grayscale}\"");
+                    if (lines == null) return false;
+                }
+
+                if (useImgOptimize)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "optimize", optimizeVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useJpegQuality)
+                {
+                    // 1. Створюємо змінну для фінального значення, за замовчуванням 95
+                    string finalQuality = "95";
+
+                    // 2. Перевіряємо вхідну змінну jpegQuality (яка прийшла з логіки або параметрів)
+                    // Припускаємо, що jpegQuality — це рядок або число, яке ми намагаємось розпарсити
+                    if (int.TryParse(jpegQuality?.ToString(), out int parsedValue))
+                    {
+                        if (parsedValue is >= 40 and <= 100)
+                        {
+                            finalQuality = parsedValue.ToString();
+                        }
+                        // Якщо не вдалося розпарсити (пусте або текст), не в межах — ігноруємо, залишиться "95"
+                    }
+
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:"], "jpeg_quality_level", finalQuality);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useGenCover)
+                {
+                    // 1. Спочатку оновлюємо статус generate
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "generate", genCoverVal ? "true" : "false");
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+
+                    // 2. Викликаємо нову логіку для шляху до картинки
+                    lines = HandleCoverPathLogic(lines, coverPath);
+                    if (lines == null)
+                    {
+                        return false;
+                    }
+                }
+
+                if (useResizeCover)
+                {
+                    lines = ReplaceYamlSectionValueLine(lines!, ["images:", "cover:"], "resize", $"\"{resizeCover}\"");
                     if (lines == null)
                     {
                         return false;

@@ -60,6 +60,7 @@ namespace fb2cng_FullConfig
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
                 SyncMetadataWithYaml(docTab);
+                SyncImagesWithYaml(docTab);
                 SyncLoggingSettingsWithYaml(docTab);
                 // Також викликаємо оновлення теми, бо зміна стану чекбокса впливає на візуал
                 ApplyTheme();
@@ -73,6 +74,7 @@ namespace fb2cng_FullConfig
                 SyncTocTypeWithCustomYaml(docTab);
                 SyncBinarySettingsWithYaml(docTab);
                 SyncMetadataWithYaml(docTab);
+                SyncImagesWithYaml(docTab);
                 SyncLoggingSettingsWithYaml(docTab);
             };
 
@@ -157,8 +159,9 @@ namespace fb2cng_FullConfig
                     // Оновлюємо інтерфейс відразу після генерації файлу
                     SyncTocTypeWithCustomYaml(docTab);
                     SyncBinarySettingsWithYaml(docTab);
-                    SyncLoggingSettingsWithYaml(docTab);
-                    SyncMetadataWithYaml(docTab); // Тепер метадані оновляться при створенні файлу
+                    SyncMetadataWithYaml(docTab);
+                    SyncImagesWithYaml(docTab);
+                    SyncLoggingSettingsWithYaml(docTab);// Тепер метадані оновляться при створенні файлу
 
                     string caption = langDict?.GetValueOrDefault("GenTitle", "Success") ?? "Success";
                     string msg = langDict?.GetValueOrDefault("GenSuccess", "{0} successfully generated!") ?? "{0} successfully generated!";

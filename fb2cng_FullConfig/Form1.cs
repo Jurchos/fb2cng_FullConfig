@@ -14,6 +14,7 @@ namespace fb2cng_FullConfig
         // Кнопки Хідера 
         private Button btnTabDocument = null!;
         private Button btnTabMetadata = null!;
+        private Button btnTabImages = null!;
         private Button btnTabLogging = null!;
         // Кнопки Футера
         private Button btnHelp = null!;
@@ -101,21 +102,23 @@ namespace fb2cng_FullConfig
             Controls.Add(headerPanel);
 
             // Автоматичний розрахунок ширини кнопок з урахуванням нових відступів
-            int totalInterButtonSpace = m.BetweenButtons * 2; // Два проміжки між трьома кнопками
-            int tabWidthRow1 = (headerPanel.Width - m.HeaderPaddingLeft - m.HeaderPaddingRight - totalInterButtonSpace) / 3;
+            int totalInterButtonSpace = m.BetweenButtons * 3; // Три проміжки між 4 кнопками
+            int tabWidthRow1 = (headerPanel.Width - m.HeaderPaddingLeft - m.HeaderPaddingRight - totalInterButtonSpace) / 4;
 
             // Головна вкладка, метаінформація та логування
             btnTabDocument = new Button { Text = "document:", Tag = "document:" };
             btnTabMetadata = new Button { Text = "metainformation:", Tag = "metadata:" };
+            btnTabImages = new Button { Text = "images:", Tag = "images:" };
             btnTabLogging = new Button { Text = "logging:", Tag = "logging:" };
 
             // Координати (використовуємо змінні відступів)
             btnTabDocument.SetBounds(m.HeaderPaddingLeft, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
             btnTabMetadata.SetBounds(btnTabDocument.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
-            btnTabLogging.SetBounds(btnTabMetadata.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
+            btnTabImages.SetBounds(btnTabMetadata.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
+            btnTabLogging.SetBounds(btnTabImages.Right + m.BetweenButtons, m.HeaderTopPadding, tabWidthRow1, m.HeaderRowHeight);
 
             // Зв'язуємо всі кнопки хідера з одним методом перемикання вкладок
-            Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabLogging];
+            Button[] tabButtons = [btnTabDocument, btnTabMetadata, btnTabImages, btnTabLogging];
             foreach (Button btn in tabButtons)
             {
                 btn.Click += TabButton_Click;
@@ -206,6 +209,7 @@ namespace fb2cng_FullConfig
                     {
                         "document:" => new DocumentTab(),
                         "metadata:" => new MetadataTab(),
+                        "images:" => new ImagesTab(),
                         "logging:" => new LoggingTab(),
                         _ => throw new ArgumentException("Error")
                     };
@@ -220,6 +224,10 @@ namespace fb2cng_FullConfig
                     if (tabControl is MetadataTab dataTab)
                     {
                         InitializeMetadataTabEvents(dataTab);
+                    }
+                    if (tabControl is ImagesTab imgTab)
+                    {
+                        InitializeImagesTabEvents(imgTab);
                     }
                     if (tabControl is LoggingTab logTab)
                     {
@@ -238,8 +246,18 @@ namespace fb2cng_FullConfig
                 {
                     if (_tabsCache.TryGetValue("document:", out UserControl? baseTab) && baseTab is DocumentTab docTabReference)
                     {
-                        if (tabName == "metadata:") SyncMetadataWithYaml(docTabReference);
-                        else if (tabName == "logging:") SyncLoggingSettingsWithYaml(docTabReference);
+                        if (tabName == "metadata:")
+                        {
+                            SyncMetadataWithYaml(docTabReference);
+                        }
+                        else if (tabName == "images:")
+                        {
+                            SyncImagesWithYaml(docTabReference);
+                        }
+                        else if (tabName == "logging:")
+                        {
+                            SyncLoggingSettingsWithYaml(docTabReference);
+                        }
                     }
                 }
 

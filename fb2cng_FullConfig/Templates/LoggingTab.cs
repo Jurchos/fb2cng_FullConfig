@@ -149,7 +149,7 @@ namespace fb2cng_FullConfig.Templates
             pnlLogFolder.SetBounds(m.SizeInputX, nextY, UiStyles.GetScaled(180), m.FieldHeight);
              
             //Підказки
-            int bottomY = pnlLogFolder.Bottom + UiStyles.GetScaled(405);
+            int bottomY = pnlLogFolder.Bottom + UiStyles.GetScaled(390);
             lblShowTips.SetBounds(m.XLeft, bottomY, m.TextLabelWidth, m.LabelHeight);
             pnlTips.SetBounds(m.SizeInputX, bottomY, UiStyles.GetScaled(180), m.FieldHeight);
 

@@ -1,7 +1,5 @@
 ﻿using fb2cng_FullConfig.Services;
 using fb2cng_FullConfig.Templates;
-using fb2cng_FullConfig.Utils;
-
 
 namespace fb2cng_FullConfig
 {
@@ -9,21 +7,17 @@ namespace fb2cng_FullConfig
     {
         private void InitializeMetadataTabEvents(MetadataTab dataTab)
         {
-            UiStyles.MakeButtonRounded(dataTab.btnBrowseCover, UiStyles.GetScaled(4));
-            dataTab.btnBrowseCover.Click += BtnBrowseCover_Click;
-
             // ВИКЛИК ApplyTheme ДО УСІХ ЧЕКБОКСІВ МЕТАДАНИХ
             CheckBox[] metaChecks = [
-                dataTab.chkReaderSize, dataTab.chkNotes,
-                dataTab.chkSoftHyphen, dataTab.chkRemoveTransp,
-                dataTab.chkJpegQuality, dataTab.chkGenerateCover,
-                dataTab.chkResizeCover, dataTab.chkAnnEnable,
-                dataTab.chkAnnInToc, dataTab.chkTocPlacement,
-                dataTab.chkPageMapSize, dataTab.chkScaleFactor,
-                dataTab.chkPageMapEnable, dataTab.chkAdobeDe,
-                dataTab.chkUseBroken, dataTab.chkImgOptimize,
-                dataTab.chkInclNoTitle, dataTab.chkVignettes,
-                dataTab.chkDropcaps
+                dataTab.chkSoftHyphen, dataTab.chkKfxCompression,
+                dataTab.chkAzw3Compression,dataTab.chkAzw3Apnx,
+                dataTab.chkPdfPageFrame, dataTab.chkMarkdownImages,
+                dataTab.chkPageMapEnable,dataTab.chkPageMapSize,
+                dataTab.chkAdobeDe, dataTab.chkNotes,
+                dataTab.chkAnnEnable,dataTab.chkAnnInToc,
+                dataTab.chkTocPlacement,dataTab.chkInclNoTitle,
+                dataTab.chkVignettes, dataTab.chkDropcaps,
+                dataTab.chkSpeech, dataTab.chkDashes, dataTab.chkDialogue
             ];
 
             foreach (CheckBox chk in metaChecks)
@@ -31,25 +25,15 @@ namespace fb2cng_FullConfig
                 chk.CheckedChanged += (s, e) => ApplyTheme();
             }
 
-            // спільний метод малювання! Оскільки матриця InactiveIconMatrix лежить у UiStyles, передаємо її через клас
-            UiStyles.SetupIconButtonDrawing(
-                dataTab.btnBrowseCover,
-                Properties.Resources.folder,
-                dataTab.chkGenerateCover,
-                UiStyles.InactiveIconMatrix
-            );
             TooltipManager.Attach(dataTab.chkSoftHyphen, "SoftHyphen");
+            TooltipManager.Attach(dataTab.chkKfxCompression, "KfxCompression");
+            TooltipManager.Attach(dataTab.chkAzw3Compression, "Azw3Compression");
+            TooltipManager.Attach(dataTab.chkAzw3Apnx, "Azw3Apnx");
+            TooltipManager.Attach(dataTab.chkPdfPageFrame, "PdfPageFrame");
+            TooltipManager.Attach(dataTab.chkMarkdownImages, "MarkdownImages");
             TooltipManager.Attach(dataTab.chkPageMapEnable, "PageMapEnable");
             TooltipManager.Attach(dataTab.chkPageMapSize, "PageMapSize");
             TooltipManager.Attach(dataTab.chkAdobeDe, "AdobeDe");
-            TooltipManager.Attach(dataTab.chkUseBroken, "UseBroken");
-            TooltipManager.Attach(dataTab.chkRemoveTransp, "RemoveTransp");
-            TooltipManager.Attach(dataTab.chkScaleFactor, "ScaleFactor");
-            TooltipManager.Attach(dataTab.chkImgOptimize, "ImgOptimize");
-            TooltipManager.Attach(dataTab.chkJpegQuality, "JpegQuality");
-            TooltipManager.Attach(dataTab.chkReaderSize, "ReaderSize");
-            TooltipManager.Attach(dataTab.chkGenerateCover, "GenCover");
-            TooltipManager.Attach(dataTab.chkResizeCover, "ResizeCover");
             TooltipManager.Attach(dataTab.chkNotes, "FootnotesMode");
             TooltipManager.Attach(dataTab.chkAnnEnable, "AnnEnable");
             TooltipManager.Attach(dataTab.chkAnnInToc, "AnnInToc");
@@ -57,21 +41,9 @@ namespace fb2cng_FullConfig
             TooltipManager.Attach(dataTab.chkInclNoTitle, "InclNoTitle");
             TooltipManager.Attach(dataTab.chkVignettes, "Vignettes");
             TooltipManager.Attach(dataTab.chkDropcaps, "Dropcaps");
-        }
-
-        internal void BtnBrowseCover_Click(object? sender, EventArgs e)
-        {
-            if (_tabsCache.TryGetValue("metadata:", out UserControl? tab) && tab is MetadataTab dataTab)
-            {
-                using OpenFileDialog ofd = new();
-                ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
-                if (ofd.ShowDialog() == DialogResult.OK)
-                {
-                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                    dataTab.txtCoverPath.Text = Path.GetRelativePath(appPath, ofd.FileName).Replace('\\', '/');
-                }
-            }
-            _ = btnOk.Focus();
+            TooltipManager.Attach(dataTab.chkSpeech, "TextTransformSpeech");
+            TooltipManager.Attach(dataTab.chkDashes, "TextTransformDashes");
+            TooltipManager.Attach(dataTab.chkDialogue, "TextTransformDialogue");
         }
 
         private void SyncMetadataWithYaml(DocumentTab docTab)
@@ -86,10 +58,28 @@ namespace fb2cng_FullConfig
                 string yamlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, docTab.txtCustomYamlPath.Text.Trim());
                 if (File.Exists(yamlPath))
                 {
-                    // 1. Зчитуємо значення для Soft Hyphen
+                    // Soft Hyphen
                     bool isSoftHyphen = string.Equals(YamlService.ReadYamlValue(yamlPath, "insert_soft_hyphen"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbSoftHyphenYes.Checked = isSoftHyphen;
                     dataTab.rbSoftHyphenNo.Checked = !isSoftHyphen;
+
+                    string kfxComp = YamlService.ReadYamlSectionValue(yamlPath, ["kfx:"], "compression").ToLowerInvariant();
+                    int kcIdx = Array.IndexOf(_kfxCompressionValues, kfxComp);
+                    dataTab.cmbKfxCompression.SelectedIndex = kcIdx >= 0 ? kcIdx : 0;
+
+                    string azw3Comp = YamlService.ReadYamlSectionValue(yamlPath, ["azw3:"], "compression").ToLowerInvariant();
+                    int acIdx = Array.IndexOf(_azw3CompressionValues, azw3Comp);
+                    dataTab.cmbAzw3Compression.SelectedIndex = acIdx >= 0 ? acIdx : 1;
+
+                    string azw3Apnx = YamlService.ReadYamlSectionValue(yamlPath, ["azw3:"], "apnx").ToLowerInvariant();
+                    int apIdx = Array.IndexOf(_azw3ApnxValues, azw3Apnx);
+                    dataTab.cmbAzw3Apnx.SelectedIndex = apIdx >= 0 ? apIdx : 0;
+
+                    dataTab.txtPdfPageFrame.Text = YamlService.ReadYamlSectionValue(yamlPath, ["pdf:"], "page_frame") switch { "" => "0", var s => s };
+
+                    string mdImg = YamlService.ReadYamlSectionValue(yamlPath, ["markdown:"], "images").ToLowerInvariant();
+                    int miIdx = Array.IndexOf(_markdownImagesValues, mdImg);
+                    dataTab.cmbMarkdownImages.SelectedIndex = miIdx >= 0 ? miIdx : 0;
 
                     // Page Map
                     dataTab.rbPageMapYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["page_map:"], "enable") == "true";
@@ -97,37 +87,6 @@ namespace fb2cng_FullConfig
                     dataTab.txtPageMapSize.Text = YamlService.ReadYamlSectionValue(yamlPath, ["page_map:"], "size") switch { "" => "2300", var s => s };
                     dataTab.rbAdobeDeYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["page_map:"], "adobe_de") == "true";
                     dataTab.rbAdobeDeNo.Checked = !dataTab.rbAdobeDeYes.Checked;
-
-                    // Images Extra
-                    dataTab.rbUseBrokenYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "use_broken") == "true";
-                    dataTab.rbUseBrokenNo.Checked = !dataTab.rbUseBrokenYes.Checked;
-                    dataTab.txtScaleFactor.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "scale_factor") switch { "" => "1.0", var s => s };
-                    dataTab.rbImgOptimizeYes.Checked = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "optimize") == "true";
-                    dataTab.rbImgOptimizeNo.Checked = !dataTab.rbImgOptimizeYes.Checked;
-
-                    // 2. Зчитуємо значення для Remove Transparency
-                    bool isRemoveTransp = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "remove_transparency"), "true", StringComparison.OrdinalIgnoreCase);
-                    dataTab.rbRemoveTranspYes.Checked = isRemoveTransp;
-                    dataTab.rbRemoveTranspNo.Checked = !isRemoveTransp;
-
-                    // 3. JPEG Quality
-                    string jpegVal = YamlService.ReadYamlSectionValue(yamlPath, ["images:"], "jpeg_quality_level");
-                    dataTab.txtJpegQuality.Text = string.IsNullOrEmpty(jpegVal) ? "95" : jpegVal;
-
-                    // Reader Size 
-                    dataTab.txtWidth.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "width") switch { "" => "1264", var s => s };
-                    dataTab.txtHeight.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "height") switch { "" => "1680", var s => s };
-                    dataTab.txtDpi.Text = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "screen:"], "dpi") switch { "" => "300", var s => s };
-
-                    // 4. Generate Cover
-                    bool isGenCover = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "generate"), "true", StringComparison.OrdinalIgnoreCase);
-                    dataTab.rbGenCoverYes.Checked = isGenCover;
-                    dataTab.rbGenCoverNo.Checked = !isGenCover;
-                    dataTab.txtCoverPath.Text = YamlService.ReadYamlValue(yamlPath, "default_image_path");
-
-                    string resize = YamlService.ReadYamlSectionValue(yamlPath, ["images:", "cover:"], "resize");
-                    int rIdx = Array.IndexOf(_resizeValues, resize.Replace("\"", ""));
-                    dataTab.cmbResizeCover.SelectedIndex = rIdx >= 0 ? rIdx : 2; // stretch
 
                     //Footnotes
                     string noteMode = YamlService.ReadYamlSectionValue(yamlPath, ["footnotes:"], "mode");
@@ -149,7 +108,7 @@ namespace fb2cng_FullConfig
                     int pIdx = Array.IndexOf(_placementValues, placement.Replace("\"", ""));
                     dataTab.cmbTocPlacement.SelectedIndex = pIdx >= 0 ? pIdx : 0; // none
 
-                    // 3. NoTitleinTOC & Vignettes
+                    // NoTitleinTOC & Vignettes
                     dataTab.rbInclNoTitleYes.Checked = YamlService.ReadYamlValue(yamlPath, "include_chapters_without_title") == "true";
                     dataTab.rbInclNoTitleNo.Checked = !dataTab.rbInclNoTitleYes.Checked;
 
@@ -206,25 +165,28 @@ namespace fb2cng_FullConfig
                     dataTab.rbDropcapsYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["dropcaps:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
                     dataTab.rbDropcapsNo.Checked = !dataTab.rbDropcapsYes.Checked;
 
+                    dataTab.rbSpeechYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["text_transformations:", "speech:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
+                    dataTab.rbSpeechNo.Checked = !dataTab.rbSpeechYes.Checked;
+
+                    dataTab.rbDashesYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["text_transformations:", "dashes:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
+                    dataTab.rbDashesNo.Checked = !dataTab.rbDashesYes.Checked;
+
+                    dataTab.rbDialogueYes.Checked = string.Equals(YamlService.ReadYamlSectionValue(yamlPath, ["text_transformations:", "dialogue:"], "enable"), "true", StringComparison.OrdinalIgnoreCase);
+                    dataTab.rbDialogueNo.Checked = !dataTab.rbDialogueYes.Checked;
+
                     return;
                 }
             }
             // Дефолти
             dataTab.rbSoftHyphenNo.Checked = true;
+            dataTab.cmbKfxCompression.SelectedIndex = 0;
+            dataTab.cmbAzw3Compression.SelectedIndex = 1; // standard
+            dataTab.cmbAzw3Apnx.SelectedIndex = 0;
+            dataTab.txtPdfPageFrame.Text = "0";
+            dataTab.cmbMarkdownImages.SelectedIndex = 0;
             dataTab.rbPageMapYes.Checked = true;      // за замовчуванням Так
             dataTab.txtPageMapSize.Text = "2300";    // за замовчуванням 2300
             dataTab.rbAdobeDeNo.Checked = true;      // за замовчуванням Ні
-            dataTab.rbUseBrokenNo.Checked = true;    // за замовчуванням Ні
-            dataTab.rbRemoveTranspNo.Checked = true;
-            dataTab.txtScaleFactor.Text = "1.0";     // за замовчуванням 1.0
-            dataTab.rbImgOptimizeYes.Checked = true; // за замовчуванням Так
-            dataTab.txtJpegQuality.Text = "95";
-            dataTab.txtWidth.Text = "1264";
-            dataTab.txtHeight.Text = "1680";
-            dataTab.txtDpi.Text = "300";
-            dataTab.rbGenCoverNo.Checked = true;
-            dataTab.txtCoverPath.Text = "";
-            dataTab.cmbResizeCover.SelectedIndex = 2; // stretch
             dataTab.cmbNotesMode.SelectedIndex = 0;
             dataTab.rbAnnEnableNo.Checked = true;
             dataTab.rbAnnInTocYes.Checked = true; // default true
@@ -232,6 +194,9 @@ namespace fb2cng_FullConfig
             dataTab.rbInclNoTitleNo.Checked = true;  // за замовчуванням Ні
             dataTab.rbVignettesNo.Checked = true;    // за замовчуванням Ні
             dataTab.rbDropcapsNo.Checked = true;
+            dataTab.rbSpeechNo.Checked = true;
+            dataTab.rbDashesNo.Checked = true;
+            dataTab.rbDialogueNo.Checked = true;
         }
     }
 }

@@ -105,13 +105,13 @@ namespace fb2cng_FullConfig.Utils
                 BaseWidth = baseWidth;
                 ScaledWidth = Scale(baseWidth);
                 TotalSize = new Size(ScaledWidth, Scale(565)); // Загальний розмір форми -заготовка, в основному для розрахунку CustomMessageBox
-                BlockMargin = Scale(14);     // Відстань між блоками
+                BlockMargin = Scale(12);     // Відстань між блоками
                 LabelHeight = Scale(20);     // Висота текстових міток
                 FieldHeight = Scale(24);     // Висота полів введення
                 CheckBoxHeight = Scale(22);  // Висота чекбоксів
                 ElementSpacing = Scale(6);   // Масштабований відступ між полем і кнопкою
                 SidePadding = Scale(3);      // Відступ з боків (права сторона) 
-                RowHeight = Scale(30);       // Висота одного рядка (для розрахунку вертикального розташування)
+                RowHeight = Scale(32);       // Висота одного рядка (для розрахунку вертикального розташування)
                 BrowseBtnWidth = Scale(55);  // Ширина кнопки "Папка"
                 RadioGroupWidth = Scale(140);// Ширина групи радіокнопок
                 IconSize = Scale(22);
@@ -132,7 +132,7 @@ namespace fb2cng_FullConfig.Utils
                 HeaderPaddingRight = Scale(14); // Відступ справа для останньої кнопки
                 BetweenButtons = Scale(6);
 
-                ContentHeight = Scale(630); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
+                ContentHeight = Scale(633); // Висота контентної частини форми (між хідером і футером), важливо для розрахунку скролу
 
                 FooterHeight = Scale(24) + Scale(14);// Висота футера з урахуванням відступів
                 FooterBtnWidth = Scale(90);
